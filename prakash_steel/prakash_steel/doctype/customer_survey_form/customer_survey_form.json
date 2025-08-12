@@ -6,6 +6,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "customer_name",
   "rating",
   "reason",
   "column_break_ipxd",
@@ -45,12 +46,19 @@
   {
    "fieldname": "column_break_ipxd",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Customer Name",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-11 16:39:29.561302",
+ "modified": "2025-08-12 12:59:23.758328",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Customer Survey Form",

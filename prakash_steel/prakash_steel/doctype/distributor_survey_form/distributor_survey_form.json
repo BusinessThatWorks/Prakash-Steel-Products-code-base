@@ -6,6 +6,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "distributor_name",
   "recommendation",
   "primary_reason",
   "column_break_yxdz",
@@ -45,12 +46,19 @@
    "fieldtype": "Small Text",
    "label": "What is the one thing we could do to make our partnership with you stronger and more successful ?",
    "reqd": 1
+  },
+  {
+   "fieldname": "distributor_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Distributor Name",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-11 16:39:05.957963",
+ "modified": "2025-08-12 13:00:24.873812",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Distributor Survey Form",
