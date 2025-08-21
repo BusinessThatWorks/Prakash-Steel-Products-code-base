@@ -11,6 +11,13 @@
   "primary_reason",
   "column_break_yxdz",
   "partnership_aspect",
+  "product",
+  "range",
+  "on_time",
+  "manager",
+  "ease",
+  "clarity",
+  "market",
   "future_aspect"
  ],
  "fields": [
@@ -34,11 +41,10 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "    \u2022 Product Quality & Consistency (Hot Rolled / Bright Bars)\n    \u2022 Product Availability & Range\n    \u2022 On-Time Delivery & Dispatch Reliability\n    \u2022 Responsiveness of your Sales Manager / Company Contact\n    \u2022 Ease of Placing Orders\n    \u2022 Clarity and Timeliness of Invoicing & Accounts\n    \u2022 Marketing & Sales Support provided",
+   "default": "Which of the following aspects of our partnership need significant improvement:(Select all that apply)",
    "fieldname": "partnership_aspect",
-   "fieldtype": "Select",
-   "label": "Please rate your satisfaction with the following aspects of our partnership :",
-   "options": "\nVery dissatisfied\nDissatisfied\nNeutral\nSatisfied\nVery satisfied",
+   "fieldtype": "Data",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -53,12 +59,54 @@
    "in_list_view": 1,
    "label": "Distributor Name",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "product",
+   "fieldtype": "Check",
+   "label": "Product Quality & Consistency (Hot Rolled / Bright Bars)"
+  },
+  {
+   "default": "0",
+   "fieldname": "range",
+   "fieldtype": "Check",
+   "label": "Product Availability & Range"
+  },
+  {
+   "default": "0",
+   "fieldname": "on_time",
+   "fieldtype": "Check",
+   "label": " On-Time Delivery & Dispatch Reliability"
+  },
+  {
+   "default": "0",
+   "fieldname": "manager",
+   "fieldtype": "Check",
+   "label": "Responsiveness of your Sales Manager / Company Contact"
+  },
+  {
+   "default": "0",
+   "fieldname": "ease",
+   "fieldtype": "Check",
+   "label": "Ease of Placing Orders"
+  },
+  {
+   "default": "0",
+   "fieldname": "clarity",
+   "fieldtype": "Check",
+   "label": "Clarity and Timeliness of Invoicing & Accounts"
+  },
+  {
+   "default": "0",
+   "fieldname": "market",
+   "fieldtype": "Check",
+   "label": "Marketing & Sales Support provided"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-12 13:00:24.873812",
+ "modified": "2025-08-21 09:10:25.810160",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Distributor Survey Form",

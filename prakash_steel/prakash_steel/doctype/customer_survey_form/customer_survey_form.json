@@ -11,6 +11,12 @@
   "reason",
   "column_break_ipxd",
   "satisfaction_rating",
+  "dimensional_accuracy_size_straightness",
+  "surface_finish_of_the_bars",
+  "consistency_of_material_across_batches",
+  "timeliness_of_delivery_to_your_siteproject",
+  "condition_of_material_on_arrival",
+  "accuracy_and_availability_of_mill_test_certificates_mtcs",
   "future_support"
  ],
  "fields": [
@@ -30,11 +36,9 @@
    "reqd": 1
   },
   {
-   "description": "    \u2022 Dimensional Accuracy (size, straightness)\n    \u2022 Surface Finish of the bars\n    \u2022 Consistency of material across batches\n    \u2022 Timeliness of delivery to your site/project\n    \u2022 Condition of material on arrival\n    \u2022 Accuracy and availability of Mill Test Certificates (MTCs)",
+   "default": "Which of the following aspects of our steel bars need significant improvement? (Select all that apply)",
    "fieldname": "satisfaction_rating",
-   "fieldtype": "Select",
-   "label": "Please rate your satisfaction with the following aspects of our steel bars -",
-   "options": "\nVery dissatisfied\nDissatisfied\nNeutral\nSatisfied\nVery satisfied",
+   "fieldtype": "Data",
    "reqd": 1
   },
   {
@@ -53,12 +57,48 @@
    "in_list_view": 1,
    "label": "Customer Name",
    "reqd": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "dimensional_accuracy_size_straightness",
+   "fieldtype": "Check",
+   "label": "Dimensional Accuracy (size, straightness)"
+  },
+  {
+   "default": "0",
+   "fieldname": "surface_finish_of_the_bars",
+   "fieldtype": "Check",
+   "label": "Surface Finish of the bars"
+  },
+  {
+   "default": "0",
+   "fieldname": "consistency_of_material_across_batches",
+   "fieldtype": "Check",
+   "label": "Consistency of material across batches"
+  },
+  {
+   "default": "0",
+   "fieldname": "timeliness_of_delivery_to_your_siteproject",
+   "fieldtype": "Check",
+   "label": "Timeliness of delivery to your site/project"
+  },
+  {
+   "default": "0",
+   "fieldname": "condition_of_material_on_arrival",
+   "fieldtype": "Check",
+   "label": "Condition of material on arrival"
+  },
+  {
+   "default": "0",
+   "fieldname": "accuracy_and_availability_of_mill_test_certificates_mtcs",
+   "fieldtype": "Check",
+   "label": "Accuracy and availability of Mill Test Certificates (MTCs)"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-12 12:59:23.758328",
+ "modified": "2025-08-21 08:48:21.998845",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Customer Survey Form",
