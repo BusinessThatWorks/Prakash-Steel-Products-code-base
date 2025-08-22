@@ -1,0 +1,155 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:{billet_size}-{MM}-{####}",
+ "creation": "2025-08-22 12:12:04.126523",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_urpt",
+  "amended_from",
+  "section_break_wimb",
+  "billet_size",
+  "raw_material_make",
+  "description_of_cutting_billet",
+  "miss_billet_pcs",
+  "miss_billet_weight",
+  "total_billet_cutting_pcs",
+  "column_break_wqpm",
+  "grade",
+  "billet_length",
+  "billet_pcs",
+  "billet_weight",
+  "ruffing_mill_status",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_urpt",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Billet Cutting",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "section_break_wimb",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "billet_size",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Billet Size",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "billet_size.default_manufacturer_part_no",
+   "fieldname": "grade",
+   "fieldtype": "Data",
+   "label": "Grade",
+   "read_only": 1
+  },
+  {
+   "fieldname": "raw_material_make",
+   "fieldtype": "Link",
+   "label": "Raw Material Make",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "billet_length",
+   "fieldtype": "Float",
+   "label": "Billet Length (Full)",
+   "precision": "2",
+   "reqd": 1
+  },
+  {
+   "fieldname": "billet_pcs",
+   "fieldtype": "Int",
+   "label": "Billet Pcs (Full)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "billet_weight",
+   "fieldtype": "Int",
+   "label": "Billet Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "description_of_cutting_billet",
+   "fieldtype": "Small Text",
+   "label": "Description of Cutting Billet",
+   "reqd": 1
+  },
+  {
+   "fieldname": "miss_billet_pcs",
+   "fieldtype": "Int",
+   "label": "Miss Billet Pcs"
+  },
+  {
+   "fieldname": "miss_billet_weight",
+   "fieldtype": "Int",
+   "label": "Miss Billet Weight"
+  },
+  {
+   "fieldname": "total_billet_cutting_pcs",
+   "fieldtype": "Int",
+   "label": "Total Billet Cutting Pcs",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ruffing_mill_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Ruffing Mill Status",
+   "options": "\nOn\nOff",
+   "reqd": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "column_break_wqpm",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2025-08-22 13:12:19.892782",
+ "modified_by": "Administrator",
+ "module": "Prakash Steel",
+ "name": "Billet Cutting",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
