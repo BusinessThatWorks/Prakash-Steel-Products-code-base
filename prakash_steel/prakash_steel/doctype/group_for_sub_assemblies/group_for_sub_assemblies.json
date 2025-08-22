@@ -1,0 +1,64 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format: {group_name}",
+ "creation": "2025-08-22 16:37:52.004568",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "group_name",
+  "column_break_zayt",
+  "section_break_ugpl",
+  "item_group_defaults"
+ ],
+ "fields": [
+  {
+   "fieldname": "group_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Group Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_zayt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_ugpl",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "item_group_defaults",
+   "fieldtype": "Table",
+   "label": "Item Group Defaults",
+   "options": "Item Default"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-08-22 16:47:50.699188",
+ "modified_by": "Administrator",
+ "module": "Prakash Steel",
+ "name": "Group for Sub Assemblies",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
