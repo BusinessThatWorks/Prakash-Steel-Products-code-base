@@ -1,46 +1,32 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format: {sub_group_name}",
- "creation": "2025-08-22 16:52:01.699141",
+ "autoname": "format: {item_grade}",
+ "creation": "2025-08-23 12:49:49.675592",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "sub_group_name",
-  "column_break_xcjg",
-  "section_break_bacf",
-  "table_gxcp"
+  "item_grade",
+  "column_break_qxmf"
  ],
  "fields": [
   {
-   "fieldname": "sub_group_name",
+   "fieldname": "item_grade",
    "fieldtype": "Data",
-   "in_list_view": 1,
-   "label": "Sub Group Name",
-   "reqd": 1
+   "label": "Item Grade"
   },
   {
-   "fieldname": "column_break_xcjg",
+   "fieldname": "column_break_qxmf",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "section_break_bacf",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "table_gxcp",
-   "fieldtype": "Table",
-   "label": "Item Sub Group defaults",
-   "options": "Item Default"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-23 12:51:22.527642",
+ "modified": "2025-08-23 12:52:41.744674",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
- "name": "Sub Group",
+ "name": "Item Grade",
  "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
