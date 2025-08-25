@@ -1,12 +1,36 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "format: {DD}-{MM}-{YY}-{##}",
  "creation": "2025-08-23 12:46:00.165418",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "section_break_inec",
-  "amended_from"
+  "amended_from",
+  "section_break_nxlm",
+  "production_date",
+  "finish_item",
+  "grade",
+  "finish_item_pcs",
+  "furnace_temparature",
+  "no_of_passes",
+  "column_break_dzvu",
+  "time_from",
+  "time_to",
+  "total_pcs",
+  "summary_remarks",
+  "miss_roll_details_section",
+  "miss_roll_pcs",
+  "miss_roll_weight",
+  "column_break_zteh",
+  "remarks_for_miss_roll",
+  "miss_ingot_details_section",
+  "miss_ingot_pcs",
+  "miss_ingot__billet_weight",
+  "column_break_renk",
+  "reason_for_miss_ingot__billet",
+  "connections_tab"
  ],
  "fields": [
   {
@@ -22,16 +46,149 @@
    "print_hide": 1,
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "section_break_nxlm",
+   "fieldtype": "Section Break",
+   "label": "Production Details"
+  },
+  {
+   "fieldname": "time_from",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Time From",
+   "reqd": 1
+  },
+  {
+   "fieldname": "time_to",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Time To",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_dzvu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "production_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Production Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "finish_item",
+   "fieldtype": "Link",
+   "label": "Finish Item",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "finish_item.custom_grade",
+   "fieldname": "grade",
+   "fieldtype": "Data",
+   "label": "Grade",
+   "read_only": 1
+  },
+  {
+   "fieldname": "finish_item_pcs",
+   "fieldtype": "Int",
+   "label": "Finish Item (Pcs)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "miss_roll_pcs",
+   "fieldtype": "Int",
+   "label": "Miss Roll (Pcs)"
+  },
+  {
+   "fieldname": "miss_roll_weight",
+   "fieldtype": "Int",
+   "label": "Miss Roll Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "remarks_for_miss_roll",
+   "fieldtype": "Small Text",
+   "label": "Reason for Miss Roll",
+   "reqd": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "miss_roll_details_section",
+   "fieldtype": "Section Break",
+   "label": "Miss Roll Details"
+  },
+  {
+   "fieldname": "column_break_zteh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "miss_ingot_details_section",
+   "fieldtype": "Section Break",
+   "label": "Miss Ingot / Billet Details"
+  },
+  {
+   "fieldname": "miss_ingot_pcs",
+   "fieldtype": "Int",
+   "label": "Miss Ingot / Billet (Pcs)"
+  },
+  {
+   "fieldname": "column_break_renk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "miss_ingot__billet_weight",
+   "fieldtype": "Int",
+   "label": "Miss Ingot / Billet Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reason_for_miss_ingot__billet",
+   "fieldtype": "Small Text",
+   "label": "Reason for Miss Ingot / Billet",
+   "reqd": 1
+  },
+  {
+   "fieldname": "summary_remarks",
+   "fieldtype": "Small Text",
+   "label": "Summary Remarks"
+  },
+  {
+   "fieldname": "furnace_temparature",
+   "fieldtype": "Int",
+   "label": "Furnace Temparature",
+   "reqd": 1
+  },
+  {
+   "fieldname": "no_of_passes",
+   "fieldtype": "Int",
+   "label": "No. of Passes",
+   "reqd": 1
+  },
+  {
+   "fieldname": "total_pcs",
+   "fieldtype": "Int",
+   "label": "Total (Pcs)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "connections_tab",
+   "fieldtype": "Tab Break",
+   "label": "Connections"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-23 12:46:00.165418",
+ "modified": "2025-08-23 13:45:03.205455",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Hourly Production",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {

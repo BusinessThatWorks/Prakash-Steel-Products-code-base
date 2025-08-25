@@ -51,7 +51,7 @@
    "reqd": 1
   },
   {
-   "fetch_from": "billet_size.default_manufacturer_part_no",
+   "fetch_from": "billet_size.custom_grade",
    "fieldname": "grade",
    "fieldtype": "Data",
    "label": "Grade",
@@ -127,7 +127,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-22 13:12:19.892782",
+ "modified": "2025-08-23 13:35:04.944156",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Billet Cutting",
