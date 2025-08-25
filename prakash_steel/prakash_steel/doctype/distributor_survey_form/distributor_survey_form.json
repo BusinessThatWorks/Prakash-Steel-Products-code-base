@@ -10,14 +10,7 @@
   "recommendation",
   "primary_reason",
   "column_break_yxdz",
-  "partnership_aspect",
-  "product",
-  "range",
-  "on_time",
-  "manager",
-  "ease",
-  "clarity",
-  "market",
+  "table_multiselect_ovft",
   "future_aspect"
  ],
  "fields": [
@@ -41,13 +34,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "default": "Which of the following aspects of our partnership need significant improvement:(Select all that apply)",
-   "fieldname": "partnership_aspect",
-   "fieldtype": "Data",
-   "read_only": 1,
-   "reqd": 1
-  },
-  {
    "fieldname": "future_aspect",
    "fieldtype": "Small Text",
    "label": "What is the one thing we could do to make our partnership with you stronger and more successful ?",
@@ -61,52 +47,16 @@
    "reqd": 1
   },
   {
-   "default": "0",
-   "fieldname": "product",
-   "fieldtype": "Check",
-   "label": "Product Quality & Consistency (Hot Rolled / Bright Bars)"
-  },
-  {
-   "default": "0",
-   "fieldname": "range",
-   "fieldtype": "Check",
-   "label": "Product Availability & Range"
-  },
-  {
-   "default": "0",
-   "fieldname": "on_time",
-   "fieldtype": "Check",
-   "label": " On-Time Delivery & Dispatch Reliability"
-  },
-  {
-   "default": "0",
-   "fieldname": "manager",
-   "fieldtype": "Check",
-   "label": "Responsiveness of your Sales Manager / Company Contact"
-  },
-  {
-   "default": "0",
-   "fieldname": "ease",
-   "fieldtype": "Check",
-   "label": "Ease of Placing Orders"
-  },
-  {
-   "default": "0",
-   "fieldname": "clarity",
-   "fieldtype": "Check",
-   "label": "Clarity and Timeliness of Invoicing & Accounts"
-  },
-  {
-   "default": "0",
-   "fieldname": "market",
-   "fieldtype": "Check",
-   "label": "Marketing & Sales Support provided"
+   "fieldname": "table_multiselect_ovft",
+   "fieldtype": "Table MultiSelect",
+   "label": "Which of the following aspects of our partnership ?",
+   "options": "Which of the following aspects of our partnership"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-21 09:10:25.810160",
+ "modified": "2025-08-25 15:33:08.914357",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Distributor Survey Form",
