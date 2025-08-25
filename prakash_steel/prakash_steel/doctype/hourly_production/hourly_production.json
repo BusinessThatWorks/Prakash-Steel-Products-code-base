@@ -105,14 +105,12 @@
   {
    "fieldname": "miss_roll_weight",
    "fieldtype": "Int",
-   "label": "Miss Roll Weight",
-   "reqd": 1
+   "label": "Miss Roll Weight"
   },
   {
    "fieldname": "remarks_for_miss_roll",
    "fieldtype": "Small Text",
-   "label": "Reason for Miss Roll",
-   "reqd": 1
+   "label": "Reason for Miss Roll"
   },
   {
    "collapsible": 1,
@@ -142,14 +140,12 @@
   {
    "fieldname": "miss_ingot__billet_weight",
    "fieldtype": "Int",
-   "label": "Miss Ingot / Billet Weight",
-   "reqd": 1
+   "label": "Miss Ingot / Billet Weight"
   },
   {
    "fieldname": "reason_for_miss_ingot__billet",
    "fieldtype": "Small Text",
-   "label": "Reason for Miss Ingot / Billet",
-   "reqd": 1
+   "label": "Reason for Miss Ingot / Billet"
   },
   {
    "fieldname": "summary_remarks",
@@ -184,7 +180,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-23 13:45:03.205455",
+ "modified": "2025-08-25 11:39:21.069446",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Hourly Production",
