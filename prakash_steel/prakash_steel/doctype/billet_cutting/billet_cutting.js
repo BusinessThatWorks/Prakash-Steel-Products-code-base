@@ -22,13 +22,11 @@ function toggle_weight_field(frm) {
     let pcs = frm.doc.miss_billet_pcs;
 
     if (pcs && pcs > 0) {
-        // Show and make mandatory
         frm.set_df_property("miss_billet_weight", "reqd", 1);
         frm.set_df_property("miss_billet_weight", "hidden", 0);
     } else {
-        // Hide and remove mandatory
         frm.set_df_property("miss_billet_weight", "reqd", 0);
         frm.set_df_property("miss_billet_weight", "hidden", 1);
-        frm.set_value("miss_billet_weight", null); // optional: clear value
+        frm.set_value("miss_billet_weight", null);
     }
 }
