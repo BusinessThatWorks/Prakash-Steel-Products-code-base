@@ -9,7 +9,7 @@
 
 frappe.ui.form.on('Billet Cutting', {
     refresh(frm) {
-        // Run check on refresh also
+        // Run check on refresh 
         toggle_weight_field(frm);
     },
     miss_billet_pcs(frm) {
