@@ -13,7 +13,7 @@ frappe.ui.form.on('Billet Cutting', {
         toggle_weight_field(frm);
     },
     miss_billet_pcs(frm) {
-        // Run check whenever pcs changes
+        //  check whenever pcs changes
         toggle_weight_field(frm);
     }
 });
