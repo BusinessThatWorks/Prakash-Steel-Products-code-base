@@ -1,0 +1,200 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-08-29 14:37:40.847951",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "bundling_check",
+  "column_break_drqe",
+  "item_name",
+  "description_section",
+  "description",
+  "column_break_efsx",
+  "item_group",
+  "grade",
+  "shape",
+  "finished_goods_details_section",
+  "length",
+  "finish_pcs",
+  "finish_weight",
+  "fg_per_pcs_weight",
+  "column_break_gkqn",
+  "melting_weight",
+  "bend_material_weight",
+  "colour_code",
+  "cooling_pit",
+  "section_break_gbtk",
+  "quality_issue",
+  "column_break_yqya",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "column_break_drqe",
+   "fieldtype": "Column Break"
+  },
+  {
+   "columns": 2,
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Code",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fetch_from": "item_code.item_name",
+   "fetch_if_empty": 1,
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Name"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "description_section",
+   "fieldtype": "Section Break",
+   "label": "Description"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "column_break_efsx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "item_code.item_group",
+   "fetch_if_empty": 1,
+   "fieldname": "item_group",
+   "fieldtype": "Data",
+   "label": "Item Group"
+  },
+  {
+   "fetch_from": "item_code.custom_grade",
+   "fetch_if_empty": 1,
+   "fieldname": "grade",
+   "fieldtype": "Data",
+   "label": "Grade"
+  },
+  {
+   "fetch_from": "item_code.custom_shape",
+   "fetch_if_empty": 1,
+   "fieldname": "shape",
+   "fieldtype": "Data",
+   "label": "Shape"
+  },
+  {
+   "fieldname": "finished_goods_details_section",
+   "fieldtype": "Section Break",
+   "label": "Finished Goods Details"
+  },
+  {
+   "fieldname": "length",
+   "fieldtype": "Data",
+   "label": "Length",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_gkqn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "columns": 1,
+   "fieldname": "finish_pcs",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Finish Pcs",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "finish_weight",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Finish Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "melting_weight",
+   "fieldtype": "Int",
+   "label": "Melting Weight",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "bend_material_weight",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Bend Material Weight",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "fg_per_pcs_weight",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "FG Per Pcs Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "colour_code",
+   "fieldtype": "Link",
+   "label": "Colour Code",
+   "options": "Colour Code",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cooling_pit",
+   "fieldtype": "Select",
+   "label": "Cooling Pit",
+   "options": "\nTransferred\nNot Transferred",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bundling_check",
+   "fieldtype": "Select",
+   "label": "Bundling Check",
+   "options": "\nGood\nBad",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_gbtk",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "quality_issue",
+   "fieldtype": "Small Text",
+   "label": "Quality Issue"
+  },
+  {
+   "fieldname": "column_break_yqya",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2025-08-29 15:07:39.152323",
+ "modified_by": "Administrator",
+ "module": "Prakash Steel",
+ "name": "Finish Weight Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
