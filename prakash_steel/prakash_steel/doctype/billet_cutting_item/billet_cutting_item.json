@@ -3,6 +3,7 @@
  "allow_rename": 1,
  "creation": "2025-08-22 12:12:04.126523",
  "doctype": "DocType",
+ "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
   "section_break_wimb",
@@ -10,6 +11,7 @@
   "grade",
   "raw_material_make",
   "total_billet_cutting_pcs",
+  "total_raw_material_pcs",
   "column_break_wqpm",
   "billet_pcs",
   "billet_length",
@@ -23,7 +25,8 @@
   "section_break_pjqd",
   "description_of_cutting_billet",
   "column_break_vbgc",
-  "remarks"
+  "remarks",
+  "amended_from"
  ],
  "fields": [
   {
@@ -141,6 +144,21 @@
   {
    "fieldname": "column_break_vbgc",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Billet Cutting Item",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "total_raw_material_pcs",
+   "fieldtype": "Int",
+   "label": "Total Raw Material Pcs"
   }
  ],
  "grid_page_length": 50,
@@ -148,7 +166,7 @@
  "is_submittable": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-08-29 16:30:22.052017",
+ "modified": "2025-08-29 17:34:29.017150",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Billet Cutting Item",

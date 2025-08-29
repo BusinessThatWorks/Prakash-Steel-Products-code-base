@@ -141,7 +141,7 @@
    "fieldtype": "Int",
    "in_list_view": 1,
    "label": "FG Per Pcs Weight",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "colour_code",
@@ -187,7 +187,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2025-08-29 15:07:39.152323",
+ "modified": "2025-08-29 17:37:32.081368",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight Item",
