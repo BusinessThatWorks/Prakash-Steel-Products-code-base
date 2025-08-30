@@ -12,13 +12,15 @@
   "production_date",
   "finish_item",
   "grade",
-  "finish_item_pcs",
+  "planned_finish_item_pcs",
+  "difference",
   "furnace_temparature",
   "no_of_passes",
   "column_break_dzvu",
   "time_from",
   "time_to",
   "total_pcs",
+  "finish_item_pcs",
   "summary_remarks",
   "miss_roll_details_section",
   "miss_roll_pcs",
@@ -105,12 +107,14 @@
   {
    "fieldname": "miss_roll_weight",
    "fieldtype": "Int",
-   "label": "Miss Roll Weight"
+   "label": "Miss Roll Weight",
+   "reqd": 1
   },
   {
    "fieldname": "remarks_for_miss_roll",
    "fieldtype": "Small Text",
-   "label": "Reason for Miss Roll"
+   "label": "Reason for Miss Roll",
+   "reqd": 1
   },
   {
    "collapsible": 1,
@@ -140,12 +144,14 @@
   {
    "fieldname": "miss_ingot__billet_weight",
    "fieldtype": "Int",
-   "label": "Miss Ingot / Billet Weight"
+   "label": "Miss Ingot / Billet Weight",
+   "reqd": 1
   },
   {
    "fieldname": "reason_for_miss_ingot__billet",
    "fieldtype": "Small Text",
-   "label": "Reason for Miss Ingot / Billet"
+   "label": "Reason for Miss Ingot / Billet",
+   "reqd": 1
   },
   {
    "fieldname": "summary_remarks",
@@ -174,13 +180,25 @@
    "fieldname": "connections_tab",
    "fieldtype": "Tab Break",
    "label": "Connections"
+  },
+  {
+   "fieldname": "planned_finish_item_pcs",
+   "fieldtype": "Int",
+   "label": "Planned Finish Item (Pcs)",
+   "reqd": 1
+  },
+  {
+   "fieldname": "difference",
+   "fieldtype": "Int",
+   "label": "Difference",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-25 11:39:21.069446",
+ "modified": "2025-08-30 11:45:09.490829",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Hourly Production",
