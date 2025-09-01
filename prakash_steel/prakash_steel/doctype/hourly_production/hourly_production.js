@@ -12,6 +12,7 @@ frappe.ui.form.on('Hourly Production', {
         toggle_miss_roll_fields(frm);
         toggle_miss_ingot_fields(frm);
         calculate_total_pcs(frm);
+        calculate_difference(frm); // also update difference on refresh
     },
     miss_roll_pcs(frm) {
         toggle_miss_roll_fields(frm);
@@ -23,6 +24,10 @@ frappe.ui.form.on('Hourly Production', {
     },
     finish_item_pcs(frm) {
         calculate_total_pcs(frm);
+        calculate_difference(frm); // recalc difference when finish pcs changes
+    },
+    planned_finish_item_pcs(frm) {
+        calculate_difference(frm); // recalc difference when planned pcs changes
     }
 });
 
@@ -69,4 +74,12 @@ function calculate_total_pcs(frm) {
 
     let total = finish + miss_roll + miss_ingot;
     frm.set_value("total_pcs", total);
+}
+
+// --- NEW LOGIC FOR DIFFERENCE ---
+function calculate_difference(frm) {
+    let planned = parseFloat(frm.doc.planned_finish_item_pcs) || 0;
+    let actual = parseFloat(frm.doc.finish_item_pcs) || 0;
+    let diff = planned - actual;
+    frm.set_value("difference", diff);
 }
