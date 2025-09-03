@@ -20,6 +20,7 @@
   "billet_length_full",
   "billet_weight",
   "ruffing_mill_status",
+  "cutting_weight_per_pcs",
   "section_break_aswz",
   "miss_billet_pcs",
   "column_break_temu",
@@ -152,13 +153,18 @@
    "fieldname": "remarks",
    "fieldtype": "Small Text",
    "label": "Remarks"
+  },
+  {
+   "fieldname": "cutting_weight_per_pcs",
+   "fieldtype": "Int",
+   "label": "Cutting Weight (Per Pcs)"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-09-03 16:53:52.588053",
+ "modified": "2025-09-03 17:05:07.656574",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Billet Cutting 2",
