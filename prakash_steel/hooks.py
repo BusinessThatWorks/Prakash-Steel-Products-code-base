@@ -243,3 +243,8 @@ app_license = "mit"
 # }
 
 fixtures = [{"doctype": "Custom Field", "filters": {"module": "Prakash Steel"}}]
+
+doctype_js = {
+    "Salary Slip": "public/js/salary_slip.js"
+}
+
