@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestBilletCutting2(FrappeTestCase):
+class TestBilletCuttingtable(FrappeTestCase):
 	pass
