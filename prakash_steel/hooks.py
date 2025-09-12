@@ -244,7 +244,4 @@ app_license = "mit"
 
 fixtures = [{"doctype": "Custom Field", "filters": {"module": "Prakash Steel"}}]
 
-doctype_js = {
-   
-    "Material Request": "public/js/material_request.js"
-}
+doctype_js = {"Material Request": "public/js/material_request.js"}
