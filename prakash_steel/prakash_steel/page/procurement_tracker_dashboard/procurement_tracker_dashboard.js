@@ -138,17 +138,23 @@ function createFilterControls(state, $fromWrap, $toWrap, $supplierWrap, $btnWrap
         $(state.controls.from_date.$input).css({
             'border': '1px solid #000000',
             'border-radius': '4px',
-            'padding': '6px 12px'
+            'padding': '8px 12px',
+            'height': '36px',
+            'line-height': '1.4'
         });
         $(state.controls.to_date.$input).css({
             'border': '1px solid #000000',
             'border-radius': '4px',
-            'padding': '6px 12px'
+            'padding': '8px 12px',
+            'height': '36px',
+            'line-height': '1.4'
         });
         $(state.controls.supplier.$input).css({
             'border': '1px solid #000000',
             'border-radius': '4px',
-            'padding': '6px 12px'
+            'padding': '8px 12px',
+            'height': '36px',
+            'line-height': '1.4'
         });
     }, 100);
 }
@@ -336,7 +342,9 @@ function createSectionFilterControls(state, tabId) {
             $(`#${tabId}-po-filter .form-control, #${tabId}-item-filter .form-control`).css({
                 'border': '1px solid #000000',
                 'border-radius': '4px',
-                'padding': '6px 12px'
+                'padding': '8px 12px',
+                'height': '36px',
+                'line-height': '1.4'
             });
         }, 100);
     } else {
@@ -382,8 +390,8 @@ function createSectionFilterControls(state, tabId) {
                     background-color: #007bff !important;
                     border-color: #007bff !important;
                     color: white !important;
-                    height: 32px !important;
-                    padding: 6px 12px !important;
+                    height: 36px !important;
+                    padding: 8px 12px !important;
                     width: 100% !important;
                     border: 1px solid #007bff !important;
                     border-radius: 4px !important;
@@ -398,7 +406,9 @@ function createSectionFilterControls(state, tabId) {
             $(`#${tabId}-status-filter .form-control, #${tabId}-id-filter .form-control, #${tabId}-item-filter .form-control`).css({
                 'border': '1px solid #000000',
                 'border-radius': '4px',
-                'padding': '6px 12px'
+                'padding': '8px 12px',
+                'height': '36px',
+                'line-height': '1.4'
             });
         }, 100);
 

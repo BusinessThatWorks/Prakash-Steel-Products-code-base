@@ -137,17 +137,23 @@ function createFilterControls(state, $fromWrap, $toWrap, $customerWrap, $btnWrap
         $(state.controls.from_date.$input).css({
             'border': '1px solid #000000',
             'border-radius': '4px',
-            'padding': '6px 12px'
+            'padding': '8px 12px',
+            'height': '36px',
+            'line-height': '1.4'
         });
         $(state.controls.to_date.$input).css({
             'border': '1px solid #000000',
             'border-radius': '4px',
-            'padding': '6px 12px'
+            'padding': '8px 12px',
+            'height': '36px',
+            'line-height': '1.4'
         });
         $(state.controls.customer.$input).css({
             'border': '1px solid #000000',
             'border-radius': '4px',
-            'padding': '6px 12px'
+            'padding': '8px 12px',
+            'height': '36px',
+            'line-height': '1.4'
         });
     }, 100);
 }
@@ -273,7 +279,9 @@ function createSectionFilterControls(state, tabId) {
             'width': '100%',
             'min-width': '260px',
             'max-width': 'none',
-            'padding': '6px 12px',
+            'padding': '8px 12px',
+            'height': '36px',
+            'line-height': '1.4',
             'text-overflow': 'ellipsis',
             'white-space': 'nowrap',
             'overflow': 'hidden'
@@ -282,7 +290,9 @@ function createSectionFilterControls(state, tabId) {
             'width': '100%',
             'min-width': '260px',
             'max-width': 'none',
-            'padding': '6px 12px'
+            'padding': '8px 12px',
+            'height': '36px',
+            'line-height': '1.4'
         });
         // Also ensure the parent container doesn't constrain the width
         $statusControl.css({
@@ -345,8 +355,8 @@ function createSectionFilterControls(state, tabId) {
                 background-color: #007bff !important;
                 border-color: #007bff !important;
                 color: white !important;
-                height: 32px !important;
-                padding: 6px 12px !important;
+                height: 36px !important;
+                padding: 8px 12px !important;
                 width: 100% !important;
                 border: 1px solid #007bff !important;
                 border-radius: 4px !important;
@@ -359,7 +369,9 @@ function createSectionFilterControls(state, tabId) {
         $(`#${tabId}-status-filter .form-control, #${tabId}-id-filter .form-control, #${tabId}-item-filter .form-control`).css({
             'border': '1px solid #000000',
             'border-radius': '4px',
-            'padding': '6px 12px'
+            'padding': '8px 12px',
+            'height': '36px',
+            'line-height': '1.4'
         });
     }, 100);
 }
