@@ -242,6 +242,15 @@ app_license = "mit"
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
 
-fixtures = [{"doctype": "Custom Field", "filters": {"module": "Prakash Steel"}}]
+fixtures = [
+	{"doctype": "Custom Field", "filters": {"module": "Prakash Steel"}},
+	{"doctype": "Page", "filters": {"module": "Prakash Steel"}},
+]
 
 doctype_js = {"Material Request": "public/js/material_request.js", "Sales Order": "public/js/sales_order.js"}
+
+# Page JS
+page_js = {
+	"procurement-tracker-dashboard": "prakash_steel/page/procurement_tracker_dashboard/procurement_tracker_dashboard.js",
+	"sales-summary-dashboard": "prakash_steel/page/sales_summary_dashboard/sales_summary_dashboard.js",
+}

@@ -1,0 +1,25 @@
+{
+    "name": "Item Wise Procurement Tracker",
+    "doctype": "Report",
+    "report_name": "Item Wise Procurement Tracker",
+    "ref_doctype": "Purchase Order",
+    "report_type": "Script Report",
+    "is_standard": "Yes",
+    "disabled": 0,
+    "module": "Prakash Steel",
+    "roles": [
+        {
+            "role": "System Manager"
+        },
+        {
+            "role": "Purchase Manager"
+        },
+        {
+            "role": "Purchase User"
+        }
+    ]
+}
+
+
+
+
