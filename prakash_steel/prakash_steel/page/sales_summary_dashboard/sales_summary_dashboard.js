@@ -512,13 +512,28 @@ function fetchSalesOverviewData(filters) {
             fetchSalesOrderData(filters, {}),
             fetchSalesInvoiceData(filters, {})
         ]).then(([salesOrderData, salesInvoiceData]) => {
-            // Calculate totals
-            const totalOrders = salesOrderData.raw_data.length;
-            const totalInvoices = salesInvoiceData.raw_data.length;
+            // Calculate totals - count unique documents, not line items
+            const uniqueOrders = new Set(salesOrderData.raw_data.map(so => so.sales_order));
+            const uniqueInvoices = new Set(salesInvoiceData.raw_data.map(si => si.sales_invoice));
+            const totalOrders = uniqueOrders.size;
+            const totalInvoices = uniqueInvoices.size;
 
-            // Calculate total values
-            const totalOrderValue = salesOrderData.raw_data.reduce((sum, so) => sum + (parseFloat(so.grand_total) || 0), 0);
-            const totalInvoiceValue = salesInvoiceData.raw_data.reduce((sum, si) => sum + (parseFloat(si.grand_total) || 0), 0);
+            // Calculate total values - sum unique document totals
+            const orderTotals = {};
+            salesOrderData.raw_data.forEach(so => {
+                if (so.sales_order && !orderTotals[so.sales_order]) {
+                    orderTotals[so.sales_order] = parseFloat(so.grand_total) || 0;
+                }
+            });
+            const totalOrderValue = Object.values(orderTotals).reduce((sum, total) => sum + total, 0);
+
+            const invoiceTotals = {};
+            salesInvoiceData.raw_data.forEach(si => {
+                if (si.sales_invoice && !invoiceTotals[si.sales_invoice]) {
+                    invoiceTotals[si.sales_invoice] = parseFloat(si.grand_total) || 0;
+                }
+            });
+            const totalInvoiceValue = Object.values(invoiceTotals).reduce((sum, total) => sum + total, 0);
 
             // Create summary cards
             const summary = [
@@ -583,24 +598,40 @@ function fetchSalesOrderData(filters, state) {
                         rawData = rawData.filter(so => so.sales_order.toLowerCase().includes(filters.so_id.toLowerCase()));
                     }
 
-                    // Create status summary
+                    // Create status summary - count unique documents, not line items
                     const statusCounts = {};
-                    const totalValue = rawData.reduce((sum, so) => sum + (parseFloat(so.grand_total) || 0), 0);
+                    const documentTotals = {};
 
+                    // Group by unique sales order and count by status
                     rawData.forEach(so => {
+                        const salesOrder = so.sales_order;
                         const status = so.status || 'Draft';
-                        statusCounts[status] = (statusCounts[status] || 0) + 1;
+
+                        if (salesOrder) {
+                            // Count unique documents by status
+                            if (!statusCounts[status]) {
+                                statusCounts[status] = new Set();
+                            }
+                            statusCounts[status].add(salesOrder);
+
+                            // Store unique document totals
+                            if (!documentTotals[salesOrder]) {
+                                documentTotals[salesOrder] = parseFloat(so.grand_total) || 0;
+                            }
+                        }
                     });
 
+                    // Convert Sets to counts
                     const summary = Object.keys(statusCounts).map(status => ({
-                        value: statusCounts[status],
+                        value: statusCounts[status].size,
                         label: `${status} Sales Orders`,
                         datatype: 'Int',
                         indicator: getStatusIndicator(status),
                         description: `Sales orders with ${status} status`
                     }));
 
-                    // Add total value card
+                    // Add total value card - sum unique document totals
+                    const totalValue = Object.values(documentTotals).reduce((sum, total) => sum + total, 0);
                     if (totalValue > 0) {
                         summary.push({
                             value: totalValue,
@@ -649,24 +680,40 @@ function fetchSalesInvoiceData(filters, state) {
                         rawData = rawData.filter(si => si.sales_invoice.toLowerCase().includes(filters.si_id.toLowerCase()));
                     }
 
-                    // Create status summary
+                    // Create status summary - count unique documents, not line items
                     const statusCounts = {};
-                    const totalValue = rawData.reduce((sum, si) => sum + (parseFloat(si.grand_total) || 0), 0);
+                    const documentTotals = {};
 
+                    // Group by unique sales invoice and count by status
                     rawData.forEach(si => {
+                        const salesInvoice = si.sales_invoice;
                         const status = si.status || 'Draft';
-                        statusCounts[status] = (statusCounts[status] || 0) + 1;
+
+                        if (salesInvoice) {
+                            // Count unique documents by status
+                            if (!statusCounts[status]) {
+                                statusCounts[status] = new Set();
+                            }
+                            statusCounts[status].add(salesInvoice);
+
+                            // Store unique document totals
+                            if (!documentTotals[salesInvoice]) {
+                                documentTotals[salesInvoice] = parseFloat(si.grand_total) || 0;
+                            }
+                        }
                     });
 
+                    // Convert Sets to counts
                     const summary = Object.keys(statusCounts).map(status => ({
-                        value: statusCounts[status],
+                        value: statusCounts[status].size,
                         label: `${status} Sales Invoices`,
                         datatype: 'Int',
                         indicator: getStatusIndicator(status),
                         description: `Sales invoices with ${status} status`
                     }));
 
-                    // Add total value card
+                    // Add total value card - sum unique document totals
+                    const totalValue = Object.values(documentTotals).reduce((sum, total) => sum + total, 0);
                     if (totalValue > 0) {
                         summary.push({
                             value: totalValue,
