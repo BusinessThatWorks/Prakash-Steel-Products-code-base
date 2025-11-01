@@ -888,6 +888,15 @@ function renderSalesOrderTable($container, data) {
         return;
     }
 
+    // Deduplicate to show only unique Sales Orders
+    const uniqueOrders = {};
+    data.forEach((row) => {
+        if (row.sales_order && !uniqueOrders[row.sales_order]) {
+            uniqueOrders[row.sales_order] = row;
+        }
+    });
+    const uniqueData = Object.values(uniqueOrders);
+
     const $table = $(`
         <div class="data-table" style="width: 100%; margin-bottom: 30px;">
             <h4>${__('Sales Orders')}</h4>
@@ -909,7 +918,7 @@ function renderSalesOrderTable($container, data) {
 
     const $tbody = $table.find('tbody');
 
-    data.forEach((row) => {
+    uniqueData.forEach((row) => {
         const $tr = $(`
             <tr style="border-bottom: 1px solid #e9ecef;">
                 <td style="padding: 12px; border-bottom: 1px solid #e9ecef; color: #495057; text-align: left;"><a href="/app/sales-order/${row.sales_order}" class="link-cell" style="color: #007bff; text-decoration: none; cursor: pointer;">${row.sales_order}</a></td>
@@ -935,6 +944,15 @@ function renderSalesInvoiceTable($container, data) {
         return;
     }
 
+    // Deduplicate to show only unique Sales Invoices
+    const uniqueInvoices = {};
+    data.forEach((row) => {
+        if (row.sales_invoice && !uniqueInvoices[row.sales_invoice]) {
+            uniqueInvoices[row.sales_invoice] = row;
+        }
+    });
+    const uniqueData = Object.values(uniqueInvoices);
+
     const $table = $(`
         <div class="data-table" style="width: 100%; margin-bottom: 30px;">
             <h4>${__('Sales Invoices')}</h4>
@@ -957,7 +975,7 @@ function renderSalesInvoiceTable($container, data) {
 
     const $tbody = $table.find('tbody');
 
-    data.forEach((row) => {
+    uniqueData.forEach((row) => {
         const $tr = $(`
             <tr style="border-bottom: 1px solid #e9ecef;">
                 <td style="padding: 12px; border-bottom: 1px solid #e9ecef; color: #495057; text-align: left;"><a href="/app/sales-invoice/${row.sales_invoice}" class="link-cell" style="color: #007bff; text-decoration: none; cursor: pointer;">${row.sales_invoice}</a></td>
