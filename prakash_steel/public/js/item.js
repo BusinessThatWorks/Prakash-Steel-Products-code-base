@@ -27,6 +27,11 @@ frappe.ui.form.on("Item", {
         generate_item_code_and_name(frm);
     },
 
+    custom_category_name: function (frm) {
+        // Generate item_code and item_name when custom_category_name changes
+        generate_item_code_and_name(frm);
+    },
+
     item_group: function (frm) {
         // Toggle custom_group_for_sub_assemblies visibility when item_group changes
         toggle_group_for_sub_assemblies_visibility(frm);
@@ -76,15 +81,32 @@ function generate_item_code_and_name(frm) {
         return;
     }
 
-    // Get values from the three fields
+    // Get values from the fields
+    const category_name = frm.doc.custom_category_name || '';
     const item_size = frm.doc.custom_item_size || '';
     const shape = frm.doc.custom_shape || '';
     const grade = frm.doc.custom_grade || '';
 
-    // Check if all three fields are filled
+    // Check if all three required fields are filled
     if (item_size && shape && grade) {
-        // Concatenate with spaces: custom_item_size + " " + custom_shape + " " + custom_grade
-        const generated_value = item_size + ' ' + shape + ' ' + grade;
+        // List of category names that require "B" prefix
+        const bright_categories = [
+            'Bright Squares',
+            'Bright Rounds',
+            'Bright Hex',
+            'Bright Flats'
+        ];
+
+        // Check if category_name is one of the bright categories
+        const is_bright_category = bright_categories.includes(category_name);
+
+        // Build the generated value
+        let generated_value = item_size + ' ' + shape + ' ' + grade;
+
+        // Prepend "B " if category is one of the bright categories
+        if (is_bright_category) {
+            generated_value = 'B ' + generated_value;
+        }
 
         // Set item_code and item_name
         frm.set_value('item_code', generated_value);
