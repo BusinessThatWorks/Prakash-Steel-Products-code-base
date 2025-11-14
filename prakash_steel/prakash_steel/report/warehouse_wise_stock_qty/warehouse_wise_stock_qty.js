@@ -10,6 +10,12 @@ frappe.query_reports["Warehouse wise stock qty"] = {
 			"options": "Warehouse",
 			"default": "",
 			"reqd": 0
+		},
+		{
+			"fieldname": "include_zero_stock",
+			"label": __("Include Zero Stock Items"),
+			"fieldtype": "Check",
+			"default": 0
 		}
 	]
 };
