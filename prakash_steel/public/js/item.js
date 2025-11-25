@@ -61,6 +61,13 @@ frappe.ui.form.on("Item", {
             frm.set_value('safety_stock', null);
             frm.set_value('custom_top_of_red', null);
             frm.set_value('custom_top_of_yellow', null);
+        } else {
+            // If switching to Buffer, clear any 0 or invalid values
+            if (frm.doc.safety_stock !== null && frm.doc.safety_stock !== undefined && frm.doc.safety_stock <= 0) {
+                frm.set_value('safety_stock', null);
+                frm.set_value('custom_top_of_red', null);
+                frm.set_value('custom_top_of_yellow', null);
+            }
         }
 
         // Calculate SKU type when buffer flag changes
@@ -76,6 +83,22 @@ frappe.ui.form.on("Item", {
         // Calculate SKU type when item type changes
         calculate_sku_type(frm);
     },
+
+    validate: function (frm) {
+        // Validate safety_stock is required and greater than 0 when Buffer is selected
+        if (frm.doc.custom_buffer_flag === 'Buffer') {
+            const safety_stock = frm.doc.safety_stock;
+
+            // Check if safety_stock is empty, null, undefined, or 0
+            if (safety_stock === null || safety_stock === undefined || safety_stock === '' || safety_stock <= 0) {
+                frappe.throw({
+                    title: __('Validation Error'),
+                    indicator: 'red',
+                    message: __('Safety Stock is required and must be greater than 0 when Buffer Flag is set to Buffer.')
+                });
+            }
+        }
+    }
 
 });
 
@@ -441,17 +464,8 @@ function toggle_buffer_fields_visibility(frm) {
         frm.set_df_property('custom_top_of_yellow', 'hidden', !is_buffer);
     }
 
-    // Validate safety_stock if Buffer is selected
-    if (is_buffer && frm.doc.safety_stock !== null && frm.doc.safety_stock !== undefined) {
-        if (frm.doc.safety_stock <= 0) {
-            frappe.msgprint({
-                title: __('Validation Error'),
-                indicator: 'red',
-                message: __('Safety Stock must be greater than 0 when Buffer Flag is set to Buffer.')
-            });
-            frm.set_value('safety_stock', null);
-        }
-    }
+    // Don't validate here - validation happens in calculate_buffer_fields when user actually enters/edits safety_stock
+    // This prevents showing error when user just switches from Non-Buffer to Buffer
 }
 
 function calculate_buffer_fields(frm) {
