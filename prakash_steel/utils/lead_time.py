@@ -499,7 +499,6 @@ def _calculate_lead_time_recursive_with_trace(item_code, visited_items, trace, l
 			max_recursive_contribution = max(max_recursive_contribution, child_bom_contribution)
 
 		trace_entry["recursive_contribution"] = max_recursive_contribution
-
 		# Return: item's own lead time + max lead time at this level + max from deeper levels
 		result = item_lead_time + max_lead_time + max_recursive_contribution
 		trace_entry["total"] = result

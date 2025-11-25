@@ -8,6 +8,9 @@ frappe.ui.form.on("Item", {
 
         // Calculate and display decoupled lead time if item has BOM
         update_decoupled_lead_time(frm);
+
+        // Calculate SKU type on form load (will only update if value changed to avoid dirty state)
+        calculate_sku_type(frm);
     },
 
     custom_store_item: function (frm) {
@@ -56,11 +59,19 @@ frappe.ui.form.on("Item", {
             frm.set_value('custom_top_of_red', null);
             frm.set_value('custom_top_of_yellow', null);
         }
+
+        // Calculate SKU type when buffer flag changes
+        calculate_sku_type(frm);
     },
 
     safety_stock: function (frm) {
         // Calculate custom_top_of_red and custom_top_of_yellow when safety_stock changes
         calculate_buffer_fields(frm);
+    },
+
+    custom_item_type: function (frm) {
+        // Calculate SKU type when item type changes
+        calculate_sku_type(frm);
     }
 });
 
@@ -440,11 +451,11 @@ function calculate_buffer_fields(frm) {
             return;
         }
 
-        // Calculate custom_top_of_red = round(1/3 * safety_stock)
-        const top_of_red = Math.round((1 / 3) * safety_stock);
+        // Calculate custom_top_of_red = ceil(1/3 * safety_stock)
+        const top_of_red = Math.ceil((1 / 3) * safety_stock);
 
-        // Calculate custom_top_of_yellow = round(2/3 * safety_stock)
-        const top_of_yellow = Math.round((2 / 3) * safety_stock);
+        // Calculate custom_top_of_yellow = ceil(2/3 * safety_stock)
+        const top_of_yellow = Math.ceil((2 / 3) * safety_stock);
 
         // Set the calculated values
         frm.set_value('custom_top_of_red', top_of_red);
@@ -453,6 +464,79 @@ function calculate_buffer_fields(frm) {
         // Clear calculated fields if safety_stock is empty
         frm.set_value('custom_top_of_red', null);
         frm.set_value('custom_top_of_yellow', null);
+    }
+}
+
+function calculate_sku_type(frm) {
+    // Check if custom_sku_type field exists
+    if (!frm.fields_dict['custom_sku_type']) {
+        return;
+    }
+
+    // Store the current dirty state before updating
+    const was_dirty = frm.is_dirty();
+
+    // Get buffer flag and item type
+    const buffer_flag = frm.doc.custom_buffer_flag || 'Non-Buffer'; // Default to Non-Buffer
+    const item_type = frm.doc.custom_item_type;
+
+    // Calculate the new SKU type
+    let new_sku_type = null;
+
+    if (item_type) {
+        // Determine if buffer or non-buffer (default to non-buffer)
+        const is_buffer = buffer_flag === 'Buffer';
+
+        // Calculate SKU type based on buffer flag and item type
+        if (item_type === 'BB') {
+            new_sku_type = is_buffer ? 'BBMTA' : 'BBMTO';
+        } else if (item_type === 'RB') {
+            new_sku_type = is_buffer ? 'RBMTA' : 'RBMTO';
+        } else if (item_type === 'BO') {
+            new_sku_type = is_buffer ? 'BOTA' : 'BOTO';
+        } else if (item_type === 'RM') {
+            new_sku_type = is_buffer ? 'PTA' : 'PTO';
+        }
+    }
+
+    // Get current value
+    const current_sku_type = frm.doc.custom_sku_type;
+
+    // Only update if value is different to avoid unnecessary updates
+    if (current_sku_type !== new_sku_type) {
+        // Update the doc value directly in locals to avoid triggering dirty state
+        const doc = locals[frm.doctype] && locals[frm.doctype][frm.docname];
+        if (doc) {
+            doc.custom_sku_type = new_sku_type;
+        }
+
+        // Also update in form doc
+        frm.doc.custom_sku_type = new_sku_type;
+
+        // Refresh the field
+        frm.refresh_field('custom_sku_type');
+
+        // If form wasn't dirty before, restore that state
+        if (!was_dirty) {
+            // Remove from modified fields if it was added
+            if (frm._dirty_fields) {
+                const index = frm._dirty_fields.indexOf('custom_sku_type');
+                if (index > -1) {
+                    frm._dirty_fields.splice(index, 1);
+                }
+            }
+
+            // Reset dirty state if no other changes
+            setTimeout(function () {
+                if (!was_dirty && frm.is_dirty && frm.is_dirty()) {
+                    // Check if there are any other modified fields
+                    const has_other_changes = frm._dirty_fields && frm._dirty_fields.length > 0;
+                    if (!has_other_changes) {
+                        frm.dirty(false);
+                    }
+                }
+            }, 100);
+        }
     }
 }
 
