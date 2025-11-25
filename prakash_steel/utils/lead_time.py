@@ -30,9 +30,12 @@ def calculate_decoupled_lead_time(item_code):
 	# Track visited items to avoid infinite loops
 	visited_items = set()
 
+	# Cache for item_group lookups to improve performance
+	item_groups_cache = {}
+
 	# Calculate recursively
 	try:
-		result = _calculate_lead_time_recursive(item_code, visited_items)
+		result = _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache)
 		return result
 	except Exception as e:
 		frappe.log_error(
@@ -42,7 +45,7 @@ def calculate_decoupled_lead_time(item_code):
 		return 0
 
 
-def _calculate_lead_time_recursive(item_code, visited_items):
+def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=None):
 	"""
 	Recursive helper function to calculate lead time for an item.
 
@@ -53,6 +56,7 @@ def _calculate_lead_time_recursive(item_code, visited_items):
 	Args:
 		item_code (str): Item code
 		visited_items (set): Set of visited item codes to prevent circular references
+		item_groups_cache (dict): Cache for item_group lookups to improve performance
 
 	Returns:
 		float: Decoupled lead time (item's own lead time + max at each level)
@@ -62,6 +66,10 @@ def _calculate_lead_time_recursive(item_code, visited_items):
 
 	# Mark as visited
 	visited_items.add(item_code)
+
+	# Initialize cache if not provided
+	if item_groups_cache is None:
+		item_groups_cache = {}
 
 	try:
 		# Get the item document
@@ -78,7 +86,19 @@ def _calculate_lead_time_recursive(item_code, visited_items):
 		if is_buffer:
 			return item_lead_time
 
-		# Get BOM for this item
+		# OPTIMIZATION: Check item_group first - Raw Materials don't have BOMs
+		# This avoids unnecessary BOM lookup for raw materials
+		item_group = item_doc.get("item_group")
+
+		# Cache the item_group for future use
+		if item_code not in item_groups_cache:
+			item_groups_cache[item_code] = item_group
+
+		# If it's a Raw Material, skip BOM check (end of branch)
+		if item_group == "Raw Material":
+			return item_lead_time
+
+		# Get default BOM for this item (only if not Raw Material)
 		bom = get_default_bom(item_code)
 
 		# If no BOM, return only item's own lead time
@@ -105,8 +125,25 @@ def _calculate_lead_time_recursive(item_code, visited_items):
 				continue
 
 			try:
-				# Get child item document
+				# OPTIMIZATION: Check item_group from cache first to avoid unnecessary BOM lookup
+				child_item_group = item_groups_cache.get(child_item_code)
+
+				# If it's Raw Material (from cache), get lead time but skip BOM check
+				if child_item_group == "Raw Material":
+					# Raw Material - get lead time but don't check for BOM (end of branch)
+					child_item = frappe.get_doc("Item", child_item_code)
+					child_lead_time = flt(child_item.get("lead_time_days") or 0)
+
+					# Store as non-buffer item (Raw Materials are end of branch)
+					non_buffer_items.append({"item_code": child_item_code, "lead_time": child_lead_time})
+					continue
+
+				# Get child item document (only if not Raw Material or not in cache)
 				child_item = frappe.get_doc("Item", child_item_code)
+
+				# Cache item_group if not already cached
+				if child_item_code not in item_groups_cache:
+					item_groups_cache[child_item_code] = child_item.get("item_group")
 
 				# Check if child is buffer
 				child_buffer_flag = child_item.get("custom_buffer_flag")
@@ -157,7 +194,10 @@ def _calculate_lead_time_recursive(item_code, visited_items):
 			branch_visited = visited_items.copy()
 
 			# Recursively calculate FULL decoupled lead time for this item
-			child_full_decoupled = _calculate_lead_time_recursive(max_item_code, branch_visited)
+			# Pass the cache to avoid redundant lookups
+			child_full_decoupled = _calculate_lead_time_recursive(
+				max_item_code, branch_visited, item_groups_cache
+			)
 
 			# The child's full decoupled includes its own lead_time + BOM contribution
 			# We've already added the child's own lead_time (max_lead_time) separately
@@ -290,9 +330,10 @@ def debug_lead_time_calculation(item_code):
 
 		# Calculate with detailed trace
 		visited_items = set()
+		item_groups_cache = {}
 		calculation_trace = []
 		calculated_value = _calculate_lead_time_recursive_with_trace(
-			item_code, visited_items, calculation_trace, level=0
+			item_code, visited_items, calculation_trace, level=0, item_groups_cache=item_groups_cache
 		)
 
 		debug_info = {
@@ -336,7 +377,9 @@ def debug_lead_time_calculation(item_code):
 		return {"error": str(e), "traceback": frappe.get_traceback()}
 
 
-def _calculate_lead_time_recursive_with_trace(item_code, visited_items, trace, level=0):
+def _calculate_lead_time_recursive_with_trace(
+	item_code, visited_items, trace, level=0, item_groups_cache=None
+):
 	"""
 	Recursive helper with detailed trace for debugging.
 
@@ -345,6 +388,7 @@ def _calculate_lead_time_recursive_with_trace(item_code, visited_items, trace, l
 		visited_items (set): Set of visited item codes
 		trace (list): List to store calculation trace
 		level (int): Current recursion level
+		item_groups_cache (dict): Cache for item_group lookups
 
 	Returns:
 		float: Decoupled lead time
@@ -354,6 +398,10 @@ def _calculate_lead_time_recursive_with_trace(item_code, visited_items, trace, l
 
 	# Mark as visited
 	visited_items.add(item_code)
+
+	# Initialize cache if not provided
+	if item_groups_cache is None:
+		item_groups_cache = {}
 
 	indent = "  " * level
 	trace_entry = {
@@ -388,7 +436,20 @@ def _calculate_lead_time_recursive_with_trace(item_code, visited_items, trace, l
 			trace.append(trace_entry)
 			return item_lead_time
 
-		# Get BOM for this item
+		# OPTIMIZATION: Check item_group first - Raw Materials don't have BOMs
+		item_group = item_doc.get("item_group")
+
+		# Cache the item_group
+		if item_code not in item_groups_cache:
+			item_groups_cache[item_code] = item_group
+
+		# If it's a Raw Material, skip BOM check (end of branch)
+		if item_group == "Raw Material":
+			trace_entry["total"] = item_lead_time
+			trace.append(trace_entry)
+			return item_lead_time
+
+		# Get default BOM for this item (only if not Raw Material)
 		bom = get_default_bom(item_code)
 
 		# If no BOM, return only item's own lead time
@@ -422,8 +483,37 @@ def _calculate_lead_time_recursive_with_trace(item_code, visited_items, trace, l
 				continue
 
 			try:
-				# Get child item document
+				# OPTIMIZATION: Check item_group from cache first
+				child_item_group = item_groups_cache.get(child_item_code)
+
+				# If Raw Material, get lead time but skip BOM check
+				if child_item_group == "Raw Material":
+					child_item = frappe.get_doc("Item", child_item_code)
+					child_lead_time = flt(child_item.get("lead_time_days") or 0)
+
+					# Cache item_group if not already cached
+					if child_item_code not in item_groups_cache:
+						item_groups_cache[child_item_code] = child_item.get("item_group")
+
+					# Store info for trace
+					bom_item_info = {
+						"item_code": child_item_code,
+						"lead_time": child_lead_time,
+						"is_buffer": False,
+						"is_raw_material": True,
+					}
+					trace_entry["bom_items"].append(bom_item_info)
+
+					# Store as non-buffer item (Raw Materials are end of branch)
+					non_buffer_items.append({"item_code": child_item_code, "lead_time": child_lead_time})
+					continue
+
+				# Get child item document (only if not Raw Material or not in cache)
 				child_item = frappe.get_doc("Item", child_item_code)
+
+				# Cache item_group if not already cached
+				if child_item_code not in item_groups_cache:
+					item_groups_cache[child_item_code] = child_item.get("item_group")
 
 				# Check if child is buffer
 				child_buffer_flag = child_item.get("custom_buffer_flag")
@@ -486,8 +576,9 @@ def _calculate_lead_time_recursive_with_trace(item_code, visited_items, trace, l
 			branch_visited = visited_items.copy()
 
 			# Recursively calculate FULL decoupled lead time for this item
+			# Pass the cache to avoid redundant lookups
 			child_full_decoupled = _calculate_lead_time_recursive_with_trace(
-				max_item_code, branch_visited, trace, level + 1
+				max_item_code, branch_visited, trace, level + 1, item_groups_cache
 			)
 
 			# The child's full decoupled includes its own lead_time + BOM contribution

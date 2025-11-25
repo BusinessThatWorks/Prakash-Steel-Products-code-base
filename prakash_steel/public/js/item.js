@@ -46,7 +46,10 @@ frappe.ui.form.on("Item", {
 
     lead_time_days: function (frm) {
         // Recalculate decoupled lead time when lead_time_days changes
-        update_decoupled_lead_time(frm);
+        // Use a small delay to ensure the form state is updated
+        setTimeout(function () {
+            update_decoupled_lead_time(frm, true); // true = allow update even if dirty (since lead_time_days changed)
+        }, 100);
     },
 
     custom_buffer_flag: function (frm) {
@@ -72,7 +75,8 @@ frappe.ui.form.on("Item", {
     custom_item_type: function (frm) {
         // Calculate SKU type when item type changes
         calculate_sku_type(frm);
-    }
+    },
+
 });
 
 function toggle_fields_visibility(frm) {
@@ -170,7 +174,7 @@ function toggle_group_for_sub_assemblies_visibility(frm) {
     }
 }
 
-function update_decoupled_lead_time(frm) {
+function update_decoupled_lead_time(frm, allow_when_dirty) {
     // Only calculate if item_code exists (not a new item)
     if (!frm.doc.item_code) {
         console.log("[Lead Time] No item_code, skipping calculation");
@@ -189,11 +193,12 @@ function update_decoupled_lead_time(frm) {
         item_code: frm.doc.item_code,
         lead_time_days: frm.doc.lead_time_days,
         custom_buffer_flag: frm.doc.custom_buffer_flag,
-        current_decoupled_lead_time: frm.doc.custom_decoupled_lead_time
+        current_decoupled_lead_time: frm.doc.custom_decoupled_lead_time,
+        form_is_dirty: frm.is_dirty()
     });
 
-    // Store the current dirty state before updating
-    const was_dirty = frm.is_dirty();
+    // Store the current modified timestamp to preserve it
+    const original_modified = frm.doc.modified;
 
     // Call server method to calculate decoupled lead time
     frappe.call({
@@ -216,41 +221,62 @@ function update_decoupled_lead_time(frm) {
                 });
 
                 if (current_value !== new_value) {
-                    // Update the doc value directly in locals to avoid triggering dirty state
-                    const doc = locals[frm.doctype][frm.docname];
-                    if (doc) {
-                        doc.custom_decoupled_lead_time = new_value;
-                    }
+                    // Store current dirty state and modified fields
+                    const was_dirty = frm.is_dirty();
+                    const original_dirty_fields = frm._dirty_fields ? [...frm._dirty_fields] : [];
 
-                    // Also update in form doc
-                    frm.doc.custom_decoupled_lead_time = new_value;
+                    // Update using frappe.model.set_value which gives us more control
+                    frappe.model.set_value(
+                        frm.doctype,
+                        frm.docname,
+                        'custom_decoupled_lead_time',
+                        new_value,
+                        function () {
+                            // After setting value, restore the form state to prevent timestamp issues
 
-                    // Refresh the field
-                    frm.refresh_field('custom_decoupled_lead_time');
-
-                    console.log("[Lead Time] Updated custom_decoupled_lead_time to:", new_value);
-
-                    // If form wasn't dirty before, restore that state
-                    if (!was_dirty) {
-                        // Remove from modified fields if it was added
-                        if (frm._dirty_fields) {
-                            const index = frm._dirty_fields.indexOf('custom_decoupled_lead_time');
-                            if (index > -1) {
-                                frm._dirty_fields.splice(index, 1);
+                            // Restore original modified timestamp if it existed
+                            if (original_modified && frm.doc.modified !== original_modified) {
+                                frm.doc.modified = original_modified;
                             }
-                        }
 
-                        // Reset dirty state if no other changes
-                        setTimeout(function () {
-                            if (!was_dirty && frm.is_dirty && frm.is_dirty()) {
-                                // Check if there are any other modified fields
-                                const has_other_changes = frm._dirty_fields && frm._dirty_fields.length > 0;
-                                if (!has_other_changes) {
-                                    frm.dirty(false);
+                            // Remove custom_decoupled_lead_time from dirty fields
+                            // This field is read-only and calculated, so it shouldn't mark form as dirty
+                            if (frm._dirty_fields) {
+                                const index = frm._dirty_fields.indexOf('custom_decoupled_lead_time');
+                                if (index > -1) {
+                                    frm._dirty_fields.splice(index, 1);
                                 }
                             }
-                        }, 100);
-                    }
+
+                            // Restore dirty state if it wasn't dirty before
+                            if (!was_dirty) {
+                                // Use setTimeout to ensure all form state updates are complete
+                                setTimeout(function () {
+                                    // Check if form is dirty only because of our update
+                                    const current_dirty_fields = frm._dirty_fields || [];
+                                    const only_our_field_was_dirty =
+                                        current_dirty_fields.length === 0 ||
+                                        (current_dirty_fields.length === 1 &&
+                                            current_dirty_fields[0] === 'custom_decoupled_lead_time');
+
+                                    if (frm.is_dirty && frm.is_dirty() && !was_dirty) {
+                                        // If only our field made it dirty, reset it
+                                        if (only_our_field_was_dirty || current_dirty_fields.length === 0) {
+                                            frm.dirty(false);
+                                        } else {
+                                            // Restore original dirty fields (excluding our field)
+                                            frm._dirty_fields = original_dirty_fields;
+                                        }
+                                    }
+                                }, 50);
+                            }
+
+                            // Refresh the field to show the updated value
+                            frm.refresh_field('custom_decoupled_lead_time');
+
+                            console.log("[Lead Time] Updated custom_decoupled_lead_time to:", new_value);
+                        }
+                    );
                 } else {
                     console.log("[Lead Time] Value unchanged, no update needed");
                 }

@@ -94,7 +94,7 @@ def get_columns():
 	]
 
 
-def get_all_items_recursively(bom_name, parent_item=None, level=0, visited_boms=None):
+def get_all_items_recursively(bom_name, parent_item=None, level=0, visited_boms=None, item_groups_cache=None):
 	"""
 	Recursively get all items from a BOM and its nested BOMs.
 
@@ -103,12 +103,16 @@ def get_all_items_recursively(bom_name, parent_item=None, level=0, visited_boms=
 		parent_item: Parent item code (for hierarchy tracking)
 		level: Current nesting level (0 = top level)
 		visited_boms: Set of visited BOMs to prevent circular references
+		item_groups_cache: Dict to cache item_group lookups (for performance)
 
 	Returns:
 		list: List of dicts with item information including level and parent
 	"""
 	if visited_boms is None:
 		visited_boms = set()
+
+	if item_groups_cache is None:
+		item_groups_cache = {}
 
 	# Prevent circular references
 	if bom_name in visited_boms:
@@ -120,6 +124,32 @@ def get_all_items_recursively(bom_name, parent_item=None, level=0, visited_boms=
 	try:
 		# Get BOM document
 		bom_doc = frappe.get_doc("BOM", bom_name)
+
+		# Collect all item codes in this BOM for batch lookup
+		bom_item_codes = [bom_item.item_code for bom_item in bom_doc.items]
+
+		# Batch fetch item_groups for all items in this BOM (optimization)
+		if bom_item_codes:
+			items_to_fetch = [code for code in bom_item_codes if code not in item_groups_cache]
+			if items_to_fetch:
+				if len(items_to_fetch) == 1:
+					item_codes_tuple = (items_to_fetch[0],)
+				else:
+					item_codes_tuple = tuple(items_to_fetch)
+
+				item_group_data = frappe.db.sql(
+					"""
+					SELECT name, item_group
+					FROM `tabItem`
+					WHERE name IN %s
+					""",
+					(item_codes_tuple,),
+					as_dict=True,
+				)
+
+				# Cache the results
+				for item in item_group_data:
+					item_groups_cache[item.name] = item.item_group
 
 		# Process each item in the BOM
 		for bom_item in bom_doc.items:
@@ -134,16 +164,25 @@ def get_all_items_recursively(bom_name, parent_item=None, level=0, visited_boms=
 				}
 			)
 
+			# Optimization: Check item_group first - Raw Materials don't have BOMs
+			# This avoids unnecessary BOM lookup for raw materials
+			item_group = item_groups_cache.get(item_code)
+
+			# If it's a Raw Material, skip BOM check (end of branch)
+			if item_group and item_group == "Raw Material":
+				continue
+
 			# Check if this item has a BOM (nested BOM)
 			child_bom = get_default_bom(item_code)
 			if child_bom and child_bom not in visited_boms:
 				# Recursively get items from child BOM
-				# Pass the same visited_boms set to prevent circular references
+				# Pass the same visited_boms and cache to prevent cycles and reuse cache
 				child_items = get_all_items_recursively(
 					child_bom,
 					parent_item=item_code,
 					level=level + 1,
 					visited_boms=visited_boms,  # Same set to prevent cycles
+					item_groups_cache=item_groups_cache,  # Reuse cache for performance
 				)
 				items_list.extend(child_items)
 

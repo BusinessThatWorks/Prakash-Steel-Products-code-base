@@ -10,6 +10,9 @@ def update_decoupled_lead_time_on_item_save(doc, method=None):
 	Update decoupled lead time when Item is saved.
 	This ensures the value is always saved to the database.
 
+	IMPORTANT: Updates the doc object directly instead of using frappe.db.set_value()
+	to avoid timestamp mismatch errors. This way the value is part of the same save transaction.
+
 	Args:
 		doc: Item document
 		method: Method name (for compatibility with doc_events)
@@ -21,12 +24,25 @@ def update_decoupled_lead_time_on_item_save(doc, method=None):
 	# Always update to ensure database has latest calculated value
 	# This is safe because the calculation is idempotent
 	try:
-		update_decoupled_lead_time_for_item(doc.name)
+		from prakash_steel.utils.lead_time import calculate_decoupled_lead_time
+
+		# Calculate the decoupled lead time
+		decoupled_lead_time = calculate_decoupled_lead_time(doc.name)
+
+		# Update the doc object directly (this will be saved as part of the current transaction)
+		# This avoids using frappe.db.set_value() which would cause a separate update and timestamp mismatch
+		doc.custom_decoupled_lead_time = decoupled_lead_time
 
 		# If lead_time_days or custom_buffer_flag changed, also update parent items
 		# (because this item's change affects parent items that use it in their BOM)
+		# But do this AFTER the current save is complete to avoid conflicts
 		if doc.has_value_changed("lead_time_days") or doc.has_value_changed("custom_buffer_flag"):
-			_update_parent_items_lead_time(doc.name)
+			# Use frappe.enqueue to update parent items asynchronously after save
+			frappe.enqueue(
+				"prakash_steel.utils.item._update_parent_items_lead_time",
+				item_code=doc.name,
+				now=False,  # Run after current transaction
+			)
 	except Exception as e:
 		frappe.log_error(
 			f"Error updating decoupled lead time for item {doc.name} on save: {str(e)}",
