@@ -3,7 +3,7 @@
 
 import frappe
 from frappe.utils import flt
-from prakash_steel.utils.lead_time import calculate_decoupled_lead_time
+from prakash_steel.utils.lead_time import calculate_decoupled_lead_time, get_default_bom
 
 
 @frappe.whitelist()
@@ -83,26 +83,79 @@ def get_columns():
 			"width": 150,
 		},
 		{"fieldname": "custom_buffer_flag", "label": "Buffer Flag", "fieldtype": "Data", "width": 120},
+		{"fieldname": "level", "label": "Level", "fieldtype": "Int", "width": 80},
+		{
+			"fieldname": "parent_item",
+			"label": "Parent Item",
+			"fieldtype": "Link",
+			"options": "Item",
+			"width": 150,
+		},
 	]
 
 
-def _check_column_exists():
-	"""Check if custom_decoupled_lead_time column exists in database"""
+def get_all_items_recursively(bom_name, parent_item=None, level=0, visited_boms=None):
+	"""
+	Recursively get all items from a BOM and its nested BOMs.
+
+	Args:
+		bom_name: BOM name to process
+		parent_item: Parent item code (for hierarchy tracking)
+		level: Current nesting level (0 = top level)
+		visited_boms: Set of visited BOMs to prevent circular references
+
+	Returns:
+		list: List of dicts with item information including level and parent
+	"""
+	if visited_boms is None:
+		visited_boms = set()
+
+	# Prevent circular references
+	if bom_name in visited_boms:
+		return []
+
+	visited_boms.add(bom_name)
+	items_list = []
+
 	try:
-		db_name = frappe.conf.db_name
-		result = frappe.db.sql(
-			"""
-			SELECT COUNT(*) 
-			FROM information_schema.COLUMNS 
-			WHERE TABLE_SCHEMA = %s 
-			AND TABLE_NAME = 'tabItem' 
-			AND COLUMN_NAME = 'custom_decoupled_lead_time'
-			""",
-			(db_name,),
+		# Get BOM document
+		bom_doc = frappe.get_doc("BOM", bom_name)
+
+		# Process each item in the BOM
+		for bom_item in bom_doc.items:
+			item_code = bom_item.item_code
+
+			# Add this item to the list
+			items_list.append(
+				{
+					"item_code": item_code,
+					"parent_item": parent_item,
+					"level": level,
+				}
+			)
+
+			# Check if this item has a BOM (nested BOM)
+			child_bom = get_default_bom(item_code)
+			if child_bom and child_bom not in visited_boms:
+				# Recursively get items from child BOM
+				# Pass the same visited_boms set to prevent circular references
+				child_items = get_all_items_recursively(
+					child_bom,
+					parent_item=item_code,
+					level=level + 1,
+					visited_boms=visited_boms,  # Same set to prevent cycles
+				)
+				items_list.extend(child_items)
+
+	except frappe.DoesNotExistError:
+		frappe.log_error(f"BOM {bom_name} does not exist", "BOM Wise Buffer Details Report Error")
+	except Exception as e:
+		frappe.log_error(
+			f"Error processing BOM {bom_name}: {str(e)}",
+			"BOM Wise Buffer Details Report Error",
 		)
-		return result and result[0][0] > 0
-	except Exception:
-		return False
+
+	return items_list
 
 
 def get_data(filters):
@@ -115,75 +168,67 @@ def get_data(filters):
 	bom_name = filters.get("bom")
 
 	try:
-		# Check if column exists
-		column_exists = _check_column_exists()
-		if not column_exists:
-			frappe.msgprint(
-				"Warning: custom_decoupled_lead_time column not found in database. "
-				"You may need to run: bench migrate",
-				indicator="orange",
+		# Get BOM document to get the main item
+		bom_doc = frappe.get_doc("BOM", bom_name)
+		main_item_code = bom_doc.item if bom_doc.item else None
+
+		# Get all items recursively (including nested BOMs)
+		all_items_hierarchy = get_all_items_recursively(bom_name, parent_item=main_item_code, level=1)
+
+		# Add main item as first row if it exists
+		if main_item_code:
+			all_items_hierarchy.insert(
+				0,
+				{
+					"item_code": main_item_code,
+					"parent_item": None,
+					"level": 0,
+				},
 			)
 
-		# Get BOM document
-		bom_doc = frappe.get_doc("BOM", bom_name)
-
-		# Collect all item codes from BOM
-		item_codes = [bom_item.item_code for bom_item in bom_doc.items]
-
-		if not item_codes:
+		if not all_items_hierarchy:
 			return data
 
-		# Query all items at once using SQL for better performance and reliability
-		# Handle single item case for tuple
-		if len(item_codes) == 1:
-			item_codes_tuple = (item_codes[0],)
-		else:
-			item_codes_tuple = tuple(item_codes)
+		# Get unique item codes (including main item)
+		unique_item_codes = list(set([item["item_code"] for item in all_items_hierarchy]))
 
-		# Build SQL query - include custom_decoupled_lead_time only if column exists
-		if column_exists:
-			items_data = frappe.db.sql(
-				"""
-				SELECT 
-					name as item_code,
-					item_name,
-					lead_time_days,
-					custom_decoupled_lead_time,
-					custom_buffer_flag
-				FROM `tabItem`
-				WHERE name IN %s
-				""",
-				(item_codes_tuple,),
-				as_dict=True,
-			)
+		if not unique_item_codes:
+			return data
+
+		# Query all items at once using SQL for better performance
+		if len(unique_item_codes) == 1:
+			item_codes_tuple = (unique_item_codes[0],)
 		else:
-			# Column doesn't exist, query without it
-			items_data = frappe.db.sql(
-				"""
-				SELECT 
-					name as item_code,
-					item_name,
-					lead_time_days,
-					NULL as custom_decoupled_lead_time,
-					custom_buffer_flag
-				FROM `tabItem`
-				WHERE name IN %s
-				""",
-				(item_codes_tuple,),
-				as_dict=True,
-			)
+			item_codes_tuple = tuple(unique_item_codes)
+
+		# Query items from database (we don't need custom_decoupled_lead_time since we calculate it)
+		items_data = frappe.db.sql(
+			"""
+			SELECT 
+				name as item_code,
+				item_name,
+				lead_time_days,
+				custom_buffer_flag
+			FROM `tabItem`
+			WHERE name IN %s
+			""",
+			(item_codes_tuple,),
+			as_dict=True,
+		)
 
 		# Create a dictionary for quick lookup
 		items_dict = {item["item_code"]: item for item in items_data}
 
-		# Loop through BOM items in order and build data
-		for bom_item in bom_doc.items:
-			item_code = bom_item.item_code
+		# Build data rows maintaining hierarchy order
+		for item_info in all_items_hierarchy:
+			item_code = item_info["item_code"]
+			parent_item = item_info["parent_item"]
+			level = item_info["level"]
+
 			item_data = items_dict.get(item_code)
 
 			if item_data:
 				# Always calculate custom_decoupled_lead_time dynamically (like the UI does)
-				# The UI always calculates it on-the-fly, so we do the same to ensure consistency
 				try:
 					decoupled_lead_time = calculate_decoupled_lead_time(item_code)
 				except Exception as e:
@@ -202,12 +247,14 @@ def get_data(filters):
 					"lead_time_days": flt(item_data.get("lead_time_days") or 0),
 					"custom_decoupled_lead_time": decoupled_lead_time,
 					"custom_buffer_flag": item_data.get("custom_buffer_flag") or "",
+					"level": level,
+					"parent_item": parent_item or "",
 				}
 				data.append(row)
 			else:
 				# Item doesn't exist, log and skip
 				frappe.log_error(
-					f"Item {item_code} does not exist in BOM {bom_name}",
+					f"Item {item_code} does not exist",
 					"BOM Wise Buffer Details Report Error",
 				)
 
