@@ -8,21 +8,26 @@ def calculate_decoupled_lead_time(item_code):
 	"""
 	Calculate decoupled lead time for an item by traversing BOM hierarchy.
 
+	IMPORTANT: Decoupled lead time does NOT depend on whether the item itself is buffer or non-buffer.
+	It depends on the longest path through the BOM tree until hitting a buffer item OR end of branch.
+
 	Logic:
-	1. If item is buffer (custom_buffer_flag == 'Buffer'), return its own lead_time and don't traverse BOM
-	2. If item is non-buffer:
-	   - Start with item's own lead time
-	   - At each BOM level, find all non-buffer items
-	   - Take the maximum lead_time among non-buffer items at the same level
-	   - Recursively process the BOM of item(s) with maximum lead_time
-	   - Sum up: item_lead_time + max_level_1 + max_level_2 + ...
-	3. Buffer items are completely ignored (contribute 0)
+	1. Start with item's own lead_time (regardless of buffer status)
+	2. If item has a BOM, traverse it:
+	   - At each level, find all items (buffer or non-buffer)
+	   - For each item, if it's buffer: stop traversing its BOM (contribute only its own lead_time)
+	   - For each item, if it's non-buffer: recursively traverse its BOM
+	   - Take the maximum path among all items at the same level
+	3. Sum up: own_lead_time + max_path_through_bom
+	4. Stop when:
+	   - Hit a buffer item (don't traverse its BOM, use only its own lead_time)
+	   - Hit end of branch (Raw Material or no BOM)
 
 	Args:
 		item_code (str): Item code
 
 	Returns:
-		float: Decoupled lead time (item's own lead time + max at each level)
+		float: Decoupled lead time (item's own lead time + longest path through BOM)
 	"""
 	if not item_code:
 		return 0
@@ -49,9 +54,18 @@ def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=N
 	"""
 	Recursive helper function to calculate lead time for an item.
 
+	IMPORTANT: Buffer status of the item itself does NOT affect calculation.
+	We always start with own_lead_time and traverse BOM.
+	When we encounter buffer items in BOM, we stop traversing their BOM.
+
 	For each item:
-	- If buffer → return own_lead_time (don't traverse BOM)
-	- If non-buffer → return own_lead_time + max_lead_time_at_next_level + recursive_contribution
+	- Always start with own_lead_time (regardless of buffer status)
+	- If has BOM, traverse it:
+	  - For each child item:
+	    - If child is buffer: use only its own_lead_time (don't traverse its BOM)
+	    - If child is non-buffer: recursively get its full decoupled_lead_time
+	  - Take maximum path among all children
+	- Return: own_lead_time + max_path_through_bom
 
 	Args:
 		item_code (str): Item code
@@ -59,7 +73,7 @@ def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=N
 		item_groups_cache (dict): Cache for item_group lookups to improve performance
 
 	Returns:
-		float: Decoupled lead time (item's own lead time + max at each level)
+		float: Decoupled lead time (item's own lead time + longest path through BOM)
 	"""
 	if not item_code or item_code in visited_items:
 		return 0
@@ -75,16 +89,8 @@ def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=N
 		# Get the item document
 		item_doc = frappe.get_doc("Item", item_code)
 
-		# Check if item is buffer
-		custom_buffer_flag = item_doc.get("custom_buffer_flag")
-		is_buffer = custom_buffer_flag == "Buffer"
-
-		# Get item's own lead time
+		# Get item's own lead time (regardless of buffer status)
 		item_lead_time = flt(item_doc.get("lead_time_days") or 0)
-
-		# If buffer, return its own lead time and don't traverse BOM
-		if is_buffer:
-			return item_lead_time
 
 		# OPTIMIZATION: Check item_group first - Raw Materials don't have BOMs
 		# This avoids unnecessary BOM lookup for raw materials
@@ -101,7 +107,7 @@ def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=N
 		# Get default BOM for this item (only if not Raw Material)
 		bom = get_default_bom(item_code)
 
-		# If no BOM, return only item's own lead time
+		# If no BOM, return only item's own lead time (end of branch)
 		if not bom:
 			return item_lead_time
 
@@ -114,8 +120,9 @@ def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=N
 			)
 			return item_lead_time
 
-		# Collect all non-buffer items with their lead times
-		non_buffer_items = []
+		# Process ALL BOM items (both buffer and non-buffer)
+		# For each child item, calculate its contribution to the longest path
+		child_contributions = []
 
 		for bom_item in bom_doc.items:
 			child_item_code = bom_item.item_code
@@ -125,7 +132,7 @@ def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=N
 				continue
 
 			try:
-				# OPTIMIZATION: Check item_group from cache first to avoid unnecessary BOM lookup
+				# OPTIMIZATION: Check item_group from cache first
 				child_item_group = item_groups_cache.get(child_item_code)
 
 				# If it's Raw Material (from cache), get lead time but skip BOM check
@@ -133,32 +140,41 @@ def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=N
 					# Raw Material - get lead time but don't check for BOM (end of branch)
 					child_item = frappe.get_doc("Item", child_item_code)
 					child_lead_time = flt(child_item.get("lead_time_days") or 0)
-
-					# Store as non-buffer item (Raw Materials are end of branch)
-					non_buffer_items.append({"item_code": child_item_code, "lead_time": child_lead_time})
+					# Raw Material contributes only its own lead time
+					child_contributions.append(child_lead_time)
 					continue
 
-				# Get child item document (only if not Raw Material or not in cache)
+				# Get child item document
 				child_item = frappe.get_doc("Item", child_item_code)
 
 				# Cache item_group if not already cached
 				if child_item_code not in item_groups_cache:
 					item_groups_cache[child_item_code] = child_item.get("item_group")
 
+				# Get child item's own lead time
+				child_lead_time = flt(child_item.get("lead_time_days") or 0)
+
 				# Check if child is buffer
 				child_buffer_flag = child_item.get("custom_buffer_flag")
 				child_is_buffer = child_buffer_flag == "Buffer"
 
-				# Skip buffer items in BOM calculation (they don't contribute to parent's decoupled_lead_time)
-				# But buffer items themselves have decoupled_lead_time = their own lead_time
 				if child_is_buffer:
-					continue
+					# Buffer item: stop the path here, contribute 0 (don't traverse its BOM)
+					# The path ends at the buffer item, so it contributes nothing to parent
+					child_contributions.append(0)
+				else:
+					# Non-buffer item: recursively get its full decoupled_lead_time
+					# Create a copy of visited_items for this branch
+					branch_visited = visited_items.copy()
 
-				# Get child item's own lead time
-				child_lead_time = flt(child_item.get("lead_time_days") or 0)
+					# Recursively calculate FULL decoupled lead time for this child
+					child_full_decoupled = _calculate_lead_time_recursive(
+						child_item_code, branch_visited, item_groups_cache
+					)
 
-				# Store non-buffer item info
-				non_buffer_items.append({"item_code": child_item_code, "lead_time": child_lead_time})
+					# The child's full decoupled includes its own lead_time + BOM contribution
+					# We need the full value for the path calculation
+					child_contributions.append(child_full_decoupled)
 
 			except frappe.DoesNotExistError:
 				# Child item doesn't exist, skip it
@@ -170,45 +186,15 @@ def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=N
 				)
 				continue
 
-		# If no non-buffer items at this level, return only item's own lead time
-		if not non_buffer_items:
+		# If no valid child items, return only item's own lead time
+		if not child_contributions:
 			return item_lead_time
 
-		# Find the maximum lead time among non-buffer items at this level
-		max_lead_time = max(item["lead_time"] for item in non_buffer_items)
+		# Take the maximum contribution from all children (longest path)
+		max_child_contribution = max(child_contributions)
 
-		# Find all items with maximum lead time (there might be multiple)
-		max_lead_time_items = [
-			item["item_code"] for item in non_buffer_items if item["lead_time"] == max_lead_time
-		]
-
-		# Recursively process the BOM of item(s) with maximum lead time
-		# The recursive call returns the FULL decoupled_lead_time (own + BOM contribution)
-		# But we've already added the child's own lead_time as max_lead_time
-		# So we need to get only the BOM contribution from the child
-		max_recursive_contribution = 0
-
-		for max_item_code in max_lead_time_items:
-			# Create a copy of visited_items for each branch to allow processing
-			# But we still need to prevent circular references
-			branch_visited = visited_items.copy()
-
-			# Recursively calculate FULL decoupled lead time for this item
-			# Pass the cache to avoid redundant lookups
-			child_full_decoupled = _calculate_lead_time_recursive(
-				max_item_code, branch_visited, item_groups_cache
-			)
-
-			# The child's full decoupled includes its own lead_time + BOM contribution
-			# We've already added the child's own lead_time (max_lead_time) separately
-			# So we need to subtract it to get only the BOM contribution
-			child_bom_contribution = child_full_decoupled - max_lead_time
-
-			# Take the maximum contribution from all branches
-			max_recursive_contribution = max(max_recursive_contribution, child_bom_contribution)
-
-		# Return: item's own lead time + max lead time at this level + max BOM contribution from deeper levels
-		result = item_lead_time + max_lead_time + max_recursive_contribution
+		# Return: item's own lead time + longest path through BOM
+		result = item_lead_time + max_child_contribution
 		return result
 
 	except frappe.DoesNotExistError:
