@@ -10,8 +10,11 @@ def update_decoupled_lead_time_on_item_save(doc, method=None):
 	Update decoupled lead time when Item is saved.
 	This ensures the value is always saved to the database.
 
-	IMPORTANT: Updates the doc object directly instead of using frappe.db.set_value()
-	to avoid timestamp mismatch errors. This way the value is part of the same save transaction.
+	IMPORTANT:
+	- Item is a SAVE doctype (not submit doctype), so docstatus should always be 0
+	- This hook runs on 'on_update' which is triggered on SAVE, not on submit
+	- Updates the doc object directly instead of using frappe.db.set_value()
+	- This does NOT submit the Item, it only updates the field value
 
 	Args:
 		doc: Item document
@@ -20,6 +23,16 @@ def update_decoupled_lead_time_on_item_save(doc, method=None):
 	# Only update if item_code exists (not a new item being created)
 	if not doc.name:
 		return
+
+	# Safety check: Item should never be submitted (it's a save doctype)
+	# If somehow it's submitted, log a warning
+	if doc.docstatus != 0:
+		frappe.log_error(
+			f"WARNING: Item {doc.name} has docstatus={doc.docstatus} (expected 0). "
+			"Item is a save doctype and should not be submitted. "
+			"Updating decoupled lead time anyway, but please investigate why Item was submitted.",
+			"Item Docstatus Warning",
+		)
 
 	# Always update to ensure database has latest calculated value
 	# This is safe because the calculation is idempotent
@@ -31,6 +44,7 @@ def update_decoupled_lead_time_on_item_save(doc, method=None):
 
 		# Update the doc object directly (this will be saved as part of the current transaction)
 		# This avoids using frappe.db.set_value() which would cause a separate update and timestamp mismatch
+		# This does NOT submit the Item - it only updates the field value
 		doc.custom_decoupled_lead_time = decoupled_lead_time
 
 		# If lead_time_days or custom_buffer_flag changed, also update parent items

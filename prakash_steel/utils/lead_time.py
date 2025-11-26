@@ -246,12 +246,31 @@ def update_decoupled_lead_time_for_item(item_code):
 	"""
 	Update the decoupled lead time field for a specific item.
 
+	IMPORTANT: Item is a save doctype (not submit doctype), so docstatus should always be 0.
+	This function only updates the field value, it does NOT submit the Item.
+
 	Args:
 		item_code (str): Item code to update
 	"""
 	try:
+		# Safety check: Verify Item exists and is not submitted (Item should never be submitted)
+		item_docstatus = frappe.db.get_value("Item", item_code, "docstatus")
+		if item_docstatus is None:
+			# Item doesn't exist
+			return None
+
+		# Item should always have docstatus = 0 (it's a save doctype, not submit doctype)
+		# If somehow it's submitted, log a warning but still update the field
+		if item_docstatus != 0:
+			frappe.log_error(
+				f"WARNING: Item {item_code} has docstatus={item_docstatus} (expected 0). Item should not be submitted.",
+				"Item Docstatus Warning",
+			)
+
 		decoupled_lead_time = calculate_decoupled_lead_time(item_code)
 
+		# Use frappe.db.set_value() to update only the field value
+		# This does NOT submit the document, it only updates the field
 		frappe.db.set_value("Item", item_code, "custom_decoupled_lead_time", decoupled_lead_time)
 
 		frappe.db.commit()
