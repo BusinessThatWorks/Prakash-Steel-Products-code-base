@@ -6,20 +6,6 @@ from prakash_steel.utils.lead_time import update_decoupled_lead_time_for_item, g
 
 
 def update_decoupled_lead_time_on_item_save(doc, method=None):
-	"""
-	Update decoupled lead time when Item is saved.
-	This ensures the value is always saved to the database.
-
-	IMPORTANT:
-	- Item is a SAVE doctype (not submit doctype), so docstatus should always be 0
-	- This hook runs on 'on_update' which is triggered on SAVE, not on submit
-	- Updates the doc object directly instead of using frappe.db.set_value()
-	- This does NOT submit the Item, it only updates the field value
-
-	Args:
-		doc: Item document
-		method: Method name (for compatibility with doc_events)
-	"""
 	# Only update if item_code exists (not a new item being created)
 	if not doc.name:
 		return
@@ -42,14 +28,8 @@ def update_decoupled_lead_time_on_item_save(doc, method=None):
 		# Calculate the decoupled lead time
 		decoupled_lead_time = calculate_decoupled_lead_time(doc.name)
 
-		# Update the doc object directly (this will be saved as part of the current transaction)
-		# This avoids using frappe.db.set_value() which would cause a separate update and timestamp mismatch
-		# This does NOT submit the Item - it only updates the field value
 		doc.custom_decoupled_lead_time = decoupled_lead_time
 
-		# If lead_time_days or custom_buffer_flag changed, also update parent items
-		# (because this item's change affects parent items that use it in their BOM)
-		# But do this AFTER the current save is complete to avoid conflicts
 		if doc.has_value_changed("lead_time_days") or doc.has_value_changed("custom_buffer_flag"):
 			# Use frappe.enqueue to update parent items asynchronously after save
 			frappe.enqueue(
@@ -65,14 +45,6 @@ def update_decoupled_lead_time_on_item_save(doc, method=None):
 
 
 def update_decoupled_lead_time_on_bom_save(doc, method=None):
-	"""
-	Update decoupled lead time when BOM is saved/submitted.
-	When BOM changes, the item's decoupled lead time needs to be recalculated.
-
-	Args:
-		doc: BOM document
-		method: Method name (for compatibility with doc_events)
-	"""
 	# Only process submitted BOMs
 	if doc.docstatus != 1:
 		return

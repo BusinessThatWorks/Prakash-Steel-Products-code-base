@@ -5,30 +5,6 @@ import frappe
 
 
 def calculate_decoupled_lead_time(item_code):
-	"""
-	Calculate decoupled lead time for an item by traversing BOM hierarchy.
-
-	IMPORTANT: Decoupled lead time does NOT depend on whether the item itself is buffer or non-buffer.
-	It depends on the longest path through the BOM tree until hitting a buffer item OR end of branch.
-
-	Logic:
-	1. Start with item's own lead_time (regardless of buffer status)
-	2. If item has a BOM, traverse it:
-	   - At each level, find all items (buffer or non-buffer)
-	   - For each item, if it's buffer: stop traversing its BOM (contribute only its own lead_time)
-	   - For each item, if it's non-buffer: recursively traverse its BOM
-	   - Take the maximum path among all items at the same level
-	3. Sum up: own_lead_time + max_path_through_bom
-	4. Stop when:
-	   - Hit a buffer item (don't traverse its BOM, use only its own lead_time)
-	   - Hit end of branch (Raw Material or no BOM)
-
-	Args:
-		item_code (str): Item code
-
-	Returns:
-		float: Decoupled lead time (item's own lead time + longest path through BOM)
-	"""
 	if not item_code:
 		return 0
 
@@ -51,30 +27,6 @@ def calculate_decoupled_lead_time(item_code):
 
 
 def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=None):
-	"""
-	Recursive helper function to calculate lead time for an item.
-
-	IMPORTANT: Buffer status of the item itself does NOT affect calculation.
-	We always start with own_lead_time and traverse BOM.
-	When we encounter buffer items in BOM, we stop traversing their BOM.
-
-	For each item:
-	- Always start with own_lead_time (regardless of buffer status)
-	- If has BOM, traverse it:
-	  - For each child item:
-	    - If child is buffer: use only its own_lead_time (don't traverse its BOM)
-	    - If child is non-buffer: recursively get its full decoupled_lead_time
-	  - Take maximum path among all children
-	- Return: own_lead_time + max_path_through_bom
-
-	Args:
-		item_code (str): Item code
-		visited_items (set): Set of visited item codes to prevent circular references
-		item_groups_cache (dict): Cache for item_group lookups to improve performance
-
-	Returns:
-		float: Decoupled lead time (item's own lead time + longest path through BOM)
-	"""
 	if not item_code or item_code in visited_items:
 		return 0
 
@@ -245,10 +197,6 @@ def get_default_bom(item_code):
 def update_decoupled_lead_time_for_item(item_code):
 	"""
 	Update the decoupled lead time field for a specific item.
-
-	IMPORTANT: Item is a save doctype (not submit doctype), so docstatus should always be 0.
-	This function only updates the field value, it does NOT submit the Item.
-
 	Args:
 		item_code (str): Item code to update
 	"""

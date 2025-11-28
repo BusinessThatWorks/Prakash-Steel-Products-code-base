@@ -72,25 +72,40 @@ def get_columns():
 			"label": "Item Code",
 			"fieldtype": "Link",
 			"options": "Item",
-			"width": 150,
+			"width": 300,
 		},
-		{"fieldname": "item_name", "label": "Item Name", "fieldtype": "Data", "width": 200},
-		{"fieldname": "lead_time_days", "label": "Lead Time", "fieldtype": "Float", "width": 120},
+		{
+			"fieldname": "item_name",
+			"label": "Item Name",
+			"fieldtype": "Link",
+			"options": "Item",
+			"width": 250,
+		},
+		{"fieldname": "lead_time_days", "label": "Lead Time", "fieldtype": "Float", "width": 100},
 		{
 			"fieldname": "custom_decoupled_lead_time",
-			"label": "Replenish Time",
+			"label": "Replanishment Time",
 			"fieldtype": "Float",
-			"width": 150,
+			"width": 120,
 		},
-		{"fieldname": "custom_buffer_flag", "label": "Buffer Flag", "fieldtype": "Data", "width": 120},
-		{"fieldname": "level", "label": "Level", "fieldtype": "Int", "width": 80},
+		{"fieldname": "custom_buffer_flag", "label": "Buffer Flag", "fieldtype": "Data", "width": 100},
+		{
+			"fieldname": "buffer_impact",
+			"label": "Buffer Impact",
+			"fieldtype": "Data",
+			"width": 120,
+			"hidden": 1,
+		},
+		{"fieldname": "has_children", "label": "Has Children", "fieldtype": "Check", "width": 0, "hidden": 1},
 		{
 			"fieldname": "parent_item",
 			"label": "Parent Item",
 			"fieldtype": "Link",
 			"options": "Item",
-			"width": 150,
+			"width": 0,
+			"hidden": 1,
 		},
+		{"fieldname": "level", "label": "Level", "fieldtype": "Int", "width": 0, "hidden": 1},
 	]
 
 
@@ -106,7 +121,7 @@ def get_all_items_recursively(bom_name, parent_item=None, level=0, visited_boms=
 		item_groups_cache: Dict to cache item_group lookups (for performance)
 
 	Returns:
-		list: List of dicts with item information including level and parent
+		list: List of dicts with item information including level, parent, and has_children flag
 	"""
 	if visited_boms is None:
 		visited_boms = set()
@@ -155,26 +170,32 @@ def get_all_items_recursively(bom_name, parent_item=None, level=0, visited_boms=
 		for bom_item in bom_doc.items:
 			item_code = bom_item.item_code
 
+			# Optimization: Check item_group first - Raw Materials don't have BOMs
+			# This avoids unnecessary BOM lookup for raw materials
+			item_group = item_groups_cache.get(item_code)
+
+			# Check if this item has a BOM (nested BOM)
+			has_children = False
+			child_bom = None
+
+			# If it's not a Raw Material, check for BOM
+			if not (item_group and item_group == "Raw Material"):
+				child_bom = get_default_bom(item_code)
+				if child_bom and child_bom not in visited_boms:
+					has_children = True
+
 			# Add this item to the list
 			items_list.append(
 				{
 					"item_code": item_code,
 					"parent_item": parent_item,
 					"level": level,
+					"has_children": has_children,
 				}
 			)
 
-			# Optimization: Check item_group first - Raw Materials don't have BOMs
-			# This avoids unnecessary BOM lookup for raw materials
-			item_group = item_groups_cache.get(item_code)
-
-			# If it's a Raw Material, skip BOM check (end of branch)
-			if item_group and item_group == "Raw Material":
-				continue
-
-			# Check if this item has a BOM (nested BOM)
-			child_bom = get_default_bom(item_code)
-			if child_bom and child_bom not in visited_boms:
+			# If it has children, recursively get items from child BOM
+			if has_children and child_bom:
 				# Recursively get items from child BOM
 				# Pass the same visited_boms and cache to prevent cycles and reuse cache
 				child_items = get_all_items_recursively(
@@ -211,6 +232,14 @@ def get_data(filters):
 		bom_doc = frappe.get_doc("BOM", bom_name)
 		main_item_code = bom_doc.item if bom_doc.item else None
 
+		# Check if main item has children (has a BOM with items)
+		main_item_has_children = False
+		if main_item_code:
+			# Check if main item has a BOM (it should, since we're viewing its BOM)
+			# But also check if the BOM has items
+			if bom_doc.items and len(bom_doc.items) > 0:
+				main_item_has_children = True
+
 		# Get all items recursively (including nested BOMs)
 		all_items_hierarchy = get_all_items_recursively(bom_name, parent_item=main_item_code, level=1)
 
@@ -222,6 +251,7 @@ def get_data(filters):
 					"item_code": main_item_code,
 					"parent_item": None,
 					"level": 0,
+					"has_children": main_item_has_children,
 				},
 			)
 
@@ -263,6 +293,7 @@ def get_data(filters):
 			item_code = item_info["item_code"]
 			parent_item = item_info["parent_item"]
 			level = item_info["level"]
+			has_children = item_info.get("has_children", False)
 
 			item_data = items_dict.get(item_code)
 
@@ -280,14 +311,25 @@ def get_data(filters):
 				# Ensure it's a float
 				decoupled_lead_time = flt(decoupled_lead_time or 0)
 
+				# Get buffer flag
+				buffer_flag = item_data.get("custom_buffer_flag") or "No"
+
+				# Buffer Impact: Show icon/indicator if buffer is "Yes"
+				buffer_impact = ""
+				if buffer_flag == "Yes":
+					buffer_impact = "Yes"  # This will be rendered as icon in JS
+
 				row = {
 					"item_code": item_code,
 					"item_name": item_data.get("item_name") or "",
 					"lead_time_days": flt(item_data.get("lead_time_days") or 0),
 					"custom_decoupled_lead_time": decoupled_lead_time,
-					"custom_buffer_flag": item_data.get("custom_buffer_flag") or "",
+					"custom_buffer_flag": buffer_flag,
+					"buffer_impact": buffer_impact,
+					"has_children": has_children,
 					"level": level,
 					"parent_item": parent_item or "",
+					"indent": level,  # Frappe uses indent for collapsible rows
 				}
 				data.append(row)
 			else:
