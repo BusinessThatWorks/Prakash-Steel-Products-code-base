@@ -198,9 +198,21 @@ function toggle_group_for_sub_assemblies_visibility(frm) {
 }
 
 function update_decoupled_lead_time(frm, allow_when_dirty) {
-    // Only calculate if item_code exists (not a new item)
+    // Only calculate if item_code exists and item is saved (not a new item)
     if (!frm.doc.item_code) {
         console.log("[Lead Time] No item_code, skipping calculation");
+        return;
+    }
+
+    // CRITICAL: Don't calculate for new items that haven't been saved yet
+    // New items don't exist in the database, so calculation will fail
+    if (frm.is_new() || frm.doc.__islocal) {
+        console.log("[Lead Time] Item is new/unsaved, skipping calculation until saved");
+        // For new items, just set decoupled_lead_time to lead_time_days (default value)
+        if (frm.doc.lead_time_days) {
+            frm.doc.custom_decoupled_lead_time = frm.doc.lead_time_days;
+            frm.refresh_field('custom_decoupled_lead_time');
+        }
         return;
     }
 
@@ -317,8 +329,14 @@ function update_decoupled_lead_time(frm, allow_when_dirty) {
 }
 
 function get_lead_time_debug_info(frm) {
-    // Only get debug info if item_code exists
+    // Only get debug info if item_code exists and item is saved
     if (!frm.doc.item_code) {
+        return;
+    }
+
+    // Don't try to get debug info for new items that haven't been saved yet
+    if (frm.is_new() || frm.doc.__islocal) {
+        console.log("[Lead Time] Item is new/unsaved, skipping debug info");
         return;
     }
 
@@ -454,8 +472,6 @@ function toggle_buffer_fields_visibility(frm) {
         frm.set_df_property('custom_top_of_yellow', 'hidden', !is_buffer);
     }
 
-    // Don't validate here - validation happens in calculate_buffer_fields when user actually enters/edits safety_stock
-    // This prevents showing error when user just switches from Non-Buffer to Buffer
 }
 
 function calculate_buffer_fields(frm) {

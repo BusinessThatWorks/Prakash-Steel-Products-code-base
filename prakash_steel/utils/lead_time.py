@@ -8,6 +8,11 @@ def calculate_decoupled_lead_time(item_code):
 	if not item_code:
 		return 0
 
+	# Check if item exists in database before trying to calculate
+	# This prevents errors when calculating for new items that haven't been saved yet
+	if not frappe.db.exists("Item", item_code):
+		return 0
+
 	# Track visited items to avoid infinite loops
 	visited_items = set()
 
@@ -18,6 +23,9 @@ def calculate_decoupled_lead_time(item_code):
 	try:
 		result = _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache)
 		return result
+	except frappe.DoesNotExistError:
+		# Item doesn't exist (might have been deleted), return 0 silently
+		return 0
 	except Exception as e:
 		frappe.log_error(
 			f"Error in calculate_decoupled_lead_time for item {item_code}: {str(e)}\nTraceback: {frappe.get_traceback()}",
@@ -277,6 +285,13 @@ def debug_lead_time_calculation(item_code):
 	"""
 	if not item_code:
 		return {"error": "Item code is required"}
+
+	# Check if item exists in database (not a new item being created)
+	if not frappe.db.exists("Item", item_code):
+		return {
+			"error": f"Item {item_code} not found. Item may not be saved yet (new item).",
+			"item_code": item_code,
+		}
 
 	try:
 		item_doc = frappe.get_doc("Item", item_code)
