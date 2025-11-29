@@ -137,13 +137,19 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"Stock Entry": {
+		"validate": "prakash_steel.utils.stock_entry.validate_vehicle_no_for_material_transfer",
+		"on_submit": "prakash_steel.utils.stock_entry.update_decoupled_lead_time_on_stock_entry_submit",
+	},
+	"Item": {
+		"on_update": "prakash_steel.utils.item.update_decoupled_lead_time_on_item_save",
+	},
+	"BOM": {
+		"on_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
+		"on_update_after_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
+	},
+}
 
 # Scheduled Tasks
 # ---------------
@@ -250,6 +256,7 @@ doctype_js = {
 	"Material Request": "public/js/material_request.js",
 	"Sales Order": "public/js/sales_order.js",
 	"Item": "public/js/item.js",
+	"Stock Entry": "public/js/stock_entry.js",
 }
 
 # Page JS
