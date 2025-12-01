@@ -84,7 +84,7 @@ def get_columns():
 		{"fieldname": "lead_time_days", "label": "Lead Time", "fieldtype": "Float", "width": 100},
 		{
 			"fieldname": "custom_decoupled_lead_time",
-			"label": "Replanishment Time",
+			"label": "Replenishment Lead Time",
 			"fieldtype": "Float",
 			"width": 120,
 		},

@@ -29,13 +29,9 @@ frappe.query_reports["BOM wise Buffer Details Report"] = {
 			return value || "No";
 		}
 
-		// Format item code with full name
+		// Format item code - show only item code (item name is in separate column)
 		if (column.fieldname === "item_code") {
-			let item_display = value;
-			if (data.item_name) {
-				item_display = `${value}: ${data.item_name}`;
-			}
-			return default_formatter(item_display, row, column, data);
+			return default_formatter(value, row, column, data);
 		}
 
 		return default_formatter(value, row, column, data);
