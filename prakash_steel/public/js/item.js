@@ -542,6 +542,8 @@ function calculate_sku_type(frm) {
             new_sku_type = is_buffer ? 'BOTA' : 'BOTO';
         } else if (item_type === 'RM') {
             new_sku_type = is_buffer ? 'PTA' : 'PTO';
+        } else if (item_type === 'Traded') {
+            new_sku_type = is_buffer ? 'TRMTA' : 'TRMTO';
         }
     }
 
