@@ -137,22 +137,22 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	# "Stock Entry": {
-# 	# 	"validate": "prakash_steel.utils.stock_entry.validate_vehicle_no_for_material_transfer",
-# 	# 	"on_submit": "prakash_steel.utils.stock_entry.update_decoupled_lead_time_on_stock_entry_submit",
-# 	# },
-# 	# "Item": {
-# 	# 	"on_update": "prakash_steel.utils.item.update_decoupled_lead_time_on_item_save",
-# 	# },
-# 	# "BOM": {
-# 	# 	"on_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
-# 	# 	"on_update_after_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
-# 	# },
-# 	# "Purchase Receipt": {
-# 	# 	"on_submit": "prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
-# 	# },
-# }
+doc_events = {
+	# 	# "Stock Entry": {
+	# 	# 	"validate": "prakash_steel.utils.stock_entry.validate_vehicle_no_for_material_transfer",
+	# 	# 	"on_submit": "prakash_steel.utils.stock_entry.update_decoupled_lead_time_on_stock_entry_submit",
+	# 	# },
+	"Item": {
+		"on_update": "prakash_steel.utils.item.update_decoupled_lead_time_on_item_save",
+	},
+	"BOM": {
+		"on_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
+		"on_update_after_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
+	},
+	# 	# "Purchase Receipt": {
+	# 	# 	"on_submit": "prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
+	# 	# },
+}
 
 # Scheduled Tasks
 # ---------------
