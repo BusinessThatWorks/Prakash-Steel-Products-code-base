@@ -149,9 +149,9 @@ doc_events = {
 		"on_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
 		"on_update_after_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
 	},
-	# 	# "Purchase Receipt": {
-	# 	# 	"on_submit": "prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
-	# 	# },
+	"Purchase Receipt": {
+		"on_submit": "prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
+	},
 }
 
 # Scheduled Tasks
