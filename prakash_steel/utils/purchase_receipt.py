@@ -145,12 +145,12 @@ def send_quantity_exceeded_notification(doc, exceeded_items):
 	<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; margin-top: 10px;">
 		<thead>
 			<tr style="background-color: #f0f0f0;">
-				<th>Purchase Order</th>
-				<th>Item Code</th>
-				<th>Rate</th>
-				<th>Original Qty (PO)</th>
-				<th>Total Received Qty</th>
-				<th>Extra Qty</th>
+				<th style="text-align: center;">Purchase Order</th>
+				<th style="text-align: center;">Item Code</th>
+				<th style="text-align: center;">Rate</th>
+				<th style="text-align: center;">Original Qty (PO)</th>
+				<th style="text-align: center;">Total Received Qty</th>
+				<th style="text-align: center;">Extra Qty</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -159,12 +159,12 @@ def send_quantity_exceeded_notification(doc, exceeded_items):
 	for item in exceeded_items:
 		message += f"""
 			<tr>
-				<td><a href="{get_url()}/app/purchase-order/{item["purchase_order"]}">{item["purchase_order"]}</a></td>
-				<td>{item["item_code"]}</td>
-				<td>{flt(item["rate"], 2)}</td>
-				<td>{flt(item["po_qty"], 2)}</td>
-				<td>{flt(item["total_received"], 2)}</td>
-				<td style="color: red; font-weight: bold;">{flt(item["extra_qty"], 2)}</td>
+				<td style="text-align: center;"><a href="{get_url()}/app/purchase-order/{item["purchase_order"]}">{item["purchase_order"]}</a></td>
+				<td style="text-align: center;">{item["item_code"]}</td>
+				<td style="text-align: center;">{flt(item["rate"], 2)}</td>
+				<td style="text-align: center;">{flt(item["po_qty"], 2)}</td>
+				<td style="text-align: center;">{flt(item["total_received"], 2)}</td>
+				<td style="text-align: center; color: red; font-weight: bold;">{flt(item["extra_qty"], 2)}</td>
 			</tr>
 		"""
 
@@ -204,6 +204,7 @@ def get_notification_recipients():
 	recipients = [
 		"beetashoke.chakraborty@clapgrow.com",
 		"ritika@clapgrow.com",
+		"avinash@prakashsteel.com",
 	]
 
 	return recipients
