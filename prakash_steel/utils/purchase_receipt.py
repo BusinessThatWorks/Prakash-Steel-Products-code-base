@@ -205,6 +205,7 @@ def get_notification_recipients():
 		"beetashoke.chakraborty@clapgrow.com",
 		"ritika@clapgrow.com",
 		"avinash@prakashsteel.com",
+		"purchase@prakashsteel.com",
 	]
 
 	return recipients
