@@ -210,8 +210,14 @@ def prepare_data(data, so_elapsed_time, filters):
 		completed += row["billed_amount"]
 		pending += row["pending_amount"]
 
+		# Convert quantity fields to integers
+		row["qty"] = int(flt(row.get("qty", 0)))
+		row["delivered_qty"] = int(flt(row.get("delivered_qty", 0)))
+		row["pending_qty"] = int(flt(row.get("pending_qty", 0)))
+		row["billed_qty"] = int(flt(row.get("billed_qty", 0)))
+
 		# prepare data for report view
-		row["qty_to_bill"] = flt(row["qty"]) - flt(row["billed_qty"])
+		row["qty_to_bill"] = int(flt(row["qty"]) - flt(row["billed_qty"]))
 		row["delay"] = 0 if row["delay"] and row["delay"] < 0 else row["delay"]
 
 		# calculate SKU Type using same rule as item.js
@@ -223,7 +229,7 @@ def prepare_data(data, so_elapsed_time, filters):
 		row["item_type"] = item_type
 
 		# total stock across all warehouses for this item (for display)
-		row["stock"] = stock_map.get(row.get("item_code"), 0)
+		row["stock"] = int(flt(stock_map.get(row.get("item_code"), 0)))
 
 		# Calculate remaining_days: negative of delay_days
 		delay_days = row.get("delay_days")
@@ -288,8 +294,8 @@ def prepare_data(data, so_elapsed_time, filters):
 		allocated = min(required_qty, available_qty)
 		shortage = required_qty - allocated
 
-		row["stock_allocation"] = allocated
-		row["shortage"] = shortage
+		row["stock_allocation"] = int(allocated)
+		row["shortage"] = int(shortage)
 
 		# Calculate Line Fullkit for this line/item
 		# If shortage = 0 → "Full-kit"
@@ -342,6 +348,11 @@ def prepare_data(data, so_elapsed_time, filters):
 				]
 				for field in fields:
 					so_row[field] = flt(row[field]) + flt(so_row[field])
+
+				# Convert quantity fields to integers after summing
+				int_fields = ["qty", "delivered_qty", "pending_qty", "billed_qty", "qty_to_bill"]
+				for field in int_fields:
+					so_row[field] = int(flt(so_row[field]))
 
 	# Calculate Order Fullkit: Group by sales_order and check line_fullkit values
 	# Build a map of sales_order -> list of line_fullkit values
@@ -408,6 +419,12 @@ def get_columns(filters):
 			"options": "Sales Order",
 			"width": 160,
 		},
+		{
+			"label": _("Delivery Date"),
+			"fieldname": "delivery_date",
+			"fieldtype": "Date",
+			"width": 120,
+		},
 		{"label": _("Status"), "fieldname": "status", "fieldtype": "Data", "width": 130},
 		{
 			"label": _("Customer Name"),
@@ -455,19 +472,19 @@ def get_columns(filters):
 		{
 			"label": _("Stock"),
 			"fieldname": "stock",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 100,
 		},
 		{
 			"label": _("Stock Allocation"),
 			"fieldname": "stock_allocation",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 130,
 		},
 		{
 			"label": _("Shortage"),
 			"fieldname": "shortage",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 100,
 		},
 	]
@@ -496,35 +513,35 @@ def get_columns(filters):
 			{
 				"label": _("Order Qty"),
 				"fieldname": "qty",
-				"fieldtype": "Float",
+				"fieldtype": "Int",
 				"width": 120,
 				"convertible": "qty",
 			},
 			{
 				"label": _("Delivered Qty"),
 				"fieldname": "delivered_qty",
-				"fieldtype": "Float",
+				"fieldtype": "Int",
 				"width": 120,
 				"convertible": "qty",
 			},
 			{
 				"label": _("Qty to Deliver"),
 				"fieldname": "pending_qty",
-				"fieldtype": "Float",
+				"fieldtype": "Int",
 				"width": 120,
 				"convertible": "qty",
 			},
 			{
 				"label": _("Billed Qty"),
 				"fieldname": "billed_qty",
-				"fieldtype": "Float",
+				"fieldtype": "Int",
 				"width": 80,
 				"convertible": "qty",
 			},
 			{
 				"label": _("Qty to Bill"),
 				"fieldname": "qty_to_bill",
-				"fieldtype": "Float",
+				"fieldtype": "Int",
 				"width": 80,
 				"convertible": "qty",
 			},
