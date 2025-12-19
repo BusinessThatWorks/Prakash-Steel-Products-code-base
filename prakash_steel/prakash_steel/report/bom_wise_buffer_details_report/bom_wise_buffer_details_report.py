@@ -90,6 +90,12 @@ def get_columns():
 		},
 		{"fieldname": "custom_buffer_flag", "label": "Buffer Flag", "fieldtype": "Data", "width": 100},
 		{
+			"fieldname": "buffer_img",
+			"label": "Buffer Img",
+			"fieldtype": "Attach Image",
+			"width": 80,
+		},
+		{
 			"fieldname": "buffer_impact",
 			"label": "Buffer Impact",
 			"fieldtype": "Data",
@@ -314,10 +320,8 @@ def get_data(filters):
 				# Get buffer flag
 				buffer_flag = item_data.get("custom_buffer_flag") or "No"
 
-				# Buffer Impact: Show icon/indicator if buffer is "Yes"
-				buffer_impact = ""
-				if buffer_flag == "Yes":
-					buffer_impact = "Yes"  # This will be rendered as icon in JS
+				# Check if item is buffer (could be "Yes" or "Buffer")
+				is_buffer = buffer_flag in ["Yes", "Buffer"]
 
 				row = {
 					"item_code": item_code,
@@ -325,7 +329,8 @@ def get_data(filters):
 					"lead_time_days": flt(item_data.get("lead_time_days") or 0),
 					"custom_decoupled_lead_time": decoupled_lead_time,
 					"custom_buffer_flag": buffer_flag,
-					"buffer_impact": buffer_impact,
+					# Set image path if item is buffer
+					"buffer_img": "/files/toc.jpeg" if is_buffer else "",
 					"has_children": has_children,
 					"level": level,
 					"parent_item": parent_item or "",
