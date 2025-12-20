@@ -99,9 +99,7 @@ def get_data(conditions, filters):
             {conditions}
         GROUP BY soi.name
         ORDER BY
-            CASE WHEN soi.delivery_date >= CURDATE() THEN 0 ELSE 1 END,
-            CASE WHEN soi.delivery_date >= CURDATE() THEN soi.delivery_date END ASC,
-            CASE WHEN soi.delivery_date < CURDATE() THEN soi.delivery_date END DESC,
+            soi.delivery_date ASC,
             so.name,
             soi.item_code
     """,
