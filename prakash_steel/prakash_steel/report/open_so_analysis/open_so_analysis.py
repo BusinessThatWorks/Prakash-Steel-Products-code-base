@@ -73,6 +73,7 @@ def get_data(conditions, filters):
             DATEDIFF(CURRENT_DATE, soi.delivery_date) as delay_days,
             IF(so.status in ('Completed','To Bill'), 0, (SELECT delay_days)) as delay,
             soi.qty,
+            soi.rate,
             soi.delivered_qty,
             (soi.qty - soi.delivered_qty) AS pending_qty,
             IFNULL(SUM(sii.qty), 0) as billed_qty,
@@ -82,6 +83,7 @@ def get_data(conditions, filters):
             (soi.base_amount - (soi.billed_amt * IFNULL(so.conversion_rate, 1))) as pending_amount,
             soi.warehouse as warehouse,
             so.company,
+            so.currency,
             soi.name,
             soi.description as description
         FROM
@@ -181,7 +183,12 @@ def prepare_data(data, so_elapsed_time, filters):
 
 	# Filter out rows where pending_qty (qty_to_deliver) is 0 or negative
 	# Only show items that still need to be delivered (Open SO items)
-	data = [row for row in data if flt(row.get("pending_qty") or 0) > 0]
+	# Also filter out rows where sales order status is "Closed" or "Cancelled"
+	data = [
+		row
+		for row in data
+		if flt(row.get("pending_qty") or 0) > 0 and row.get("status") not in ["Closed", "Cancelled"]
+	]
 
 	# Build stock map: total actual_qty across all warehouses for each item
 	item_codes = {row.get("item_code") for row in data if row.get("item_code")}
@@ -516,6 +523,14 @@ def get_columns(filters):
 				"fieldtype": "Int",
 				"width": 120,
 				"convertible": "qty",
+			},
+			{
+				"label": _("Rate"),
+				"fieldname": "rate",
+				"fieldtype": "Currency",
+				"width": 120,
+				"options": "currency",
+				"convertible": "rate",
 			},
 			{
 				"label": _("Delivered Qty"),
