@@ -444,12 +444,12 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 90,
 		},
-		# {
-		# 	"label": _("SKU Type"),
-		# 	"fieldname": "sku_type",
-		# 	"fieldtype": "Data",
-		# 	"width": 120,
-		# },
+		{
+			"label": _("SKU Type"),
+			"fieldname": "sku_type",
+			"fieldtype": "Data",
+			"width": 120,
+		},
 		{
 			"label": _("Order Status"),
 			"fieldname": "order_status",
