@@ -57,49 +57,49 @@ def get_columns():
 		{
 			"label": _("TOG"),
 			"fieldname": "tog",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 100,
 		},
 		{
 			"label": _("TOY"),
 			"fieldname": "toy",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 100,
 		},
 		{
 			"label": _("TOR"),
 			"fieldname": "tor",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 100,
 		},
 		{
 			"label": _("Open SO"),
 			"fieldname": "open_so",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 120,
 		},
 		{
 			"label": _("Open PO"),
 			"fieldname": "open_po",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 120,
 		},
 		{
 			"label": _("On Hand Stock"),
 			"fieldname": "on_hand_stock",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 130,
 		},
 		{
 			"label": _("WIP"),
 			"fieldname": "wip",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 100,
 		},
 		{
 			"label": _("Qualify Demand"),
 			"fieldname": "qualify_demand",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 130,
 		},
 		{
@@ -117,49 +117,49 @@ def get_columns():
 		{
 			"label": _("Production Order Recommendation"),
 			"fieldname": "po_recommendation",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 180,
 		},
 		{
 			"label": _("Purchase Order Recommendation"),
 			"fieldname": "purchase_order_recommendation",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 180,
 		},
 		{
 			"label": _("OR with Batch Size"),
 			"fieldname": "or_with_batch_size",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 150,
 		},
 		{
 			"label": _("Batch Size"),
 			"fieldname": "batch_size",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 120,
 		},
 		{
 			"label": _("MOQ"),
 			"fieldname": "moq",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 120,
 		},
 		{
 			"label": _("OR with MOQ"),
 			"fieldname": "or_with_moq",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 150,
 		},
 		{
 			"label": _("MRQ"),
 			"fieldname": "mrq",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 120,
 		},
 		{
 			"label": _("Net PO Recommendation"),
 			"fieldname": "net_po_recommendation",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 180,
 		},
 	]
@@ -315,11 +315,11 @@ def get_data(filters=None):
 		item_type = item_info.get("item_type")
 		sku_type = calculate_sku_type("Buffer", item_type)
 
-		# Get stock and buffer levels
-		on_hand_stock = flt(initial_stock_map.get(item_code, 0))
-		tog = flt(item_info.get("tog", 0))
-		toy = flt(item_info.get("toy", 0))
-		tor = flt(item_info.get("tor", 0))
+		# Get stock and buffer levels (convert to int)
+		on_hand_stock = int(flt(initial_stock_map.get(item_code, 0)))
+		tog = int(flt(item_info.get("tog", 0)))
+		toy = int(flt(item_info.get("toy", 0)))
+		tor = int(flt(item_info.get("tor", 0)))
 		qualify_demand = 0  # Calculation will be done later
 
 		# Calculate On Hand Status = on_hand_stock / (TOG + qualify_demand) (rounded up)
@@ -359,20 +359,20 @@ def get_data(filters=None):
 		# Get item name
 		item_name = item_info.get("item_name", "")
 
-		# Get WIP value
-		wip = flt(wip_map.get(item_code, 0))
+		# Get WIP value (convert to int)
+		wip = int(flt(wip_map.get(item_code, 0)))
 
-		# Get batch size from item
-		batch_size = flt(item_info.get("batch_size", 0))
+		# Get batch size from item (convert to int)
+		batch_size = int(flt(item_info.get("batch_size", 0)))
 
-		# Get MOQ from item
-		moq = flt(item_info.get("moq", 0))
+		# Get MOQ from item (convert to int)
+		moq = int(flt(item_info.get("moq", 0)))
 
-		# Get MRQ from Material Requests (sum of quantities from Material Request Items)
-		mrq = flt(mrq_map.get(item_code, 0))
+		# Get MRQ from Material Requests (sum of quantities from Material Request Items) (convert to int)
+		mrq = int(flt(mrq_map.get(item_code, 0)))
 
-		# Get Open PO (Purchase Order quantity - received quantity)
-		open_po = flt(open_po_map.get(item_code, 0))
+		# Get Open PO (Purchase Order quantity - received quantity) (convert to int)
+		open_po = int(flt(open_po_map.get(item_code, 0)))
 
 		# Calculate PO Recommendation
 		# For BOTA and PTA: use open_po instead of open_so in the formula
@@ -380,8 +380,8 @@ def get_data(filters=None):
 		if sku_type in ["BOTA", "PTA"]:
 			# For BOTA/PTA: qualify_demand + tog - wip - on_hand_stock - open_po
 			# (subtract open_po because it's already on order)
-			po_recommendation = max(
-				0, flt(qualify_demand) + flt(tog) - flt(wip) - flt(on_hand_stock) - flt(open_po)
+			po_recommendation = int(
+				max(0, flt(qualify_demand) + flt(tog) - flt(wip) - flt(on_hand_stock) - flt(open_po))
 			)
 			purchase_order_recommendation = po_recommendation
 			production_order_recommendation = 0
@@ -389,26 +389,26 @@ def get_data(filters=None):
 			base_qty_for_calc = purchase_order_recommendation
 		else:
 			# For others: qualify_demand + tog - wip - on_hand_stock
-			po_recommendation = max(0, flt(qualify_demand) + flt(tog) - flt(wip) - flt(on_hand_stock))
+			po_recommendation = int(max(0, flt(qualify_demand) + flt(tog) - flt(wip) - flt(on_hand_stock)))
 			purchase_order_recommendation = 0
 			production_order_recommendation = po_recommendation
 			# For others, use production_order_recommendation for calculations
 			base_qty_for_calc = production_order_recommendation
 
-		# Calculate OR with Batch Size = ceil(base_qty / batch_size) * batch_size
+		# Calculate OR with Batch Size = ceil(base_qty / batch_size) * batch_size (convert to int)
 		if batch_size > 0:
-			or_with_batch_size = math.ceil(flt(base_qty_for_calc) / flt(batch_size)) * flt(batch_size)
+			or_with_batch_size = int(math.ceil(flt(base_qty_for_calc) / flt(batch_size)) * flt(batch_size))
 		else:
-			or_with_batch_size = base_qty_for_calc
+			or_with_batch_size = int(base_qty_for_calc)
 
-		# Calculate OR with MOQ = ceil(base_qty / moq) * moq
+		# Calculate OR with MOQ = ceil(base_qty / moq) * moq (convert to int)
 		if moq > 0:
-			or_with_moq = math.ceil(flt(base_qty_for_calc) / flt(moq)) * flt(moq)
+			or_with_moq = int(math.ceil(flt(base_qty_for_calc) / flt(moq)) * flt(moq))
 		else:
-			or_with_moq = base_qty_for_calc
+			or_with_moq = int(base_qty_for_calc)
 
-		# Calculate Net PO Recommendation = base_qty - mrq
-		net_po_recommendation = max(0, flt(base_qty_for_calc) - flt(mrq))
+		# Calculate Net PO Recommendation = base_qty - mrq (convert to int)
+		net_po_recommendation = int(max(0, flt(base_qty_for_calc) - flt(mrq)))
 
 		row = {
 			"item_code": item_code,
@@ -417,7 +417,7 @@ def get_data(filters=None):
 			"tog": tog,
 			"toy": toy,
 			"tor": tor,
-			"open_so": flt(so_qty_map.get(item_code, 0)),
+			"open_so": int(flt(so_qty_map.get(item_code, 0))),
 			"open_po": open_po,
 			"on_hand_stock": on_hand_stock,
 			"wip": wip,
