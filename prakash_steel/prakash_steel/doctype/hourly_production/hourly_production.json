@@ -8,6 +8,7 @@
  "field_order": [
   "section_break_inec",
   "amended_from",
+  "production_plan",
   "section_break_nxlm",
   "production_date",
   "finish_item",
@@ -192,14 +193,20 @@
    "fieldtype": "Int",
    "label": "Difference",
    "read_only": 1
+  },
+  {
+   "fieldname": "production_plan",
+   "fieldtype": "Link",
+   "label": "Production Plan",
+   "options": "Production Plan"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-30 11:45:09.490829",
- "modified_by": "Administrator",
+ "modified": "2025-12-31 10:24:11.263507",
+ "modified_by": "ritika@clapgrow.com",
  "module": "Prakash Steel",
  "name": "Hourly Production",
  "naming_rule": "Expression",

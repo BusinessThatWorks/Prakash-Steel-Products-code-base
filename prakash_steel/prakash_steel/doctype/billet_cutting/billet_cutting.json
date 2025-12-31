@@ -8,6 +8,7 @@
  "field_order": [
   "section_break_qymz",
   "amended_from",
+  "production_plan",
   "section_break_jals",
   "posting_date",
   "billet_size",
@@ -158,14 +159,20 @@
    "fieldname": "cutting_weight_per_pcs",
    "fieldtype": "Int",
    "label": "Cutting Weight (Per Pcs)"
+  },
+  {
+   "fieldname": "production_plan",
+   "fieldtype": "Link",
+   "label": "Production Plan",
+   "options": "Production Plan"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-09-08 17:48:34.564829",
- "modified_by": "Administrator",
+ "modified": "2025-12-31 10:24:31.853095",
+ "modified_by": "ritika@clapgrow.com",
  "module": "Prakash Steel",
  "name": "Billet Cutting",
  "naming_rule": "Expression",
