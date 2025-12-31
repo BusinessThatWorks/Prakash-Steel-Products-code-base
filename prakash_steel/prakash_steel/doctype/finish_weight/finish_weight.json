@@ -7,12 +7,35 @@
  "field_order": [
   "section_break_mb5g",
   "amended_from",
-  "section_break_mzau",
   "posting_date",
+  "production_plan",
+  "column_break_xdcg",
+  "column_break_iunx",
+  "section_break_mzau",
+  "item_code",
+  "item_name",
   "column_break_fzua",
-  "column_break_hdgg",
-  "section_break_aguy",
-  "items"
+  "bundling_check",
+  "description_section",
+  "item_description",
+  "column_break_kpak",
+  "item_group",
+  "grade",
+  "shape",
+  "finished_goods_details_section",
+  "length",
+  "finish_pcs",
+  "finish_weight",
+  "fg_per_pcs_weight",
+  "column_break_tpjt",
+  "melting_weight",
+  "bend_material_weight",
+  "colour_code",
+  "cooling_pit",
+  "section_break_mikf",
+  "quality_issue",
+  "column_break_xnll",
+  "remarks"
  ],
  "fields": [
   {
@@ -45,27 +68,157 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "section_break_aguy",
+   "fieldname": "column_break_xdcg",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_iunx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Item Code",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "item_code.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name"
+  },
+  {
+   "fieldname": "bundling_check",
+   "fieldtype": "Select",
+   "label": "Bundling Check",
+   "options": "\nGood\nBad"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "description_section",
+   "fieldtype": "Section Break",
+   "label": "Description"
+  },
+  {
+   "fieldname": "item_description",
+   "fieldtype": "Text Editor",
+   "label": "Item Description"
+  },
+  {
+   "fieldname": "column_break_kpak",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "item_code.item_group",
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "label": "Item Group",
+   "options": "Item Group"
+  },
+  {
+   "fetch_from": "item_code.custom_grade",
+   "fieldname": "grade",
+   "fieldtype": "Link",
+   "label": "Grade",
+   "options": "Item Grade"
+  },
+  {
+   "fetch_from": "item_code.custom_shape",
+   "fieldname": "shape",
+   "fieldtype": "Data",
+   "label": "Shape"
+  },
+  {
+   "fieldname": "finished_goods_details_section",
+   "fieldtype": "Section Break",
+   "label": "Finished Goods Details"
+  },
+  {
+   "fieldname": "length",
+   "fieldtype": "Data",
+   "label": "Length",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_tpjt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "finish_pcs",
+   "fieldtype": "Int",
+   "label": "Finish Pcs",
+   "reqd": 1
+  },
+  {
+   "fieldname": "finish_weight",
+   "fieldtype": "Int",
+   "label": "Finish Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fg_per_pcs_weight",
+   "fieldtype": "Int",
+   "label": "FG Per Pcs Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "melting_weight",
+   "fieldtype": "Int",
+   "label": "Melting Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bend_material_weight",
+   "fieldtype": "Int",
+   "label": "Bend Material Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "colour_code",
+   "fieldtype": "Link",
+   "label": "Colour Code",
+   "options": "Colour Code",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cooling_pit",
+   "fieldtype": "Select",
+   "label": "Cooling Pit",
+   "options": "\nTransferred\nNot Transferred",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_mikf",
    "fieldtype": "Section Break"
   },
   {
-   "allow_bulk_edit": 1,
-   "fieldname": "items",
-   "fieldtype": "Table",
-   "label": "Items",
-   "options": "Finish Weight Item"
+   "fieldname": "quality_issue",
+   "fieldtype": "Small Text",
+   "label": "Quality Issue"
   },
   {
-   "fieldname": "column_break_hdgg",
+   "fieldname": "column_break_xnll",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "production_plan",
+   "fieldtype": "Link",
+   "label": "Production Plan",
+   "options": "Production Plan"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-08-29 16:07:37.954179",
- "modified_by": "Administrator",
+ "modified": "2025-12-31 10:25:40.229283",
+ "modified_by": "ritika@clapgrow.com",
  "module": "Prakash Steel",
  "name": "Finish Weight",
  "naming_rule": "Expression",
