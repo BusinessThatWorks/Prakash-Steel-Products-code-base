@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format: {billet_size}-{MM}-{####}",
+ "autoname": "format: {posting_date}-{billet_size}-{####}",
  "creation": "2025-09-03 15:40:01.350861",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -13,22 +13,24 @@
   "posting_date",
   "billet_size",
   "grade",
-  "total_billet_cutting_pcs",
-  "total_raw_material_pcs",
   "column_break_tioi",
   "raw_material_make",
-  "billet_pcs_full",
-  "billet_length_full",
-  "billet_weight",
   "ruffing_mill_status",
-  "cutting_weight_per_pcs",
+  "billet_details_section",
+  "billet_length_full",
+  "billet_pcs_full",
+  "billet_weight",
+  "column_break_aniz",
+  "description_of_cutting_billet",
   "section_break_aswz",
   "miss_billet_pcs",
   "column_break_temu",
   "miss_billet_weight",
   "section_break_noec",
-  "description_of_cutting_billet",
+  "total_billet_cutting_pcs",
+  "cutting_weight_per_pcs",
   "column_break_ssbg",
+  "total_raw_material_pcs",
   "remarks"
  ],
  "fields": [
@@ -88,6 +90,7 @@
    "reqd": 1
   },
   {
+   "description": "In Mtr",
    "fieldname": "billet_length_full",
    "fieldtype": "Float",
    "label": "Billet Length (Full)",
@@ -112,6 +115,7 @@
    "label": "Total Raw Material Pcs"
   },
   {
+   "default": "Off",
    "fieldname": "ruffing_mill_status",
    "fieldtype": "Select",
    "label": "Roughing Mill Status",
@@ -119,8 +123,10 @@
    "reqd": 1
   },
   {
+   "collapsible": 1,
    "fieldname": "section_break_aswz",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Miss Billet Details"
   },
   {
    "fieldname": "miss_billet_pcs",
@@ -157,21 +163,31 @@
   },
   {
    "fieldname": "cutting_weight_per_pcs",
-   "fieldtype": "Int",
-   "label": "Cutting Weight (Per Pcs)"
+   "fieldtype": "Float",
+   "label": "Cutting Weight (Per Pcs)",
+   "precision": "2"
   },
   {
    "fieldname": "production_plan",
    "fieldtype": "Link",
    "label": "Production Plan",
    "options": "Production Plan"
+  },
+  {
+   "fieldname": "billet_details_section",
+   "fieldtype": "Section Break",
+   "label": "Billet Details"
+  },
+  {
+   "fieldname": "column_break_aniz",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-12-31 10:24:31.853095",
+ "modified": "2026-01-05 14:55:47.001284",
  "modified_by": "ritika@clapgrow.com",
  "module": "Prakash Steel",
  "name": "Billet Cutting",
