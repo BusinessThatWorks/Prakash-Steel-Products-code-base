@@ -54,10 +54,9 @@
   },
   {
    "fieldname": "billet_size",
-   "fieldtype": "Link",
+   "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Billet Size",
-   "options": "Item",
    "reqd": 1
   },
   {
@@ -71,6 +70,7 @@
    "label": "Grade"
   },
   {
+   "default": "Today",
    "fieldname": "posting_date",
    "fieldtype": "Date",
    "label": "Posting Date",
@@ -187,7 +187,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-05 14:55:47.001284",
+ "modified": "2026-01-07 11:35:12.781848",
  "modified_by": "ritika@clapgrow.com",
  "module": "Prakash Steel",
  "name": "Billet Cutting",

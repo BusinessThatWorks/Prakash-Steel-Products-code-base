@@ -7,21 +7,23 @@
  "engine": "InnoDB",
  "field_order": [
   "section_break_inec",
-  "amended_from",
+  "billet_cutting_id",
   "production_plan",
+  "column_break_tohi",
+  "amended_from",
   "section_break_nxlm",
   "production_date",
   "finish_item",
   "grade",
   "planned_finish_item_pcs",
+  "finish_item_pcs",
   "difference",
   "furnace_temparature",
-  "no_of_passes",
   "column_break_dzvu",
   "time_from",
   "time_to",
   "total_pcs",
-  "finish_item_pcs",
+  "no_of_passes",
   "summary_remarks",
   "miss_roll_details_section",
   "miss_roll_pcs",
@@ -74,6 +76,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "Today",
    "fieldname": "production_date",
    "fieldtype": "Date",
    "in_list_view": 1,
@@ -97,7 +100,7 @@
   {
    "fieldname": "finish_item_pcs",
    "fieldtype": "Int",
-   "label": "Finish Item (Pcs)",
+   "label": "Actual Finish Item (Pcs)",
    "reqd": 1
   },
   {
@@ -185,7 +188,7 @@
   {
    "fieldname": "planned_finish_item_pcs",
    "fieldtype": "Int",
-   "label": "Planned Finish Item (Pcs)",
+   "label": "Hourly Planned Finish Item (Pcs)",
    "reqd": 1
   },
   {
@@ -195,17 +198,29 @@
    "read_only": 1
   },
   {
+   "fetch_from": "billet_cutting_id.production_plan",
    "fieldname": "production_plan",
    "fieldtype": "Link",
    "label": "Production Plan",
-   "options": "Production Plan"
+   "options": "Production Plan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "billet_cutting_id",
+   "fieldtype": "Link",
+   "label": "Billet Cutting ID",
+   "options": "Billet Cutting"
+  },
+  {
+   "fieldname": "column_break_tohi",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-12-31 10:24:11.263507",
+ "modified": "2026-01-07 11:38:35.120986",
  "modified_by": "ritika@clapgrow.com",
  "module": "Prakash Steel",
  "name": "Hourly Production",

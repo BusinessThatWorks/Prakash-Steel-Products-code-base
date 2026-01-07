@@ -6,15 +6,16 @@
  "engine": "InnoDB",
  "field_order": [
   "section_break_mb5g",
-  "amended_from",
-  "posting_date",
+  "billet_cutting_id",
   "production_plan",
   "column_break_xdcg",
+  "amended_from",
   "column_break_iunx",
   "section_break_mzau",
+  "posting_date",
   "item_code",
-  "item_name",
   "column_break_fzua",
+  "item_name",
   "bundling_check",
   "description_section",
   "item_description",
@@ -57,6 +58,7 @@
    "fieldtype": "Section Break"
   },
   {
+   "default": "Today",
    "fieldname": "posting_date",
    "fieldtype": "Date",
    "in_list_view": 1,
@@ -207,17 +209,25 @@
    "label": "Remarks"
   },
   {
+   "fetch_from": "billet_cutting_id.production_plan",
    "fieldname": "production_plan",
    "fieldtype": "Link",
    "label": "Production Plan",
-   "options": "Production Plan"
+   "options": "Production Plan",
+   "read_only": 1
+  },
+  {
+   "fieldname": "billet_cutting_id",
+   "fieldtype": "Link",
+   "label": "Billet Cutting ID",
+   "options": "Billet Cutting"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2025-12-31 10:25:40.229283",
+ "modified": "2026-01-07 11:40:28.281542",
  "modified_by": "ritika@clapgrow.com",
  "module": "Prakash Steel",
  "name": "Finish Weight",
