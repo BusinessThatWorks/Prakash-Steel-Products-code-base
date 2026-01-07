@@ -48,6 +48,12 @@ def get_columns():
 			"options": "Item",
 			"width": 120,
 		},
+		# {
+		# 	"label": _("Item Name"),
+		# 	"fieldname": "item_name",
+		# 	"fieldtype": "Data",
+		# 	"width": 200,
+		# },
 		{
 			"label": _("SKU Type"),
 			"fieldname": "sku_type",
@@ -79,25 +85,19 @@ def get_columns():
 			"width": 120,
 		},
 		{
-			"label": _("Open PO"),
-			"fieldname": "open_po",
-			"fieldtype": "Int",
-			"width": 120,
-		},
-		{
 			"label": _("On Hand Stock"),
 			"fieldname": "on_hand_stock",
 			"fieldtype": "Int",
 			"width": 130,
 		},
 		{
-			"label": _("WIP"),
-			"fieldname": "wip",
+			"label": _("WIP/Open PO"),
+			"fieldname": "wip_open_po",
 			"fieldtype": "Int",
-			"width": 100,
+			"width": 120,
 		},
 		{
-			"label": _("Qualify Demand"),
+			"label": _("Qualified Demand"),
 			"fieldname": "qualify_demand",
 			"fieldtype": "Int",
 			"width": 130,
@@ -115,40 +115,10 @@ def get_columns():
 			"width": 130,
 		},
 		{
-			"label": _("Production Order Recommendation"),
-			"fieldname": "po_recommendation",
+			"label": _("Order Recommendation"),
+			"fieldname": "order_recommendation",
 			"fieldtype": "Int",
 			"width": 180,
-		},
-		{
-			"label": _("Purchase Order Recommendation"),
-			"fieldname": "purchase_order_recommendation",
-			"fieldtype": "Int",
-			"width": 180,
-		},
-		{
-			"label": _("OR with Batch Size"),
-			"fieldname": "or_with_batch_size",
-			"fieldtype": "Int",
-			"width": 150,
-		},
-		{
-			"label": _("Batch Size"),
-			"fieldname": "batch_size",
-			"fieldtype": "Int",
-			"width": 120,
-		},
-		{
-			"label": _("MOQ"),
-			"fieldname": "moq",
-			"fieldtype": "Int",
-			"width": 120,
-		},
-		{
-			"label": _("OR with MOQ"),
-			"fieldname": "or_with_moq",
-			"fieldtype": "Int",
-			"width": 150,
 		},
 		{
 			"label": _("MRQ"),
@@ -157,10 +127,113 @@ def get_columns():
 			"width": 120,
 		},
 		{
-			"label": _("Net PO Recommendation"),
+			"label": _("Balance Order Recommendation"),
 			"fieldname": "net_po_recommendation",
 			"fieldtype": "Int",
 			"width": 180,
+		},
+		{
+			"label": _("Net Order Recommendation"),
+			"fieldname": "or_with_moq_batch_size",
+			"fieldtype": "Int",
+			"width": 180,
+		},
+		{
+			"label": _("MOQ"),
+			"fieldname": "moq",
+			"fieldtype": "Int",
+			"width": 120,
+		},
+		{
+			"label": _("Order Multiple Qty"),
+			"fieldname": "batch_size",
+			"fieldtype": "Int",
+			"width": 120,
+		},
+		{
+			"label": _("Production qty based on child stock"),
+			"fieldname": "production_qty_based_on_child_stock",
+			"fieldtype": "Int",
+			"width": 220,
+		},
+		{
+			"label": _("Child Stock Full-Kit Status"),
+			"fieldname": "child_full_kit_status",
+			"fieldtype": "Data",
+			"width": 160,
+		},
+		{
+			"label": _("Production qty based on child stock+WIP/Open PO"),
+			"fieldname": "production_qty_based_on_child_stock_wip_open_po",
+			"fieldtype": "Int",
+			"width": 280,
+		},
+		{
+			"label": _("Child WIP/Open PO Full-Kit Status"),
+			"fieldname": "child_wip_open_po_full_kit_status",
+			"fieldtype": "Data",
+			"width": 160,
+		},
+		{
+			"label": _("Child Item Code"),
+			"fieldname": "child_item_code",
+			"fieldtype": "Link",
+			"options": "Item",
+			"width": 150,
+		},
+		{
+			"label": _("Child Item Type"),
+			"fieldname": "child_item_type",
+			"fieldtype": "Data",
+			"width": 130,
+		},
+		{
+			"label": _("Child SKU Type"),
+			"fieldname": "child_sku_type",
+			"fieldtype": "Data",
+			"width": 130,
+		},
+		{
+			"label": _("Child Requirement"),
+			"fieldname": "child_requirement",
+			"fieldtype": "Int",
+			"width": 150,
+		},
+		{
+			"label": _("Child stock"),
+			"fieldname": "child_stock",
+			"fieldtype": "Int",
+			"width": 120,
+		},
+		{
+			"label": _("Child Stock soft Allocation qty"),
+			"fieldname": "child_stock_soft_allocation_qty",
+			"fieldtype": "Int",
+			"width": 200,
+		},
+		{
+			"label": _("Child Stock shortage"),
+			"fieldname": "child_stock_shortage",
+			"fieldtype": "Int",
+			"width": 160,
+		},
+		{
+			"label": _("Child WIP/Open PO"),
+			"fieldname": "child_wip_open_po",
+			"fieldtype": "Int",
+			"width": 150,
+		},
+		{
+			"label": _("Child WIP/Open PO soft allocation qty"),
+			"fieldname": "child_wip_open_po_soft_allocation_qty",
+			"fieldtype": "Int",
+			"width": 250,
+		},
+		{
+			"label": _("Child WIP/Open PO Shortage"),
+			"fieldname": "child_wip_open_po_shortage",
+			"fieldtype": "Int",
+			"width": 200,
 		},
 	]
 	return columns
@@ -177,8 +250,11 @@ def get_data(filters=None):
 	if not filters:
 		filters = {}
 
-	# Get sales order qty map (for date range) - for ALL items
+	# Get sales order qty map (all-time data) - for ALL items
 	so_qty_map = get_sales_order_qty_map(filters)
+
+	# Get qualified demand map (Open SO with delivery_date <= today)
+	qualified_demand_map = get_qualified_demand_map(filters)
 
 	# Filter to only buffer items that have sales orders
 	# Get buffer items from database
@@ -195,7 +271,7 @@ def get_data(filters=None):
 	# Filter sales order items to only buffer items
 	so_qty_map = {k: v for k, v in so_qty_map.items() if k in buffer_item_codes}
 
-	# Get WIP map (work_order_qty from sales order items)
+	# Get WIP map (qty from Work Order)
 	wip_map = get_wip_map(filters)
 
 	# Get MRQ map (Material Request Quantity - sum of qty from Material Request Items)
@@ -273,7 +349,7 @@ def get_data(filters=None):
 
 	# Build item codes tuple for SQL
 	if len(all_items_to_show) == 1:
-		item_codes_tuple = (list(all_items_to_show)[0],)
+		item_codes_tuple = (next(iter(all_items_to_show)),)
 	else:
 		item_codes_tuple = tuple(all_items_to_show)
 
@@ -303,6 +379,12 @@ def get_data(filters=None):
 	items_map = {item.item_code: item for item in items_data}
 
 	# Build final data list with all items (only buffer items)
+	# Track total stock for display (we'll fetch it once per child item)
+	# Track total WIP/Open PO for each child item (for FIFO allocation)
+	# FIFO allocation will be applied AFTER sorting, in display order
+	child_stock_map = {}
+	child_wip_open_po_map = {}
+
 	data = []
 	for item_code in sorted(all_items_to_show):
 		item_info = items_map.get(item_code, {})
@@ -315,12 +397,13 @@ def get_data(filters=None):
 		item_type = item_info.get("item_type")
 		sku_type = calculate_sku_type("Buffer", item_type)
 
-		# Get stock and buffer levels (convert to int)
-		on_hand_stock = int(flt(initial_stock_map.get(item_code, 0)))
-		tog = int(flt(item_info.get("tog", 0)))
-		toy = int(flt(item_info.get("toy", 0)))
-		tor = int(flt(item_info.get("tor", 0)))
-		qualify_demand = 0  # Calculation will be done later
+		# Get stock and buffer levels
+		on_hand_stock = flt(initial_stock_map.get(item_code, 0))
+		tog = flt(item_info.get("tog", 0))
+		toy = flt(item_info.get("toy", 0))
+		tor = flt(item_info.get("tor", 0))
+		# Get Qualified Demand (Open SO with delivery_date <= today)
+		qualify_demand = flt(qualified_demand_map.get(item_code, 0))
 
 		# Calculate On Hand Status = on_hand_stock / (TOG + qualify_demand) (rounded up)
 		on_hand_status_value = None
@@ -359,20 +442,23 @@ def get_data(filters=None):
 		# Get item name
 		item_name = item_info.get("item_name", "")
 
-		# Get WIP value (convert to int)
-		wip = int(flt(wip_map.get(item_code, 0)))
+		# Get WIP value
+		wip = flt(wip_map.get(item_code, 0))
 
-		# Get batch size from item (convert to int)
-		batch_size = int(flt(item_info.get("batch_size", 0)))
+		# Get batch size from item
+		batch_size = flt(item_info.get("batch_size", 0))
 
-		# Get MOQ from item (convert to int)
-		moq = int(flt(item_info.get("moq", 0)))
+		# Get MOQ from item
+		moq = flt(item_info.get("moq", 0))
 
-		# Get MRQ from Material Requests (sum of quantities from Material Request Items) (convert to int)
-		mrq = int(flt(mrq_map.get(item_code, 0)))
+		# Get MRQ from Material Requests (sum of quantities from Material Request Items)
+		mrq = flt(mrq_map.get(item_code, 0))
 
-		# Get Open PO (Purchase Order quantity - received quantity) (convert to int)
-		open_po = int(flt(open_po_map.get(item_code, 0)))
+		# Get Open PO (Purchase Order quantity - received quantity)
+		open_po = flt(open_po_map.get(item_code, 0))
+
+		# Get Open SO
+		open_so = flt(so_qty_map.get(item_code, 0))
 
 		# Calculate PO Recommendation
 		# For BOTA and PTA: use open_po instead of open_so in the formula
@@ -380,8 +466,8 @@ def get_data(filters=None):
 		if sku_type in ["BOTA", "PTA"]:
 			# For BOTA/PTA: qualify_demand + tog - wip - on_hand_stock - open_po
 			# (subtract open_po because it's already on order)
-			po_recommendation = int(
-				max(0, flt(qualify_demand) + flt(tog) - flt(wip) - flt(on_hand_stock) - flt(open_po))
+			po_recommendation = max(
+				0, flt(qualify_demand) + flt(tog) - flt(wip) - flt(on_hand_stock) - flt(open_po)
 			)
 			purchase_order_recommendation = po_recommendation
 			production_order_recommendation = 0
@@ -389,51 +475,177 @@ def get_data(filters=None):
 			base_qty_for_calc = purchase_order_recommendation
 		else:
 			# For others: qualify_demand + tog - wip - on_hand_stock
-			po_recommendation = int(max(0, flt(qualify_demand) + flt(tog) - flt(wip) - flt(on_hand_stock)))
+			po_recommendation = max(0, flt(qualify_demand) + flt(tog) - flt(wip) - flt(on_hand_stock))
 			purchase_order_recommendation = 0
 			production_order_recommendation = po_recommendation
 			# For others, use production_order_recommendation for calculations
 			base_qty_for_calc = production_order_recommendation
 
-		# Calculate OR with Batch Size = ceil(base_qty / batch_size) * batch_size (convert to int)
-		if batch_size > 0:
-			or_with_batch_size = int(math.ceil(flt(base_qty_for_calc) / flt(batch_size)) * flt(batch_size))
+		# Calculate Net PO Recommendation = base_qty - mrq (balance order recommendation)
+		net_po_recommendation = max(0, flt(base_qty_for_calc) - flt(mrq))
+
+		# Combine WIP and Open PO for display
+		wip_open_po = int(flt(wip) + flt(open_po))
+
+		# Combine Production Order Recommendation and Purchase Order Recommendation
+		order_recommendation = int(flt(production_order_recommendation) + flt(purchase_order_recommendation))
+
+		# Calculate OR with MOQ/Batch Size
+		# Only apply MOQ/Batch Size logic if net_po_recommendation > 0
+		# If balance order recommendation is 0 or negative, net order recommendation should be 0
+		if flt(net_po_recommendation) <= 0:
+			# No net order needed, set to 0 regardless of MOQ/Batch Size
+			or_with_moq_batch_size = 0
 		else:
-			or_with_batch_size = int(base_qty_for_calc)
+			# Balance order recommendation is positive, apply MOQ/Batch Size logic
+			# Check MOQ first, then Batch Size (item can only have one)
+			if moq > 0:
+				# Use MOQ:
+				# If MOQ < net_po_recommendation: use net_po_recommendation
+				# If MOQ >= net_po_recommendation: use MOQ
+				if flt(moq) < flt(net_po_recommendation):
+					or_with_moq_batch_size = int(flt(net_po_recommendation))
+				else:
+					or_with_moq_batch_size = int(flt(moq))
+			elif batch_size > 0:
+				# Use Batch Size: ceil(net_po_recommendation / batch_size) * batch_size
+				or_with_moq_batch_size = int(
+					math.ceil(flt(net_po_recommendation) / flt(batch_size)) * flt(batch_size)
+				)
+			else:
+				# No MOQ or Batch Size, use net_po_recommendation as is
+				or_with_moq_batch_size = int(flt(net_po_recommendation))
 
-		# Calculate OR with MOQ = ceil(base_qty / moq) * moq (convert to int)
-		if moq > 0:
-			or_with_moq = int(math.ceil(flt(base_qty_for_calc) / flt(moq)) * flt(moq))
-		else:
-			or_with_moq = int(base_qty_for_calc)
-
-		# Calculate Net PO Recommendation = base_qty - mrq (convert to int)
-		net_po_recommendation = int(max(0, flt(base_qty_for_calc) - flt(mrq)))
-
-		row = {
+		# Base row with parent item data
+		base_row = {
 			"item_code": item_code,
 			"item_name": item_name,
 			"sku_type": sku_type,
-			"tog": tog,
-			"toy": toy,
-			"tor": tor,
-			"open_so": int(flt(so_qty_map.get(item_code, 0))),
-			"open_po": open_po,
-			"on_hand_stock": on_hand_stock,
-			"wip": wip,
-			"qualify_demand": 0,
+			"tog": int(flt(tog)),
+			"toy": int(flt(toy)),
+			"tor": int(flt(tor)),
+			"open_so": int(flt(open_so)),
+			"on_hand_stock": int(flt(on_hand_stock)),
+			"wip_open_po": int(flt(wip_open_po)),
+			"qualify_demand": int(flt(qualify_demand)),
 			"on_hand_status": on_hand_status,
 			"on_hand_colour": on_hand_colour,
-			"po_recommendation": production_order_recommendation,
-			"purchase_order_recommendation": purchase_order_recommendation,
-			"or_with_batch_size": or_with_batch_size,
-			"batch_size": batch_size,
-			"moq": moq,
-			"or_with_moq": or_with_moq,
-			"mrq": mrq,
-			"net_po_recommendation": net_po_recommendation,
+			"order_recommendation": int(flt(order_recommendation)),
+			"batch_size": int(flt(batch_size)),
+			"moq": int(flt(moq)),
+			"or_with_moq_batch_size": int(flt(or_with_moq_batch_size)),
+			"mrq": int(flt(mrq)),
+			"net_po_recommendation": int(flt(net_po_recommendation)),
+			# Initialize child columns as None/0
+			"batch_size_multiple": None,
+			"production_qty_based_on_child_stock": None,
+			"production_qty_based_on_child_stock_wip_open_po": None,
+			"child_item_code": None,
+			"child_item_type": None,
+			"child_sku_type": None,
+			"child_requirement": None,
+			"child_stock": None,
+			"child_stock_soft_allocation_qty": None,
+			"child_stock_shortage": None,
+			"child_full_kit_status": None,
+			"child_wip_open_po": None,
+			"child_wip_open_po_soft_allocation_qty": None,
+			"child_wip_open_po_shortage": None,
+			"child_wip_open_po_full_kit_status": None,
 		}
-		data.append(row)
+
+		# Get BOM for this item to find child items
+		bom = get_default_bom(item_code)
+		child_items = []
+
+		if bom:
+			try:
+				bom_doc = frappe.get_doc("BOM", bom)
+				# Get all child items from BOM
+				for bom_item in bom_doc.items:
+					child_item_code = bom_item.item_code
+					child_items.append(
+						{
+							"item_code": child_item_code,
+							"qty": flt(bom_item.qty),
+						}
+					)
+			except Exception as e:
+				frappe.log_error(
+					f"Error getting BOM {bom} for item {item_code}: {str(e)}", "PO Recommendation Error"
+				)
+
+		# If item has child items, create a row for each child
+		# Otherwise, create one row with empty child columns
+		if child_items:
+			for child_item_info in child_items:
+				child_item_code = child_item_info["item_code"]
+
+				# Fetch child item details
+				child_item_type = None
+				child_sku_type = None
+				child_stock = 0
+
+				try:
+					child_item_doc = frappe.get_doc("Item", child_item_code)
+					child_item_type = child_item_doc.get("custom_item_type")
+					child_buffer_flag = child_item_doc.get("custom_buffer_flag") or "Non-Buffer"
+					# Calculate child SKU type using the existing function
+					child_sku_type = calculate_sku_type(child_buffer_flag, child_item_type)
+
+					# Get child item stock from Bin table (only fetch once per child item)
+					if child_item_code not in child_stock_map:
+						stock_data = frappe.db.sql(
+							"""
+							SELECT SUM(actual_qty) as stock
+							FROM `tabBin`
+							WHERE item_code = %s
+							""",
+							(child_item_code,),
+							as_dict=True,
+						)
+						total_stock = int(
+							flt(stock_data[0].stock if stock_data and stock_data[0].stock else 0)
+						)
+						child_stock_map[child_item_code] = total_stock
+
+					# Use total stock for display
+					child_stock = child_stock_map.get(child_item_code, 0)
+				except Exception as e:
+					frappe.log_error(
+						f"Error fetching child item {child_item_code}: {str(e)}", "PO Recommendation Error"
+					)
+
+				# Calculate Child Requirement = OR with MOQ/Batch Size * 1.04
+				child_requirement = int(flt(or_with_moq_batch_size) * 1.04)
+
+				# Get Child WIP and Open PO (same logic as parent items)
+				child_wip = flt(wip_map.get(child_item_code, 0))
+				child_open_po = flt(open_po_map.get(child_item_code, 0))
+				# Combine WIP and Open PO for display
+				child_wip_open_po = int(flt(child_wip) + flt(child_open_po))
+				# Store total WIP/Open PO for this child item (for FIFO allocation)
+				if child_item_code not in child_wip_open_po_map:
+					child_wip_open_po_map[child_item_code] = child_wip_open_po
+
+				# Create a copy of base_row and populate child columns
+				# Note: FIFO allocation will be calculated AFTER sorting, in display order
+				row = base_row.copy()
+				row["child_item_code"] = child_item_code
+				row["child_item_type"] = child_item_type
+				row["child_sku_type"] = child_sku_type
+				row["child_requirement"] = child_requirement
+				row["child_stock"] = child_stock
+				row["child_wip_open_po"] = child_wip_open_po
+				# child_stock_soft_allocation_qty and child_stock_shortage will be calculated after sorting
+				row["child_stock_soft_allocation_qty"] = None
+				row["child_stock_shortage"] = None
+				# Other child columns will be populated later
+
+				data.append(row)
+		else:
+			# No child items, add row with empty child columns
+			data.append(base_row)
 
 	# Apply filters
 	filtered_data = []
@@ -441,13 +653,35 @@ def get_data(filters=None):
 		# Filter by SKU Type
 		if filters.get("sku_type"):
 			sku_type_filter = filters.get("sku_type")
-			# Handle both list and comma-separated string
-			if isinstance(sku_type_filter, str):
-				sku_type_list = [s.strip() for s in sku_type_filter.split(",") if s.strip()]
-			else:
-				sku_type_list = sku_type_filter if isinstance(sku_type_filter, list) else [sku_type_filter]
+			sku_type_list = []
 
-			if row.get("sku_type") not in sku_type_list:
+			# Handle different formats that MultiSelectList can send
+			if isinstance(sku_type_filter, str):
+				# Try to parse as JSON first (in case it's a JSON string)
+				if sku_type_filter.strip().startswith("[") or sku_type_filter.strip().startswith("{"):
+					try:
+						import json
+
+						parsed = json.loads(sku_type_filter)
+						if isinstance(parsed, list):
+							sku_type_list = [str(s).strip() for s in parsed if s]
+						else:
+							sku_type_list = [str(parsed).strip()] if parsed else []
+					except:
+						# If JSON parsing fails, treat as comma-separated string
+						sku_type_list = [s.strip() for s in sku_type_filter.split(",") if s.strip()]
+				else:
+					# Comma-separated string
+					sku_type_list = [s.strip() for s in sku_type_filter.split(",") if s.strip()]
+			elif isinstance(sku_type_filter, list):
+				# Already a list
+				sku_type_list = [str(s).strip() for s in sku_type_filter if s]
+			else:
+				# Single value
+				sku_type_list = [str(sku_type_filter).strip()] if sku_type_filter else []
+
+			# Only filter if we have valid SKU types in the filter
+			if sku_type_list and row.get("sku_type") not in sku_type_list:
 				continue
 
 		# Filter by Item Code (exact match)
@@ -456,6 +690,128 @@ def get_data(filters=None):
 				continue
 
 		filtered_data.append(row)
+
+	# Sort by On Hand Status in ascending order
+	# Extract numeric value from on_hand_status (e.g., "50%" -> 50)
+	# None values will be sorted last (treated as very high value)
+	def get_on_hand_status_value(row):
+		on_hand_status = row.get("on_hand_status")
+		if on_hand_status is None:
+			return float("inf")  # Put None values at the end
+		# Extract number from string like "50%"
+		try:
+			# Remove % sign and convert to float
+			numeric_value = float(on_hand_status.replace("%", "").strip())
+			return numeric_value
+		except (ValueError, AttributeError):
+			return float("inf")  # Put invalid values at the end
+
+	filtered_data.sort(key=get_on_hand_status_value)
+
+	# Apply FIFO Stock Allocation and Shortage AFTER sorting (in display order)
+	# Re-initialize remaining_child_stock for FIFO allocation
+	remaining_child_stock_fifo = {}
+	# Re-initialize remaining_child_wip_open_po for FIFO allocation
+	remaining_child_wip_open_po_fifo = {}
+
+	for row in filtered_data:
+		child_item_code = row.get("child_item_code")
+		if child_item_code:
+			# Initialize remaining stock if not already done
+			if child_item_code not in remaining_child_stock_fifo:
+				# Get total stock for this child item
+				if child_item_code in child_stock_map:
+					remaining_child_stock_fifo[child_item_code] = child_stock_map[child_item_code]
+				else:
+					# Fetch stock if not in map
+					try:
+						stock_data = frappe.db.sql(
+							"""
+							SELECT SUM(actual_qty) as stock
+							FROM `tabBin`
+							WHERE item_code = %s
+							""",
+							(child_item_code,),
+							as_dict=True,
+						)
+						total_stock = int(
+							flt(stock_data[0].stock if stock_data and stock_data[0].stock else 0)
+						)
+						child_stock_map[child_item_code] = total_stock
+						remaining_child_stock_fifo[child_item_code] = total_stock
+					except Exception:
+						remaining_child_stock_fifo[child_item_code] = 0
+
+			# Initialize remaining WIP/Open PO if not already done
+			if child_item_code not in remaining_child_wip_open_po_fifo:
+				# Get total WIP/Open PO for this child item
+				if child_item_code in child_wip_open_po_map:
+					remaining_child_wip_open_po_fifo[child_item_code] = flt(
+						child_wip_open_po_map[child_item_code]
+					)
+				else:
+					# If not in map, use the value from the row (shouldn't happen, but handle it)
+					remaining_child_wip_open_po_fifo[child_item_code] = flt(row.get("child_wip_open_po", 0))
+
+			# Apply FIFO allocation for stock (same logic as open_so_analysis)
+			child_requirement = flt(row.get("child_requirement", 0))
+			available_stock = flt(remaining_child_stock_fifo.get(child_item_code, 0))
+			stock_allocated = min(child_requirement, available_stock)
+			stock_shortage = child_requirement - stock_allocated
+
+			row["child_stock_soft_allocation_qty"] = int(stock_allocated)
+			row["child_stock_shortage"] = int(stock_shortage)
+
+			# Calculate Production qty based on child stock = child_stock_soft_allocation_qty / 1.04 (rounded down)
+			production_qty_based_on_child_stock = math.floor(flt(stock_allocated) / 1.04)
+			row["production_qty_based_on_child_stock"] = int(production_qty_based_on_child_stock)
+
+			# Apply FIFO allocation for WIP/Open PO against remaining requirement (after stock allocation)
+			remaining_requirement_after_stock = stock_shortage
+			available_wip_open_po = flt(remaining_child_wip_open_po_fifo.get(child_item_code, 0))
+			wip_open_po_allocated = min(remaining_requirement_after_stock, available_wip_open_po)
+			wip_open_po_shortage = remaining_requirement_after_stock - wip_open_po_allocated
+
+			row["child_wip_open_po_soft_allocation_qty"] = int(wip_open_po_allocated)
+			row["child_wip_open_po_shortage"] = int(wip_open_po_shortage)
+
+			# Calculate Child WIP/Open PO Full-kit Status
+			# If child_wip_open_po_shortage = 0 → "Full-kit" (regardless of allocation)
+			# If child_wip_open_po_shortage > 0 AND child_wip_open_po_soft_allocation_qty = 0 → "Pending"
+			# If child_wip_open_po_shortage > 0 AND child_wip_open_po_soft_allocation_qty > 0 → "Partial"
+			if flt(wip_open_po_shortage) == 0:
+				row["child_wip_open_po_full_kit_status"] = "Full-kit"
+			elif flt(wip_open_po_allocated) == 0:
+				row["child_wip_open_po_full_kit_status"] = "Pending"
+			else:
+				row["child_wip_open_po_full_kit_status"] = "Partial"
+
+			# Calculate Production qty based on child stock+WIP/Open PO = (child_stock_soft_allocation_qty + child_wip_open_po_soft_allocation_qty) / 1.04 (rounded down)
+			total_allocated = flt(stock_allocated) + flt(wip_open_po_allocated)
+			production_qty_based_on_child_stock_wip_open_po = math.floor(total_allocated / 1.04)
+			row["production_qty_based_on_child_stock_wip_open_po"] = int(
+				production_qty_based_on_child_stock_wip_open_po
+			)
+
+			# Calculate Child Full-kit Status based on total shortage (stock + WIP/Open PO)
+			# If order_recommendation is 0, keep it blank (no order to fulfill)
+			order_recommendation = flt(row.get("order_recommendation", 0))
+			total_shortage = flt(stock_shortage) + flt(wip_open_po_shortage)
+			total_allocated = flt(stock_allocated) + flt(wip_open_po_allocated)
+
+			if flt(order_recommendation) == 0:
+				row["child_full_kit_status"] = None
+			elif flt(total_shortage) == 0:
+				row["child_full_kit_status"] = "Full-kit"
+			elif flt(total_allocated) == 0:
+				row["child_full_kit_status"] = "Pending"
+			else:
+				row["child_full_kit_status"] = "Partial"
+
+			# Update remaining stock for this child item (FIFO - reduce by allocated amount)
+			remaining_child_stock_fifo[child_item_code] = available_stock - stock_allocated
+			# Update remaining WIP/Open PO for this child item (FIFO - reduce by allocated amount)
+			remaining_child_wip_open_po_fifo[child_item_code] = available_wip_open_po - wip_open_po_allocated
 
 	return filtered_data
 
@@ -593,7 +949,6 @@ def debug_po_calculation(item_code, filters=None):
 		"remaining_stock_after_allocation": remaining_stock[item_code],
 		"po_recommendation": required_qty,
 		"calculation": f"max(0, {so_qty} - {available_stock}) = {required_qty}",
-		"date_range": f"{filters.get('from_date', 'N/A')} to {filters.get('to_date', 'N/A')}",
 		"stock_consumers": stock_consumers,
 		"stock_consumed_by_others": sum(c["consumed_qty"] for c in stock_consumers),
 		"bom_traversal": [],
@@ -727,7 +1082,7 @@ def create_material_requests_automatically(filters=None):
 		filters = {}
 
 	# Get report data
-	columns, data = execute(filters)
+	_, data = execute(filters)
 
 	if not data:
 		return {
@@ -895,132 +1250,13 @@ def traverse_bom_for_debug(
 	return details
 
 
-@frappe.whitelist()
-def get_calculation_details(filters=None):
-	"""Get calculation details for browser console - similar to debug_lead_time_calculation"""
-	if not filters:
-		filters = {}
-
-	# Re-run the calculation and collect details
-	calculation_details = {
-		"filters": filters,
-		"items": [],
-		"date_range": f"{filters.get('from_date', 'N/A')} to {filters.get('to_date', 'N/A')}",
-	}
-
-	# Get buffer items
-	data = frappe.db.sql(
-		"""
-		SELECT DISTINCT i.name as item_code
-		FROM `tabItem` i
-		WHERE i.custom_buffer_flag = 'Buffer'
-		ORDER BY i.name
-		""",
-		as_dict=1,
-	)
-
-	# Get stock map
-	item_codes = [row.item_code for row in data]
-	stock_map = get_stock_map(set(item_codes))
-
-	# Get sales order qty map
-	so_qty_map = get_sales_order_qty_map(filters)
-
-	# Calculate PO recommendations
-	po_recommendations = {}
-
-	for row in data:
-		item_code = row.item_code
-		so_qty = flt(so_qty_map.get(item_code, 0))
-		stock = flt(stock_map.get(item_code, 0))
-		required_qty = max(0, so_qty - stock)
-		po_recommendations[item_code] = required_qty
-
-		item_detail = {
-			"item_code": item_code,
-			"sales_order_qty": so_qty,
-			"stock": stock,
-			"po_recommendation": required_qty,
-			"bom_traversal": [],
-		}
-
-		# Traverse BOM if needed
-		if required_qty > 0:
-			item_detail["bom_traversal"] = traverse_bom_for_details(
-				item_code, required_qty, po_recommendations, stock_map, set(), level=0
-			)
-
-		calculation_details["items"].append(item_detail)
-
-	return calculation_details
-
-
-def traverse_bom_for_details(item_code, required_qty, po_recommendations, stock_map, visited_items, level=0):
-	"""Traverse BOM and return details for console display"""
-	if item_code in visited_items:
-		return []
-
-	visited_items.add(item_code)
-	bom = get_default_bom(item_code)
-
-	if not bom:
-		return []
-
-	details = []
-	try:
-		bom_doc = frappe.get_doc("BOM", bom)
-
-		for bom_item in bom_doc.items:
-			child_item_code = bom_item.item_code
-			bom_qty = flt(bom_item.qty)
-			child_required_qty = required_qty * bom_qty
-
-			child_stock = flt(stock_map.get(child_item_code, 0))
-			if child_item_code not in stock_map:
-				stock_data = frappe.db.sql(
-					"SELECT SUM(actual_qty) as stock FROM `tabBin` WHERE item_code = %s",
-					(child_item_code,),
-					as_dict=True,
-				)
-				child_stock = flt(stock_data[0].stock if stock_data else 0)
-				stock_map[child_item_code] = child_stock
-
-			child_po = max(0, child_required_qty - child_stock)
-
-			if child_item_code in po_recommendations:
-				po_recommendations[child_item_code] += child_po
-			else:
-				po_recommendations[child_item_code] = child_po
-
-			child_detail = {
-				"level": level,
-				"item_code": child_item_code,
-				"bom_qty": bom_qty,
-				"required_qty": child_required_qty,
-				"stock": child_stock,
-				"po_recommendation": child_po,
-				"children": [],
-			}
-
-			if child_po > 0:
-				child_detail["children"] = traverse_bom_for_details(
-					child_item_code, child_po, po_recommendations, stock_map, visited_items.copy(), level + 1
-				)
-
-			details.append(child_detail)
-	except Exception as e:
-		frappe.log_error(f"Error in BOM traversal for {item_code}: {str(e)}", "PO Recommendation Error")
-
-	return details
-
-
 def get_stock_map(item_codes):
 	"""Get stock map for all items"""
 	if not item_codes:
 		return {}
 
 	if len(item_codes) == 1:
-		item_codes_tuple = (list(item_codes)[0],)
+		item_codes_tuple = (next(iter(item_codes)),)
 	else:
 		item_codes_tuple = tuple(item_codes)
 
@@ -1064,17 +1300,20 @@ def get_sales_order_qty_map(filters):
 	return {d.item_code: flt(d.so_qty) for d in so_rows}
 
 
-def get_wip_map(filters):
-	"""Get WIP (Work In Progress) map - sum of work_order_qty from sales order items
-	and qty from Work Order (where status is not Completed or Cancelled)
-	for ALL items (all-time data)
+def get_qualified_demand_map(filters):
+	"""Get qualified demand map for ALL items
+	Qualified Demand = Open SO quantity where delivery_date <= today
+	Open SO = qty - delivered_qty (quantity left to deliver)
 	"""
-	# Get WIP from Sales Order items (work_order_qty) - all-time data
-	wip_rows_so = frappe.db.sql(
+	from frappe.utils import today
+
+	today_date = today()
+
+	so_rows = frappe.db.sql(
 		"""
 		SELECT
 			soi.item_code,
-			SUM(IFNULL(soi.work_order_qty, 0)) as wip_qty
+			SUM(soi.qty - IFNULL(soi.delivered_qty, 0)) as so_qty
 		FROM
 			`tabSales Order` so
 		INNER JOIN
@@ -1082,18 +1321,30 @@ def get_wip_map(filters):
 		WHERE
 			so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
 			AND so.docstatus = 1
+			AND IFNULL(soi.delivery_date, '1900-01-01') <= %s
 		GROUP BY
 			soi.item_code
 		""",
+		(today_date,),
 		as_dict=True,
 	)
 
-	# Get WIP from Work Order (qty field) - only for Work Orders that are not Completed or Cancelled
+	return {d.item_code: flt(d.so_qty) for d in so_rows}
+
+
+def get_wip_map(filters):
+	"""Get WIP (Work In Progress) map - sum of (qty - produced_qty) from Work Order (where status is not Completed or Cancelled)
+	for ALL items (all-time data)
+
+	Note: We use only Work Order WIP to avoid double-counting, as work_order_qty in Sales Order Items
+	typically reflects the same Work Order quantity. We calculate remaining quantity as qty - produced_qty.
+	"""
+	# Get WIP from Work Order (qty - produced_qty) - only for Work Orders that are not Completed or Cancelled
 	wip_rows_wo = frappe.db.sql(
 		"""
 		SELECT
 			wo.production_item as item_code,
-			SUM(IFNULL(wo.qty, 0)) as wip_qty
+			SUM(GREATEST(0, IFNULL(wo.qty, 0) - IFNULL(wo.produced_qty, 0))) as wip_qty
 		FROM
 			`tabWork Order` wo
 		WHERE
@@ -1105,42 +1356,33 @@ def get_wip_map(filters):
 		as_dict=True,
 	)
 
-	# Combine both sources
+	# Build WIP map from Work Orders only
 	wip_map = {}
-
-	# Add Sales Order WIP
-	for row in wip_rows_so:
-		item_code = row.item_code
-		wip_map[item_code] = flt(row.wip_qty)
-
-	# Add Work Order WIP (sum if item already exists)
 	for row in wip_rows_wo:
 		item_code = row.item_code
-		if item_code in wip_map:
-			wip_map[item_code] += flt(row.wip_qty)
-		else:
-			wip_map[item_code] = flt(row.wip_qty)
+		wip_map[item_code] = flt(row.wip_qty)
 
 	return wip_map
 
 
 def get_mrq_map(filters):
-	"""Get MRQ (Material Request Quantity) map - sum of qty from Material Request Items
-	for all items (only Material Requests with status 'Pending')
+	"""Get MRQ (Material Request Quantity) map - sum of remaining qty from Material Request Items
+	for all items (Material Requests with status 'Pending' or 'Partially Ordered')
+	Remaining qty = qty - ordered_qty (to get the quantity that still needs to be ordered)
 	"""
-	# Get only Material Requests with status 'Pending'
+	# Get Material Requests with status 'Pending' or 'Partially Ordered'
 	mrq_rows = frappe.db.sql(
 		"""
 		SELECT
 			mri.item_code,
-			SUM(mri.qty) as mrq_qty
+			SUM(GREATEST(0, mri.qty - IFNULL(mri.ordered_qty, 0))) as mrq_qty
 		FROM
 			`tabMaterial Request` mr
 		INNER JOIN
 			`tabMaterial Request Item` mri ON mri.parent = mr.name
 		WHERE
 			mr.docstatus = 1
-			AND mr.status = 'Pending'
+			AND mr.status IN ('Pending', 'Partially Ordered')
 		GROUP BY
 			mri.item_code
 		""",
