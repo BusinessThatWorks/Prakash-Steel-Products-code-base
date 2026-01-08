@@ -1,3 +1,89 @@
+// // Copyright (c) 2025, beetashoke chakraborty and contributors
+// // For license information, please see license.txt
+
+// // frappe.ui.form.on("Hourly Production", {
+// // 	refresh(frm) {
+
+// // 	},
+// // });
+
+// frappe.ui.form.on('Hourly Production', {
+//     refresh(frm) {
+//         toggle_miss_roll_fields(frm);
+//         toggle_miss_ingot_fields(frm);
+//         calculate_total_pcs(frm);
+//         calculate_difference(frm); // also update difference on refresh
+//     },
+//     miss_roll_pcs(frm) {
+//         toggle_miss_roll_fields(frm);
+//         calculate_total_pcs(frm);
+//     },
+//     miss_ingot_pcs(frm) {
+//         toggle_miss_ingot_fields(frm);
+//         calculate_total_pcs(frm);
+//     },
+//     finish_item_pcs(frm) {
+//         calculate_total_pcs(frm);
+//         calculate_difference(frm); // recalc difference when finish pcs changes
+//     },
+//     planned_finish_item_pcs(frm) {
+//         calculate_difference(frm); // recalc difference when planned pcs changes
+//     }
+// });
+
+// function toggle_miss_roll_fields(frm) {
+//     if (frm.doc.miss_roll_pcs && frm.doc.miss_roll_pcs > 0) {
+//         frm.set_df_property("miss_roll_weight", "hidden", 0);
+//         frm.set_df_property("miss_roll_weight", "reqd", 1);
+
+//         frm.set_df_property("remarks_for_miss_roll", "hidden", 0);
+//         frm.set_df_property("remarks_for_miss_roll", "reqd", 1);
+//     } else {
+//         frm.set_df_property("miss_roll_weight", "hidden", 1);
+//         frm.set_df_property("miss_roll_weight", "reqd", 0);
+//         frm.set_value("miss_roll_weight", null);
+
+//         frm.set_df_property("remarks_for_miss_roll", "hidden", 1);
+//         frm.set_df_property("remarks_for_miss_roll", "reqd", 0);
+//         frm.set_value("remarks_for_miss_roll", null);
+//     }
+// }
+
+// function toggle_miss_ingot_fields(frm) {
+//     if (frm.doc.miss_ingot_pcs && frm.doc.miss_ingot_pcs > 0) {
+//         frm.set_df_property("miss_ingot__billet_weight", "hidden", 0);
+//         frm.set_df_property("miss_ingot__billet_weight", "reqd", 1);
+
+//         frm.set_df_property("reason_for_miss_ingot__billet", "hidden", 0);
+//         frm.set_df_property("reason_for_miss_ingot__billet", "reqd", 1);
+//     } else {
+//         frm.set_df_property("miss_ingot__billet_weight", "hidden", 1);
+//         frm.set_df_property("miss_ingot__billet_weight", "reqd", 0);
+//         frm.set_value("miss_ingot__billet_weight", null);
+
+//         frm.set_df_property("reason_for_miss_ingot__billet", "hidden", 1);
+//         frm.set_df_property("reason_for_miss_ingot__billet", "reqd", 0);
+//         frm.set_value("reason_for_miss_ingot__billet", null);
+//     }
+// }
+
+// function calculate_total_pcs(frm) {
+//     let finish = parseFloat(frm.doc.finish_item_pcs) || 0;
+//     let miss_roll = parseFloat(frm.doc.miss_roll_pcs) || 0;
+//     let miss_ingot = parseFloat(frm.doc.miss_ingot_pcs) || 0;
+
+//     let total = finish + miss_roll + miss_ingot;
+//     frm.set_value("total_pcs", total);
+// }
+
+// // --- NEW LOGIC FOR DIFFERENCE ---
+// function calculate_difference(frm) {
+//     let planned = parseFloat(frm.doc.planned_finish_item_pcs) || 0;
+//     let actual = parseFloat(frm.doc.finish_item_pcs) || 0;
+//     let diff = planned - actual;
+//     frm.set_value("difference", diff);
+// }
+
 // Copyright (c) 2025, beetashoke chakraborty and contributors
 // For license information, please see license.txt
 
@@ -13,6 +99,29 @@ frappe.ui.form.on('Hourly Production', {
         toggle_miss_ingot_fields(frm);
         calculate_total_pcs(frm);
         calculate_difference(frm); // also update difference on refresh
+    },
+    validate(frm) {
+        // Ensure hidden fields are not mandatory and cleared
+        if (!frm.doc.miss_roll_pcs || frm.doc.miss_roll_pcs <= 0) {
+            frm.set_df_property("miss_roll_weight", "reqd", 0);
+            frm.set_df_property("remarks_for_miss_roll", "reqd", 0);
+            if (frm.doc.miss_roll_weight) {
+                frm.doc.miss_roll_weight = null;
+            }
+            if (frm.doc.remarks_for_miss_roll) {
+                frm.doc.remarks_for_miss_roll = null;
+            }
+        }
+        if (!frm.doc.miss_ingot_pcs || frm.doc.miss_ingot_pcs <= 0) {
+            frm.set_df_property("miss_ingot__billet_weight", "reqd", 0);
+            frm.set_df_property("reason_for_miss_ingot__billet", "reqd", 0);
+            if (frm.doc.miss_ingot__billet_weight) {
+                frm.doc.miss_ingot__billet_weight = null;
+            }
+            if (frm.doc.reason_for_miss_ingot__billet) {
+                frm.doc.reason_for_miss_ingot__billet = null;
+            }
+        }
     },
     miss_roll_pcs(frm) {
         toggle_miss_roll_fields(frm);
@@ -33,37 +142,43 @@ frappe.ui.form.on('Hourly Production', {
 
 function toggle_miss_roll_fields(frm) {
     if (frm.doc.miss_roll_pcs && frm.doc.miss_roll_pcs > 0) {
-        frm.set_df_property("miss_roll_weight", "hidden", 0);
         frm.set_df_property("miss_roll_weight", "reqd", 1);
+        frm.set_df_property("miss_roll_weight", "hidden", 0);
 
-        frm.set_df_property("remarks_for_miss_roll", "hidden", 0);
         frm.set_df_property("remarks_for_miss_roll", "reqd", 1);
+        frm.set_df_property("remarks_for_miss_roll", "hidden", 0);
     } else {
-        frm.set_df_property("miss_roll_weight", "hidden", 1);
+        // First remove mandatory requirement, then hide and clear
         frm.set_df_property("miss_roll_weight", "reqd", 0);
-        frm.set_value("miss_roll_weight", null);
+        frm.set_df_property("miss_roll_weight", "hidden", 1);
+        // Direct assignment to avoid marking form as dirty
+        frm.doc.miss_roll_weight = null;
 
-        frm.set_df_property("remarks_for_miss_roll", "hidden", 1);
         frm.set_df_property("remarks_for_miss_roll", "reqd", 0);
-        frm.set_value("remarks_for_miss_roll", null);
+        frm.set_df_property("remarks_for_miss_roll", "hidden", 1);
+        // Direct assignment to avoid marking form as dirty
+        frm.doc.remarks_for_miss_roll = null;
     }
 }
 
 function toggle_miss_ingot_fields(frm) {
     if (frm.doc.miss_ingot_pcs && frm.doc.miss_ingot_pcs > 0) {
-        frm.set_df_property("miss_ingot__billet_weight", "hidden", 0);
         frm.set_df_property("miss_ingot__billet_weight", "reqd", 1);
+        frm.set_df_property("miss_ingot__billet_weight", "hidden", 0);
 
-        frm.set_df_property("reason_for_miss_ingot__billet", "hidden", 0);
         frm.set_df_property("reason_for_miss_ingot__billet", "reqd", 1);
+        frm.set_df_property("reason_for_miss_ingot__billet", "hidden", 0);
     } else {
-        frm.set_df_property("miss_ingot__billet_weight", "hidden", 1);
+        // First remove mandatory requirement, then hide and clear
         frm.set_df_property("miss_ingot__billet_weight", "reqd", 0);
-        frm.set_value("miss_ingot__billet_weight", null);
+        frm.set_df_property("miss_ingot__billet_weight", "hidden", 1);
+        // Direct assignment to avoid marking form as dirty
+        frm.doc.miss_ingot__billet_weight = null;
 
-        frm.set_df_property("reason_for_miss_ingot__billet", "hidden", 1);
         frm.set_df_property("reason_for_miss_ingot__billet", "reqd", 0);
-        frm.set_value("reason_for_miss_ingot__billet", null);
+        frm.set_df_property("reason_for_miss_ingot__billet", "hidden", 1);
+        // Direct assignment to avoid marking form as dirty
+        frm.doc.reason_for_miss_ingot__billet = null;
     }
 }
 
