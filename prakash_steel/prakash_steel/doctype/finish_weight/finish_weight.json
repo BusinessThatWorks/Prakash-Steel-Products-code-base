@@ -14,15 +14,17 @@
   "section_break_mzau",
   "posting_date",
   "item_code",
-  "column_break_fzua",
   "item_name",
+  "column_break_fzua",
   "bundling_check",
+  "fg_target_warehouse",
   "description_section",
-  "item_description",
   "column_break_kpak",
   "item_group",
   "grade",
   "shape",
+  "column_break_qmdo",
+  "column_break_lyfm",
   "finished_goods_details_section",
   "length",
   "finish_pcs",
@@ -100,12 +102,7 @@
    "collapsible": 1,
    "fieldname": "description_section",
    "fieldtype": "Section Break",
-   "label": "Description"
-  },
-  {
-   "fieldname": "item_description",
-   "fieldtype": "Text Editor",
-   "label": "Item Description"
+   "label": "Item Details"
   },
   {
    "fieldname": "column_break_kpak",
@@ -160,8 +157,10 @@
   },
   {
    "fieldname": "fg_per_pcs_weight",
-   "fieldtype": "Int",
+   "fieldtype": "Float",
    "label": "FG Per Pcs Weight",
+   "precision": "2",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -181,6 +180,7 @@
    "fieldtype": "Link",
    "label": "Colour Code",
    "options": "Colour Code",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -222,13 +222,28 @@
    "fieldtype": "Link",
    "label": "Billet Cutting ID",
    "options": "Billet Cutting"
+  },
+  {
+   "fieldname": "fg_target_warehouse",
+   "fieldtype": "Link",
+   "label": "FG Target Warehouse",
+   "options": "Warehouse",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_qmdo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_lyfm",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-08 12:41:49.794545",
+ "modified": "2026-01-08 14:37:21.472859",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight",
