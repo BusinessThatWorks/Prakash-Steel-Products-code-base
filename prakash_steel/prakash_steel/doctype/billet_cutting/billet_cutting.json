@@ -12,7 +12,6 @@
   "section_break_jals",
   "posting_date",
   "billet_size",
-  "grade",
   "column_break_tioi",
   "raw_material_make",
   "ruffing_mill_status",
@@ -62,12 +61,6 @@
   {
    "fieldname": "column_break_tioi",
    "fieldtype": "Column Break"
-  },
-  {
-   "fetch_from": "billet_size.custom_grade",
-   "fieldname": "grade",
-   "fieldtype": "Data",
-   "label": "Grade"
   },
   {
    "default": "Today",
@@ -187,7 +180,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-07 11:35:12.781848",
+ "modified": "2026-01-07 16:34:34.039347",
  "modified_by": "ritika@clapgrow.com",
  "module": "Prakash Steel",
  "name": "Billet Cutting",
