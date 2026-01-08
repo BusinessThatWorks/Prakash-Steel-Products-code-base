@@ -196,8 +196,9 @@
   },
   {
    "fieldname": "quality_issue",
-   "fieldtype": "Small Text",
-   "label": "Quality Issue"
+   "fieldtype": "Link",
+   "label": "Quality Issue",
+   "options": "Quality Issue"
   },
   {
    "fieldname": "column_break_xnll",
@@ -227,8 +228,8 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-07 11:40:28.281542",
- "modified_by": "ritika@clapgrow.com",
+ "modified": "2026-01-08 12:41:49.794545",
+ "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight",
  "naming_rule": "Expression",

@@ -9,21 +9,21 @@
   "section_break_inec",
   "billet_cutting_id",
   "production_plan",
+  "production_date",
   "column_break_tohi",
   "amended_from",
-  "section_break_nxlm",
-  "production_date",
+  "time_from",
+  "time_to",
+  "production_details_section",
   "finish_item",
   "grade",
+  "total_pcs",
+  "furnace_temparature",
+  "no_of_passes",
+  "column_break_beis",
   "planned_finish_item_pcs",
   "finish_item_pcs",
   "difference",
-  "furnace_temparature",
-  "column_break_dzvu",
-  "time_from",
-  "time_to",
-  "total_pcs",
-  "no_of_passes",
   "summary_remarks",
   "miss_roll_details_section",
   "miss_roll_pcs",
@@ -53,11 +53,6 @@
    "search_index": 1
   },
   {
-   "fieldname": "section_break_nxlm",
-   "fieldtype": "Section Break",
-   "label": "Production Details"
-  },
-  {
    "fieldname": "time_from",
    "fieldtype": "Time",
    "in_list_view": 1,
@@ -70,10 +65,6 @@
    "in_list_view": 1,
    "label": "Time To",
    "reqd": 1
-  },
-  {
-   "fieldname": "column_break_dzvu",
-   "fieldtype": "Column Break"
   },
   {
    "default": "Today",
@@ -214,14 +205,23 @@
   {
    "fieldname": "column_break_tohi",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "production_details_section",
+   "fieldtype": "Section Break",
+   "label": "Production Details"
+  },
+  {
+   "fieldname": "column_break_beis",
+   "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-07 11:38:35.120986",
- "modified_by": "ritika@clapgrow.com",
+ "modified": "2026-01-08 12:47:57.931548",
+ "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Hourly Production",
  "naming_rule": "Expression",

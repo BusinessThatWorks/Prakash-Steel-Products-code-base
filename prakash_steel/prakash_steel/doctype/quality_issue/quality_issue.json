@@ -1,34 +1,39 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:{colour_code}",
- "creation": "2025-08-29 12:50:38.310296",
+ "autoname": "format:{quality_issue_type}",
+ "creation": "2026-01-08 12:40:33.841990",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "colour_code",
-  "column_break_rghe"
+  "quality_issue_type",
+  "column_break_omhs",
+  "column_break_pdvg"
  ],
  "fields": [
   {
-   "fieldname": "colour_code",
+   "fieldname": "quality_issue_type",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Colour Code",
+   "label": "Quality Issue Type",
    "reqd": 1
   },
   {
-   "fieldname": "column_break_rghe",
+   "fieldname": "column_break_omhs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_pdvg",
    "fieldtype": "Column Break"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-08 13:03:15.214131",
+ "modified": "2026-01-08 12:41:18.977762",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
- "name": "Colour Code",
+ "name": "Quality Issue",
  "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
@@ -48,6 +53,5 @@
  "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": [],
- "track_changes": 1
+ "states": []
 }
