@@ -102,14 +102,12 @@
   {
    "fieldname": "miss_roll_weight",
    "fieldtype": "Int",
-   "label": "Miss Roll Weight",
-   "reqd": 1
+   "label": "Miss Roll Weight"
   },
   {
    "fieldname": "remarks_for_miss_roll",
    "fieldtype": "Small Text",
-   "label": "Reason for Miss Roll",
-   "reqd": 1
+   "label": "Reason for Miss Roll"
   },
   {
    "collapsible": 1,
@@ -139,14 +137,12 @@
   {
    "fieldname": "miss_ingot__billet_weight",
    "fieldtype": "Int",
-   "label": "Miss Ingot / Billet Weight",
-   "reqd": 1
+   "label": "Miss Ingot / Billet Weight"
   },
   {
    "fieldname": "reason_for_miss_ingot__billet",
    "fieldtype": "Small Text",
-   "label": "Reason for Miss Ingot / Billet",
-   "reqd": 1
+   "label": "Reason for Miss Ingot / Billet"
   },
   {
    "fieldname": "summary_remarks",
