@@ -2,6 +2,7 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from prakash_steel.utils.lead_time import update_decoupled_lead_time_for_item, get_default_bom
 
 
@@ -102,3 +103,40 @@ def _update_parent_items_lead_time(item_code):
 			f"Error finding parent items for {item_code}: {str(e)}",
 			"Parent Item Lead Time Update Error",
 		)
+
+
+def validate_min_order_qty_and_batch_size(doc, method=None):
+	"""
+	Validate that min_order_qty and custom_batch_size are mutually exclusive.
+	Only one field can have a value greater than 0 at a time.
+	If min_order_qty > 0, custom_batch_size must be 0.
+	If custom_batch_size > 0, min_order_qty must be 0.
+	"""
+	min_order_qty = doc.get("min_order_qty") or 0
+	custom_batch_size = doc.get("custom_batch_size") or 0
+	
+	# Convert to float/int for comparison
+	try:
+		min_order_qty = float(min_order_qty) if min_order_qty else 0
+		custom_batch_size = int(custom_batch_size) if custom_batch_size else 0
+	except (ValueError, TypeError):
+		min_order_qty = 0
+		custom_batch_size = 0
+	
+	# Check if both fields have values greater than 0
+	if min_order_qty > 0 and custom_batch_size > 0:
+		frappe.throw(
+			_("Min Order Qty and Batch Size cannot both have values greater than 0. "
+			  "Please set one field to 0 before setting the other."),
+			title=_("Validation Error")
+		)
+	
+	# If min_order_qty > 0, ensure custom_batch_size is 0
+	if min_order_qty > 0:
+		if custom_batch_size > 0:
+			doc.custom_batch_size = 0
+	
+	# If custom_batch_size > 0, ensure min_order_qty is 0
+	if custom_batch_size > 0:
+		if min_order_qty > 0:
+			doc.min_order_qty = 0
