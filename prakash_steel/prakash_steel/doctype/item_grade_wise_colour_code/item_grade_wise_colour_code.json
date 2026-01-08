@@ -1,0 +1,66 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:{item_grade}-{colour_code}",
+ "creation": "2026-01-08 11:16:13.111398",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "item_grade",
+  "colour_code",
+  "column_break_gzva",
+  "column_break_xroz"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_grade",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Grade",
+   "options": "Item Grade",
+   "reqd": 1
+  },
+  {
+   "fieldname": "colour_code",
+   "fieldtype": "Link",
+   "label": "Colour Code",
+   "options": "Colour Code",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_gzva",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_xroz",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-01-08 11:23:31.322947",
+ "modified_by": "Administrator",
+ "module": "Prakash Steel",
+ "name": "Item Grade wise Colour Code",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
