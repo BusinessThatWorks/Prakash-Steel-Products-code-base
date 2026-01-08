@@ -143,6 +143,7 @@ doc_events = {
 	# 	# 	"on_submit": "prakash_steel.utils.stock_entry.update_decoupled_lead_time_on_stock_entry_submit",
 	# 	# },
 	"Item": {
+		"validate": "prakash_steel.utils.item.validate_min_order_qty_and_batch_size",
 		"on_update": "prakash_steel.utils.item.update_decoupled_lead_time_on_item_save",
 	},
 	"BOM": {
@@ -152,6 +153,8 @@ doc_events = {
 	"Purchase Receipt": {
 		"on_submit": "prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
 	},
+	# Note: Finish Weight on_submit is handled in the Document class itself
+	# No need to register here as class methods are automatically called
 }
 
 # Scheduled Tasks
@@ -224,7 +227,7 @@ doc_events = {
 # 		"partial": 1,
 # 	},
 # 	{
-# 		"doctype": "{doctype_2}",
+# 		100mm Billet 20MnCr5"doctype": "{doctype_2}",
 # 		"filter_by": "{filter_by}",
 # 		"partial": 1,
 # 	},
