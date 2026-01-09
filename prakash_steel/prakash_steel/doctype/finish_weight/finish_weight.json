@@ -20,10 +20,9 @@
   "fg_target_warehouse",
   "description_section",
   "column_break_kpak",
-  "item_group",
   "grade",
-  "shape",
   "column_break_qmdo",
+  "shape",
   "column_break_lyfm",
   "finished_goods_details_section",
   "length",
@@ -35,6 +34,16 @@
   "bend_material_weight",
   "colour_code",
   "cooling_pit",
+  "section_break_llkn",
+  "billet_weight",
+  "column_break_eahe",
+  "column_break_ixqq",
+  "section_break_dnvj",
+  "total_miss_roll_pcs",
+  "total_miss_roll_weight",
+  "column_break_xhym",
+  "total_miss_ingot_pcs",
+  "total_miss_ingot_weight",
   "section_break_mikf",
   "quality_issue",
   "column_break_xnll",
@@ -109,13 +118,6 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "item_code.item_group",
-   "fieldname": "item_group",
-   "fieldtype": "Link",
-   "label": "Item Group",
-   "options": "Item Group"
-  },
-  {
    "fetch_from": "item_code.custom_grade",
    "fieldname": "grade",
    "fieldtype": "Link",
@@ -172,15 +174,13 @@
   {
    "fieldname": "bend_material_weight",
    "fieldtype": "Int",
-   "label": "Bend Material Weight",
-   "reqd": 1
+   "label": "Bend Material Weight"
   },
   {
    "fieldname": "colour_code",
    "fieldtype": "Link",
    "label": "Colour Code",
    "options": "Colour Code",
-   "read_only": 1,
    "reqd": 1
   },
   {
@@ -237,13 +237,66 @@
   {
    "fieldname": "column_break_lyfm",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_llkn",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fetch_from": "billet_cutting_id.billet_weight",
+   "fieldname": "billet_weight",
+   "fieldtype": "Int",
+   "label": "Billet Weight",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_eahe",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_ixqq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_dnvj",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "total_miss_roll_pcs",
+   "fieldtype": "Int",
+   "label": "Total Miss Roll (Pcs)",
+   "read_only": 1
+  },
+  {
+   "description": "In Kg",
+   "fieldname": "total_miss_roll_weight",
+   "fieldtype": "Int",
+   "label": "Total Miss Roll / Billet Weight",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_xhym",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_miss_ingot_pcs",
+   "fieldtype": "Int",
+   "label": "Total Miss Ingot (Pcs)",
+   "read_only": 1
+  },
+  {
+   "description": "In Kg",
+   "fieldname": "total_miss_ingot_weight",
+   "fieldtype": "Int",
+   "label": "Total Miss Ingot / Billet Weight",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-08 14:37:21.472859",
+ "modified": "2026-01-09 12:40:07.664920",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight",

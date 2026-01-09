@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format: {DD}-{MM}-{YY}-{##}",
+ "autoname": "format: {production_date}-{###}",
  "creation": "2025-08-23 12:46:00.165418",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -16,14 +16,11 @@
   "time_to",
   "production_details_section",
   "finish_item",
-  "grade",
-  "total_pcs",
+  "finish_item_pcs",
   "furnace_temparature",
   "no_of_passes",
   "column_break_beis",
-  "planned_finish_item_pcs",
-  "finish_item_pcs",
-  "difference",
+  "grade",
   "summary_remarks",
   "miss_roll_details_section",
   "miss_roll_pcs",
@@ -35,6 +32,11 @@
   "miss_ingot__billet_weight",
   "column_break_renk",
   "reason_for_miss_ingot__billet",
+  "section_break_upcq",
+  "total_pcs",
+  "column_break_swqf",
+  "total_billet_cutting_pcs",
+  "column_break_bvmm",
   "connections_tab"
  ],
  "fields": [
@@ -91,7 +93,7 @@
   {
    "fieldname": "finish_item_pcs",
    "fieldtype": "Int",
-   "label": "Actual Finish Item (Pcs)",
+   "label": "Finish Item (Pcs)",
    "reqd": 1
   },
   {
@@ -173,18 +175,6 @@
    "label": "Connections"
   },
   {
-   "fieldname": "planned_finish_item_pcs",
-   "fieldtype": "Int",
-   "label": "Hourly Planned Finish Item (Pcs)",
-   "reqd": 1
-  },
-  {
-   "fieldname": "difference",
-   "fieldtype": "Int",
-   "label": "Difference",
-   "read_only": 1
-  },
-  {
    "fetch_from": "billet_cutting_id.production_plan",
    "fieldname": "production_plan",
    "fieldtype": "Link",
@@ -210,13 +200,32 @@
   {
    "fieldname": "column_break_beis",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_upcq",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "column_break_swqf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_bvmm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "billet_cutting_id.total_billet_cutting_pcs",
+   "fieldname": "total_billet_cutting_pcs",
+   "fieldtype": "Int",
+   "label": "Total Billet Cutting (Pcs)",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-08 12:47:57.931548",
+ "modified": "2026-01-09 12:42:42.989122",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Hourly Production",
