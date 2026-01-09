@@ -98,7 +98,7 @@ frappe.ui.form.on('Hourly Production', {
         toggle_miss_roll_fields(frm);
         toggle_miss_ingot_fields(frm);
         calculate_total_pcs(frm);
-        calculate_difference(frm); // also update difference on refresh
+        fetch_total_billet_cutting_pcs(frm);
     },
     validate(frm) {
         // Ensure hidden fields are not mandatory and cleared
@@ -122,21 +122,33 @@ frappe.ui.form.on('Hourly Production', {
                 frm.doc.reason_for_miss_ingot__billet = null;
             }
         }
+        
+        // Validate that remaining pieces are not negative
+        if (frm.doc.billet_cutting_id && frm.doc.total_billet_cutting_pcs !== null && frm.doc.total_billet_cutting_pcs !== undefined) {
+            if (frm.doc.total_billet_cutting_pcs < 0) {
+                frappe.throw(__('No pieces left! You are trying to use {0} more pieces than available. Please reduce the quantities.', [Math.abs(frm.doc.total_billet_cutting_pcs)]));
+            }
+        }
+    },
+    billet_cutting_id(frm) {
+        fetch_total_billet_cutting_pcs(frm);
     },
     miss_roll_pcs(frm) {
         toggle_miss_roll_fields(frm);
         calculate_total_pcs(frm);
+        // Note: We don't recalculate total_billet_cutting_pcs here because
+        // current document's values should not affect its own remaining count
     },
     miss_ingot_pcs(frm) {
         toggle_miss_ingot_fields(frm);
         calculate_total_pcs(frm);
+        // Note: We don't recalculate total_billet_cutting_pcs here because
+        // current document's values should not affect its own remaining count
     },
     finish_item_pcs(frm) {
         calculate_total_pcs(frm);
-        calculate_difference(frm); // recalc difference when finish pcs changes
-    },
-    planned_finish_item_pcs(frm) {
-        calculate_difference(frm); // recalc difference when planned pcs changes
+        // Note: We don't recalculate total_billet_cutting_pcs here because
+        // current document's values should not affect its own remaining count
     }
 });
 
@@ -191,10 +203,82 @@ function calculate_total_pcs(frm) {
     frm.set_value("total_pcs", total);
 }
 
-// --- NEW LOGIC FOR DIFFERENCE ---
-function calculate_difference(frm) {
-    let planned = parseFloat(frm.doc.planned_finish_item_pcs) || 0;
-    let actual = parseFloat(frm.doc.finish_item_pcs) || 0;
-    let diff = planned - actual;
-    frm.set_value("difference", diff);
+function fetch_total_billet_cutting_pcs(frm) {
+    if (!frm.doc.billet_cutting_id) {
+        // Clear the field if billet_cutting_id is empty
+        frm.set_value("total_billet_cutting_pcs", null);
+        return;
+    }
+
+    // Fetch total_billet_cutting_pcs from Billet Cutting document
+    frappe.db.get_value('Billet Cutting', frm.doc.billet_cutting_id, 'total_billet_cutting_pcs')
+        .then(r => {
+            if (r && r.message && r.message.total_billet_cutting_pcs !== undefined) {
+                const total_from_billet_cutting = parseFloat(r.message.total_billet_cutting_pcs) || 0;
+                
+                // Get current document name (if it exists, exclude it from the sum)
+                const current_doc_name = frm.doc.name || null;
+                
+                // Build filter to find other Hourly Production documents with same billet_cutting_id
+                // Only consider submitted documents (docstatus = 1), not draft documents
+                let filters = {
+                    'billet_cutting_id': frm.doc.billet_cutting_id,
+                    'docstatus': 1 // Only submitted documents
+                };
+                
+                // Exclude current document if it exists
+                if (current_doc_name) {
+                    filters['name'] = ['!=', current_doc_name];
+                }
+                
+                // Fetch all other Hourly Production documents with the same billet_cutting_id
+                return frappe.db.get_list('Hourly Production', {
+                    filters: filters,
+                    fields: ['finish_item_pcs', 'miss_roll_pcs', 'miss_ingot_pcs']
+                }).then(other_docs => {
+                    // Sum up finish_item_pcs + miss_roll_pcs + miss_ingot_pcs from other submitted documents
+                    // Note: Do NOT subtract current document's values - they will only affect the next document
+                    let total_used = 0;
+                    if (other_docs && other_docs.length > 0) {
+                        other_docs.forEach(doc => {
+                            const finish = parseFloat(doc.finish_item_pcs) || 0;
+                            const miss_roll = parseFloat(doc.miss_roll_pcs) || 0;
+                            const miss_ingot = parseFloat(doc.miss_ingot_pcs) || 0;
+                            total_used += (finish + miss_roll + miss_ingot);
+                        });
+                    }
+                    
+                    // Calculate remaining: total_from_billet_cutting - total_used
+                    // Current document's values are NOT subtracted here - they will only affect the next document
+                    const remaining = total_from_billet_cutting - total_used;
+                    
+                    // Set the remaining value
+                    frm.set_value("total_billet_cutting_pcs", remaining);
+                    
+                    // Show error if remaining is 0 or negative
+                    if (remaining < 0) {
+                        frappe.show_alert({
+                            message: __('No pieces left! You are trying to use {0} more pieces than available.', [Math.abs(remaining)]),
+                            indicator: 'red'
+                        }, 10);
+                    } else if (remaining === 0) {
+                        frappe.show_alert({
+                            message: __('No pieces left! All pieces have been used.'),
+                            indicator: 'orange'
+                        }, 10);
+                    }
+                    
+                    return remaining;
+                });
+            } else {
+                frm.set_value("total_billet_cutting_pcs", null);
+            }
+        })
+        .catch(err => {
+            console.error("Error fetching total_billet_cutting_pcs:", err);
+            frappe.show_alert({
+                message: __('Error fetching Total Billet Cutting Pcs'),
+                indicator: 'red'
+            }, 5);
+        });
 }
