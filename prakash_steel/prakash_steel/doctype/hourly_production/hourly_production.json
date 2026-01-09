@@ -166,8 +166,7 @@
   {
    "fieldname": "total_pcs",
    "fieldtype": "Int",
-   "label": "Total (Pcs)",
-   "read_only": 1
+   "label": "Total (Pcs)"
   },
   {
    "fieldname": "connections_tab",
@@ -214,18 +213,16 @@
    "fieldtype": "Column Break"
   },
   {
-   "fetch_from": "billet_cutting_id.total_billet_cutting_pcs",
    "fieldname": "total_billet_cutting_pcs",
    "fieldtype": "Int",
-   "label": "Total Billet Cutting (Pcs)",
-   "read_only": 1
+   "label": "Total Billet Cutting (Pcs)"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-09 12:42:42.989122",
+ "modified": "2026-01-09 16:53:37.963709",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Hourly Production",
