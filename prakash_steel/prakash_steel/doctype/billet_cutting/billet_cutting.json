@@ -178,6 +178,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "default": "Rolling Mill - PSPL",
    "fieldname": "rm_source_warehouse",
    "fieldtype": "Link",
    "label": "RM Source Warehouse",
@@ -189,7 +190,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-08 14:34:35.779744",
+ "modified": "2026-01-09 11:09:01.909313",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Billet Cutting",
