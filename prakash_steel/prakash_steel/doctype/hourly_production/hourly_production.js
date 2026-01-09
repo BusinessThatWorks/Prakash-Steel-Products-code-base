@@ -1,104 +1,13 @@
-// // Copyright (c) 2025, beetashoke chakraborty and contributors
-// // For license information, please see license.txt
-
-// // frappe.ui.form.on("Hourly Production", {
-// // 	refresh(frm) {
-
-// // 	},
-// // });
-
-// frappe.ui.form.on('Hourly Production', {
-//     refresh(frm) {
-//         toggle_miss_roll_fields(frm);
-//         toggle_miss_ingot_fields(frm);
-//         calculate_total_pcs(frm);
-//         calculate_difference(frm); // also update difference on refresh
-//     },
-//     miss_roll_pcs(frm) {
-//         toggle_miss_roll_fields(frm);
-//         calculate_total_pcs(frm);
-//     },
-//     miss_ingot_pcs(frm) {
-//         toggle_miss_ingot_fields(frm);
-//         calculate_total_pcs(frm);
-//     },
-//     finish_item_pcs(frm) {
-//         calculate_total_pcs(frm);
-//         calculate_difference(frm); // recalc difference when finish pcs changes
-//     },
-//     planned_finish_item_pcs(frm) {
-//         calculate_difference(frm); // recalc difference when planned pcs changes
-//     }
-// });
-
-// function toggle_miss_roll_fields(frm) {
-//     if (frm.doc.miss_roll_pcs && frm.doc.miss_roll_pcs > 0) {
-//         frm.set_df_property("miss_roll_weight", "hidden", 0);
-//         frm.set_df_property("miss_roll_weight", "reqd", 1);
-
-//         frm.set_df_property("remarks_for_miss_roll", "hidden", 0);
-//         frm.set_df_property("remarks_for_miss_roll", "reqd", 1);
-//     } else {
-//         frm.set_df_property("miss_roll_weight", "hidden", 1);
-//         frm.set_df_property("miss_roll_weight", "reqd", 0);
-//         frm.set_value("miss_roll_weight", null);
-
-//         frm.set_df_property("remarks_for_miss_roll", "hidden", 1);
-//         frm.set_df_property("remarks_for_miss_roll", "reqd", 0);
-//         frm.set_value("remarks_for_miss_roll", null);
-//     }
-// }
-
-// function toggle_miss_ingot_fields(frm) {
-//     if (frm.doc.miss_ingot_pcs && frm.doc.miss_ingot_pcs > 0) {
-//         frm.set_df_property("miss_ingot__billet_weight", "hidden", 0);
-//         frm.set_df_property("miss_ingot__billet_weight", "reqd", 1);
-
-//         frm.set_df_property("reason_for_miss_ingot__billet", "hidden", 0);
-//         frm.set_df_property("reason_for_miss_ingot__billet", "reqd", 1);
-//     } else {
-//         frm.set_df_property("miss_ingot__billet_weight", "hidden", 1);
-//         frm.set_df_property("miss_ingot__billet_weight", "reqd", 0);
-//         frm.set_value("miss_ingot__billet_weight", null);
-
-//         frm.set_df_property("reason_for_miss_ingot__billet", "hidden", 1);
-//         frm.set_df_property("reason_for_miss_ingot__billet", "reqd", 0);
-//         frm.set_value("reason_for_miss_ingot__billet", null);
-//     }
-// }
-
-// function calculate_total_pcs(frm) {
-//     let finish = parseFloat(frm.doc.finish_item_pcs) || 0;
-//     let miss_roll = parseFloat(frm.doc.miss_roll_pcs) || 0;
-//     let miss_ingot = parseFloat(frm.doc.miss_ingot_pcs) || 0;
-
-//     let total = finish + miss_roll + miss_ingot;
-//     frm.set_value("total_pcs", total);
-// }
-
-// // --- NEW LOGIC FOR DIFFERENCE ---
-// function calculate_difference(frm) {
-//     let planned = parseFloat(frm.doc.planned_finish_item_pcs) || 0;
-//     let actual = parseFloat(frm.doc.finish_item_pcs) || 0;
-//     let diff = planned - actual;
-//     frm.set_value("difference", diff);
-// }
-
-// Copyright (c) 2025, beetashoke chakraborty and contributors
-// For license information, please see license.txt
-
-// frappe.ui.form.on("Hourly Production", {
-// 	refresh(frm) {
-
-// 	},
-// });
 
 frappe.ui.form.on('Hourly Production', {
     refresh(frm) {
         toggle_miss_roll_fields(frm);
         toggle_miss_ingot_fields(frm);
         calculate_total_pcs(frm);
-        fetch_total_billet_cutting_pcs(frm);
+        // Only fetch total_billet_cutting_pcs for new documents (not yet saved/submitted)
+        if (frm.is_new()) {
+            fetch_total_billet_cutting_pcs(frm);
+        }
     },
     validate(frm) {
         // Ensure hidden fields are not mandatory and cleared
@@ -122,7 +31,7 @@ frappe.ui.form.on('Hourly Production', {
                 frm.doc.reason_for_miss_ingot__billet = null;
             }
         }
-        
+
         // Validate that remaining pieces are not negative
         if (frm.doc.billet_cutting_id && frm.doc.total_billet_cutting_pcs !== null && frm.doc.total_billet_cutting_pcs !== undefined) {
             if (frm.doc.total_billet_cutting_pcs < 0) {
@@ -131,7 +40,10 @@ frappe.ui.form.on('Hourly Production', {
         }
     },
     billet_cutting_id(frm) {
-        fetch_total_billet_cutting_pcs(frm);
+        // Only fetch total_billet_cutting_pcs for new documents (not yet saved/submitted)
+        if (frm.is_new()) {
+            fetch_total_billet_cutting_pcs(frm);
+        }
     },
     miss_roll_pcs(frm) {
         toggle_miss_roll_fields(frm);
@@ -215,22 +127,22 @@ function fetch_total_billet_cutting_pcs(frm) {
         .then(r => {
             if (r && r.message && r.message.total_billet_cutting_pcs !== undefined) {
                 const total_from_billet_cutting = parseFloat(r.message.total_billet_cutting_pcs) || 0;
-                
+
                 // Get current document name (if it exists, exclude it from the sum)
                 const current_doc_name = frm.doc.name || null;
-                
+
                 // Build filter to find other Hourly Production documents with same billet_cutting_id
                 // Only consider submitted documents (docstatus = 1), not draft documents
                 let filters = {
                     'billet_cutting_id': frm.doc.billet_cutting_id,
                     'docstatus': 1 // Only submitted documents
                 };
-                
+
                 // Exclude current document if it exists
                 if (current_doc_name) {
                     filters['name'] = ['!=', current_doc_name];
                 }
-                
+
                 // Fetch all other Hourly Production documents with the same billet_cutting_id
                 return frappe.db.get_list('Hourly Production', {
                     filters: filters,
@@ -247,14 +159,14 @@ function fetch_total_billet_cutting_pcs(frm) {
                             total_used += (finish + miss_roll + miss_ingot);
                         });
                     }
-                    
+
                     // Calculate remaining: total_from_billet_cutting - total_used
                     // Current document's values are NOT subtracted here - they will only affect the next document
                     const remaining = total_from_billet_cutting - total_used;
-                    
+
                     // Set the remaining value
                     frm.set_value("total_billet_cutting_pcs", remaining);
-                    
+
                     // Show error if remaining is 0 or negative
                     if (remaining < 0) {
                         frappe.show_alert({
@@ -267,7 +179,7 @@ function fetch_total_billet_cutting_pcs(frm) {
                             indicator: 'orange'
                         }, 10);
                     }
-                    
+
                     return remaining;
                 });
             } else {
