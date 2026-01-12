@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format: {posting_date}-{billet_size}-{####}",
+ "autoname": "format: {posting_date} - {billet_size}-{finish_size}",
  "creation": "2025-09-03 15:40:01.350861",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -12,10 +12,11 @@
   "section_break_jals",
   "posting_date",
   "billet_size",
-  "rm_source_warehouse",
+  "finish_size",
   "column_break_tioi",
   "raw_material_make",
   "ruffing_mill_status",
+  "rm_source_warehouse",
   "billet_details_section",
   "billet_length_full",
   "billet_pcs_full",
@@ -184,13 +185,20 @@
    "label": "RM Source Warehouse",
    "options": "Warehouse",
    "reqd": 1
+  },
+  {
+   "fieldname": "finish_size",
+   "fieldtype": "Link",
+   "label": "Finish Size",
+   "options": "Item",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-09 11:09:01.909313",
+ "modified": "2026-01-12 16:10:34.747465",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Billet Cutting",
