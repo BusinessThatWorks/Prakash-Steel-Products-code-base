@@ -1403,7 +1403,7 @@ def traverse_bom_for_mrp(
             # Example: If BOM produces 0.97 units of parent and needs 0.3 units of child,
             # then for 1 unit of parent, we need: 0.3 / 0.97 units of child
             normalized_bom_qty = bom_item_qty / bom_quantity
-            child_required_qty = parent_order_qty * normalized_bom_qty
+            child_required_qty = math.ceil(parent_order_qty * normalized_bom_qty)
 
             # Track parent demand in detailed_info
             if child_item_code not in detailed_info:
