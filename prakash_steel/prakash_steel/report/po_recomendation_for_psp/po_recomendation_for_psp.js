@@ -170,7 +170,7 @@ frappe.query_reports["PO Recomendation for PSP"] = {
 	formatter: function (value, row, column, data, default_formatter) {
 		value = default_formatter(value, row, column, data);
 
-		// Background colors for On Hand Colour
+		// Background colors for On Hand Colour status
 		if (column.fieldname === "on_hand_colour" && data && data.on_hand_colour) {
 			let colour = data.on_hand_colour;
 			let bg = "";
