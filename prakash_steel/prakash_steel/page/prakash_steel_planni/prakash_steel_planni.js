@@ -69,32 +69,51 @@ function load_all_charts(page, $chartsContainer) {
 		.then(([skuRes, pendingSoRes, openPoRes]) => {
 			page.clear_indicator();
 
+			console.log('[PLANNING DASHBOARD] ====== API RESPONSES ======');
+			console.log('[PLANNING DASHBOARD] SKU Type Response:', skuRes);
+			console.log('[PLANNING DASHBOARD] Pending SO Response:', pendingSoRes);
+			console.log('[PLANNING DASHBOARD] Open PO Response:', openPoRes);
+
 			// 1) SKU type pies
 			if (skuRes && skuRes.message) {
 				const skuData = skuRes.message;
+				console.log('[PLANNING DASHBOARD] SKU Data received:', skuData);
 				const skuTypes = ['BBMTA', 'RBMTA', 'BOTA', 'RMTA', 'PTA'];
 
 				skuTypes.forEach((sku) => {
 					if (skuData[sku] && skuData[sku].colours && skuData[sku].colours.length) {
+						console.log(`[PLANNING DASHBOARD] Rendering ${sku} chart:`, skuData[sku]);
+						console.log(`[PLANNING DASHBOARD] ${sku} - Total: ${skuData[sku].total_items}, Colours:`, skuData[sku].colours);
 						const $card = createChartCard(sku, skuData[sku], colorMap);
 						$chartsContainer.append($card);
 						renderPieChart(sku, skuData[sku], colorMap);
+					} else {
+						console.log(`[PLANNING DASHBOARD] ${sku} - No data or empty colours`);
 					}
 				});
+			} else {
+				console.log('[PLANNING DASHBOARD] No SKU data received');
 			}
 
 			// 2) Pending SO Status pie
 			if (pendingSoRes && pendingSoRes.message && pendingSoRes.message.colours && pendingSoRes.message.colours.length) {
+				console.log('[PLANNING DASHBOARD] Rendering Pending SO Status chart:', pendingSoRes.message);
+				console.log(`[PLANNING DASHBOARD] Pending SO - Total: ${pendingSoRes.message.total_orders}, Colours:`, pendingSoRes.message.colours);
 				const $card = createChartCard('Pending SO Status', pendingSoRes.message, colorMap);
 				$chartsContainer.append($card);
 				renderPieChart('Pending SO Status', pendingSoRes.message, colorMap);
+			} else {
+				console.log('[PLANNING DASHBOARD] No Pending SO data or empty colours');
 			}
 
 			// 3) Open PO Status pie (all black for now)
 			if (openPoRes && openPoRes.message) {
+				console.log('[PLANNING DASHBOARD] Rendering Open PO Status chart:', openPoRes.message);
 				const $card = createChartCard('Open PO Status', openPoRes.message, colorMap);
 				$chartsContainer.append($card);
 				renderPieChart('Open PO Status', openPoRes.message, colorMap);
+			} else {
+				console.log('[PLANNING DASHBOARD] No Open PO data received');
 			}
 
 			if ($chartsContainer.children().length === 0) {
@@ -194,10 +213,13 @@ function createChartCard(key, data, colorMap) {
 function renderPieChart(key, data, colorMap) {
 	const chartId = key.replace(/\s+/g, '-');
 	const canvas = document.getElementById(`chart-${chartId}`);
-	if (!canvas || !data || !data.colours) return;
+	if (!canvas || !data || !data.colours) {
+		console.log(`[PLANNING DASHBOARD] Cannot render ${key}: canvas=${!!canvas}, data=${!!data}, colours=${!!(data && data.colours)}`);
+		return;
+	}
 
 	if (typeof Chart === 'undefined') {
-		console.warn('Chart.js not available');
+		console.warn('[PLANNING DASHBOARD] Chart.js not available');
 		return;
 	}
 
@@ -205,6 +227,12 @@ function renderPieChart(key, data, colorMap) {
 	const labels = data.colours.map((c) => c.name);
 	const values = data.colours.map((c) => c.count);
 	const colors = data.colours.map((c) => colorMap[c.name] || '#ccc');
+
+	console.log(`[PLANNING DASHBOARD] Rendering pie chart for ${key}:`);
+	console.log(`  Labels:`, labels);
+	console.log(`  Values:`, values);
+	console.log(`  Colors:`, colors);
+	console.log(`  Total:`, values.reduce((a, b) => a + b, 0));
 
 	if (window[`chart_${chartId}`]) {
 		window[`chart_${chartId}`].destroy();
