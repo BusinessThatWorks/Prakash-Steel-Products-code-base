@@ -48,12 +48,6 @@ def get_columns():
 			"options": "Item",
 			"width": 120,
 		},
-		# {
-		# 	"label": _("Item Name"),
-		# 	"fieldname": "item_name",
-		# 	"fieldtype": "Data",
-		# 	"width": 200,
-		# },
 		{
 			"label": _("SKU Type"),
 			"fieldname": "sku_type",
@@ -616,8 +610,7 @@ def get_data(filters=None):
 						f"Error fetching child item {child_item_code}: {str(e)}", "PO Recommendation Error"
 					)
 
-				# Calculate Child Requirement = OR with MOQ/Batch Size * 1.04
-				child_requirement = int(flt(or_with_moq_batch_size) * 1.04)
+				child_requirement = int(flt(or_with_moq_batch_size))
 
 				# Get Child WIP and Open PO (same logic as parent items)
 				child_wip = flt(wip_map.get(child_item_code, 0))
@@ -762,8 +755,7 @@ def get_data(filters=None):
 			row["child_stock_soft_allocation_qty"] = int(stock_allocated)
 			row["child_stock_shortage"] = int(stock_shortage)
 
-			# Calculate Production qty based on child stock = child_stock_soft_allocation_qty / 1.04 (rounded down)
-			production_qty_based_on_child_stock = math.floor(flt(stock_allocated) / 1.04)
+			production_qty_based_on_child_stock = math.floor(flt(stock_allocated))
 			row["production_qty_based_on_child_stock"] = int(production_qty_based_on_child_stock)
 
 			# Apply FIFO allocation for WIP/Open PO against remaining requirement (after stock allocation)
@@ -786,9 +778,9 @@ def get_data(filters=None):
 			else:
 				row["child_wip_open_po_full_kit_status"] = "Partial"
 
-			# Calculate Production qty based on child stock+WIP/Open PO = (child_stock_soft_allocation_qty + child_wip_open_po_soft_allocation_qty) / 1.04 (rounded down)
+			# Calculate Production qty based on child stock+WIP/Open PO = (child_stock_soft_allocation_qty + child_wip_open_po_soft_allocation_qty)
 			total_allocated = flt(stock_allocated) + flt(wip_open_po_allocated)
-			production_qty_based_on_child_stock_wip_open_po = math.floor(total_allocated / 1.04)
+			production_qty_based_on_child_stock_wip_open_po = math.floor(total_allocated)
 			row["production_qty_based_on_child_stock_wip_open_po"] = int(
 				production_qty_based_on_child_stock_wip_open_po
 			)
