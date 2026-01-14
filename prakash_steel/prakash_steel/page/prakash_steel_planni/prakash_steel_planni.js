@@ -16,7 +16,7 @@ frappe.pages['prakash-steel-planni'].on_page_load = function (wrapper) {
 		<div class="planning-dashboard" style="padding: 15px;">
 			<div class="charts-grid" style="
 				display: grid;
-				grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+				grid-template-columns: repeat(3, 1fr);
 				gap: 16px;
 			"></div>
 		</div>
@@ -159,51 +159,89 @@ function createChartCard(key, data, colorMap) {
 			box-shadow:0 2px 8px rgba(0,0,0,0.1);
 		">
 			<h3 style="
-				margin:0 0 12px 0;
+				margin:0 0 8px 0;
 				font-size:1rem;
 				font-weight:600;
 				color:#2c3e50;
 				text-align:center;
 			">${title}</h3>
+			<div style="
+				text-align:center;
+				margin-bottom:8px;
+			">
+				<span style="
+					color:#0066cc;
+					font-size:0.9rem;
+					font-weight:600;
+				">Total: <span class="chart-total-${chartId}">0</span></span>
+			</div>
 			<div style="position:relative;height:180px;margin-bottom:12px;">
 				<canvas id="chart-${chartId}" style="max-height:180px;"></canvas>
 			</div>
 			<div class="chart-legend-${chartId}" style="
 				display:flex;
-				flex-wrap:wrap;
-				gap:8px;
+				gap:12px;
 				justify-content:center;
 				margin-top:8px;
-			"></div>
+			">
+				<div class="legend-left" style="display:flex;flex-direction:column;gap:6px;"></div>
+				<div class="legend-right" style="display:flex;flex-direction:column;gap:6px;"></div>
+			</div>
 		</div>
 	`);
 
+	// Calculate and display total
+	const total = data.total_items || data.total_orders || (data.colours ? data.colours.reduce((sum, c) => sum + c.count, 0) : 0);
+	$card.find(`.chart-total-${chartId}`).text(total);
+	
 	const $legend = $card.find(`.chart-legend-${chartId}`);
+	const $legendLeft = $legend.find('.legend-left');
+	const $legendRight = $legend.find('.legend-right');
+	
+	// Define left and right column colors
+	const leftColors = ['BLACK', 'RED', 'WHITE'];
+	const rightColors = ['YELLOW', 'GREEN'];
+	
 	if (data.colours && data.colours.length) {
-		data.colours.forEach((c) => {
+		// Sort colors by the defined order
+		const sortedColours = data.colours.sort((a, b) => {
+			const allColors = [...leftColors, ...rightColors];
+			const indexA = allColors.indexOf(a.name);
+			const indexB = allColors.indexOf(b.name);
+			return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+		});
+		
+		sortedColours.forEach((c) => {
 			const $item = $(`
 				<div style="
 					display:flex;
 					align-items:center;
-					gap:6px;
-					padding:6px 10px;
+					gap:5px;
+					padding:4px 8px;
 					background:#f8f9fa;
-					border-radius:4px;
+					border-radius:3px;
 					border:1px solid ${colorMap[c.name] || '#ccc'};
 				">
 					<div style="
-						width:14px;
-						height:14px;
+						width:12px;
+						height:12px;
 						background:${colorMap[c.name] || '#ccc'};
-						border-radius:3px;
+						border-radius:2px;
 						border:1px solid #ddd;
 					"></div>
-					<span style="font-weight:600;color:#2c3e50;font-size:0.85rem;">${c.name}:</span>
-					<span style="color:#495057;font-size:0.85rem;">${c.count}</span>
-					<span style="color:#7f8c8d;font-size:0.8rem;">(${c.percentage}%)</span>
+					<span style="color:#495057;font-size:0.75rem;">${c.count}</span>
+					<span style="color:#7f8c8d;font-size:0.7rem;">(${c.percentage}%)</span>
 				</div>
 			`);
-			$legend.append($item);
+			
+			if (leftColors.includes(c.name)) {
+				$legendLeft.append($item);
+			} else if (rightColors.includes(c.name)) {
+				$legendRight.append($item);
+			} else {
+				// If color not in defined lists, add to left
+				$legendLeft.append($item);
+			}
 		});
 	}
 

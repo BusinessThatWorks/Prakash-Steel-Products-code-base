@@ -254,9 +254,9 @@ def get_sku_type_on_hand_status(filters=None):
 			if count > 0:
 				percentage = (count / total_items) * 100
 				chart_data[sku_type]["colours"].append(
-					{"name": colour_name, "count": count, "percentage": round(percentage, 2)}
+					{"name": colour_name, "count": count, "percentage": round(percentage)}
 				)
-				colour_summary.append(f"{colour_name}: {count} items ({round(percentage, 2)}%)")
+				colour_summary.append(f"{colour_name}: {count} items ({round(percentage)}%)")
 
 		print(f"[PLANNING DASHBOARD] SKU {sku_type}: Total={total_items} | " + " | ".join(colour_summary))
 
@@ -415,10 +415,10 @@ def get_pending_so_status():
 				{
 					"name": colour,
 					"count": count,
-					"percentage": round(percentage, 2),
+					"percentage": round(percentage),
 				}
 			)
-			status_summary.append(f"{colour}: {count} orders ({round(percentage, 2)}%)")
+			status_summary.append(f"{colour}: {count} orders ({round(percentage)}%)")
 
 	print(f"[PLANNING DASHBOARD] Pending SO Summary: Total={total_orders} | " + " | ".join(status_summary))
 
