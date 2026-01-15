@@ -8,6 +8,11 @@ from frappe.utils import flt
 from prakash_steel.utils.lead_time import get_default_bom
 
 
+def _get_logger():
+	"""Return a named logger for this report."""
+	return frappe.logger("po_recommendation_for_psp")
+
+
 def calculate_sku_type(buffer_flag, item_type):
 	"""
 	Same mapping logic as calculate_sku_type in item.js and open_so_analysis.py
@@ -37,6 +42,91 @@ def execute(filters=None):
 	columns = get_columns()
 	data = get_data(filters)
 	return columns, data
+
+
+def _log_console(message: str):
+	"""Helper to log to both Frappe logger and console (for scheduler debugging)."""
+	# Frappe log
+	_get_logger().info(message)
+	# Console log (appears in worker/bench logs)
+	print(f"[PO Recommendation PSP] {message}")
+
+
+def save_daily_on_hand_colour():
+	"""
+	Scheduled job:
+	- Runs PO Recommendation for PSP report logic.
+	- For each row, saves item_code and on_hand_colour into
+	  Item wise Daily On Hand Colour (parent) and its child table
+	  On hand colour table (fieldname: item_wise_on_hand_colour).
+	- Uses today's date as posting_date.
+	"""
+	from frappe.utils import nowdate
+
+	_log_console("Starting save_daily_on_hand_colour scheduler job")
+
+	# Use empty filters (same base logic as normal report)
+	filters = {}
+	try:
+		_, data = execute(filters)
+	except Exception as e:
+		_log_console(f"Error executing PO Recommendation report: {e}")
+		frappe.log_error(frappe.get_traceback(), "save_daily_on_hand_colour: execute failed")
+		return
+
+	if not data:
+		_log_console("No data returned from report; nothing to save")
+		return
+
+	posting_date = nowdate()
+
+	try:
+		# Create parent doc for the snapshot
+		doc = frappe.new_doc("Item wise Daily On Hand Colour")
+		doc.posting_date = posting_date
+
+		row_count = 0
+		saved_rows = 0
+		seen_item_codes = set()
+
+		for row in data:
+			row_count += 1
+			item_code = row.get("item_code")
+			on_hand_colour = row.get("on_hand_colour")
+
+			# Only save rows that have both values
+			if not item_code or not on_hand_colour:
+				continue
+
+			# Ensure only one row per item_code.
+			# Data from get_data is already sorted by on_hand_status ascending,
+			# so the first occurrence represents the "worst" / lowest status.
+			if item_code in seen_item_codes:
+				continue
+			seen_item_codes.add(item_code)
+
+			child = doc.append("item_wise_on_hand_colour", {})
+			child.item_code = item_code
+			child.on_hand_colour = on_hand_colour
+			saved_rows += 1
+
+		if saved_rows == 0:
+			_log_console(
+				f"Report returned {row_count} rows but no valid item_code/on_hand_colour to save; aborting insert"
+			)
+			return
+
+		doc.insert(ignore_permissions=True)
+		frappe.db.commit()
+
+		_log_console(
+			f"Successfully saved daily on hand colour snapshot for {saved_rows} items on date {posting_date}"
+		)
+	except Exception as e:
+		_log_console(f"Error while saving daily on hand colour snapshot: {e}")
+		frappe.log_error(
+			frappe.get_traceback(), "save_daily_on_hand_colour: failed to create snapshot document"
+		)
 
 
 def get_columns():

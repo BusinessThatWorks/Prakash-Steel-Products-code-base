@@ -272,3 +272,23 @@ page_js = {
 	"sales-summary-dashboard": "prakash_steel/page/sales_summary_dashboard/sales_summary_dashboard.js",
 }
 app_include_js = ["/assets/prakash_steel/js/number_cards_uom.js"]
+
+# Scheduled Tasks
+# ---------------
+
+scheduler_events = {
+	# Cron job to capture daily on hand colour snapshot from
+	# "PO Recommendation for PSP" report into
+	# "Item wise Daily On Hand Colour" doctype.
+	"cron": {
+		# Runs every day at 14:31 server time
+		"52 14 * * *": [
+			"prakash_steel.prakash_steel.report.po_recomendation_for_psp.po_recomendation_for_psp.save_daily_on_hand_colour"
+		]
+	},
+	# Generic 'all' scheduler hook that runs frequently; wrapper
+	# function ensures we only snapshot once per day after 14:31.
+	# "all": [
+	# 	"prakash_steel.prakash_steel.report.po_recomendation_for_psp.po_recomendation_for_psp.run_daily_on_hand_colour_snapshot"
+	# ],
+}

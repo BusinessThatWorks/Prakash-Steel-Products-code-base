@@ -11,6 +11,9 @@ frappe.ui.form.on("Item", {
 
         // Calculate SKU type on form load (will only update if value changed to avoid dirty state)
         calculate_sku_type(frm);
+
+        // Initialize min_order_qty and custom_batch_size exclusivity
+        handle_min_order_qty_batch_size_exclusivity(frm);
     },
 
     custom_store_item: function (frm) {
@@ -98,6 +101,28 @@ frappe.ui.form.on("Item", {
                 });
             }
         }
+
+        // Validate min_order_qty and custom_batch_size mutual exclusivity
+        const min_order_qty = parseFloat(frm.doc.min_order_qty) || 0;
+        const custom_batch_size = parseInt(frm.doc.custom_batch_size) || 0;
+
+        if (min_order_qty > 0 && custom_batch_size > 0) {
+            frappe.throw({
+                title: __('Validation Error'),
+                indicator: 'red',
+                message: __('Min Order Qty and Batch Size cannot both have values greater than 0. Please set one field to 0 before setting the other.')
+            });
+        }
+    },
+
+    min_order_qty: function (frm) {
+        // Handle mutual exclusivity when min_order_qty changes
+        handle_min_order_qty_batch_size_exclusivity(frm);
+    },
+
+    custom_batch_size: function (frm) {
+        // Handle mutual exclusivity when custom_batch_size changes
+        handle_min_order_qty_batch_size_exclusivity(frm);
     }
 
 });
@@ -585,6 +610,39 @@ function calculate_sku_type(frm) {
                 }
             }, 100);
         }
+    }
+}
+
+function handle_min_order_qty_batch_size_exclusivity(frm) {
+    // Check if fields exist
+    if (!frm.fields_dict['min_order_qty'] || !frm.fields_dict['custom_batch_size']) {
+        return;
+    }
+
+    // Get current values
+    const min_order_qty = parseFloat(frm.doc.min_order_qty) || 0;
+    const custom_batch_size = parseInt(frm.doc.custom_batch_size) || 0;
+
+    // If min_order_qty > 0, make custom_batch_size read-only and clear it if > 0
+    if (min_order_qty > 0) {
+        frm.set_df_property('custom_batch_size', 'read_only', 1);
+        if (custom_batch_size > 0) {
+            frm.set_value('custom_batch_size', 0);
+        }
+        frm.set_df_property('min_order_qty', 'read_only', 0);
+    }
+    // If custom_batch_size > 0, make min_order_qty read-only and clear it if > 0
+    else if (custom_batch_size > 0) {
+        frm.set_df_property('min_order_qty', 'read_only', 1);
+        if (min_order_qty > 0) {
+            frm.set_value('min_order_qty', 0);
+        }
+        frm.set_df_property('custom_batch_size', 'read_only', 0);
+    }
+    // If both are 0 or empty, make both fields editable
+    else {
+        frm.set_df_property('min_order_qty', 'read_only', 0);
+        frm.set_df_property('custom_batch_size', 'read_only', 0);
     }
 }
 
