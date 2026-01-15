@@ -13,11 +13,11 @@ frappe.pages['prakash-steel-planni'].on_page_load = function (wrapper) {
 
 	// Main container
 	const $container = $(`
-		<div class="planning-dashboard" style="padding: 20px;">
+		<div class="planning-dashboard" style="padding: 15px;">
 			<div class="charts-grid" style="
 				display: grid;
-				grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-				gap: 24px;
+				grid-template-columns: repeat(3, 1fr);
+				gap: 16px;
 			"></div>
 		</div>
 	`);
@@ -154,56 +154,94 @@ function createChartCard(key, data, colorMap) {
 	const $card = $(`
 		<div class="chart-card" style="
 			background:#fff;
-			border-radius:12px;
-			padding:24px;
-			box-shadow:0 4px 12px rgba(0,0,0,0.1);
+			border-radius:8px;
+			padding:16px;
+			box-shadow:0 2px 8px rgba(0,0,0,0.1);
 		">
 			<h3 style="
-				margin:0 0 20px 0;
-				font-size:1.25rem;
+				margin:0 0 8px 0;
+				font-size:1rem;
 				font-weight:600;
 				color:#2c3e50;
 				text-align:center;
 			">${title}</h3>
-			<div style="position:relative;height:300px;margin-bottom:20px;">
-				<canvas id="chart-${chartId}" style="max-height:300px;"></canvas>
+			<div style="
+				text-align:center;
+				margin-bottom:8px;
+			">
+				<span style="
+					color:#0066cc;
+					font-size:0.9rem;
+					font-weight:600;
+				">Total: <span class="chart-total-${chartId}">0</span></span>
+			</div>
+			<div style="position:relative;height:180px;margin-bottom:12px;">
+				<canvas id="chart-${chartId}" style="max-height:180px;"></canvas>
 			</div>
 			<div class="chart-legend-${chartId}" style="
 				display:flex;
-				flex-wrap:wrap;
 				gap:12px;
 				justify-content:center;
-				margin-top:16px;
-			"></div>
+				margin-top:8px;
+			">
+				<div class="legend-left" style="display:flex;flex-direction:column;gap:6px;"></div>
+				<div class="legend-right" style="display:flex;flex-direction:column;gap:6px;"></div>
+			</div>
 		</div>
 	`);
 
+	// Calculate and display total
+	const total = data.total_items || data.total_orders || (data.colours ? data.colours.reduce((sum, c) => sum + c.count, 0) : 0);
+	$card.find(`.chart-total-${chartId}`).text(total);
+	
 	const $legend = $card.find(`.chart-legend-${chartId}`);
+	const $legendLeft = $legend.find('.legend-left');
+	const $legendRight = $legend.find('.legend-right');
+	
+	// Define left and right column colors
+	const leftColors = ['BLACK', 'RED', 'WHITE'];
+	const rightColors = ['YELLOW', 'GREEN'];
+	
 	if (data.colours && data.colours.length) {
-		data.colours.forEach((c) => {
+		// Sort colors by the defined order
+		const sortedColours = data.colours.sort((a, b) => {
+			const allColors = [...leftColors, ...rightColors];
+			const indexA = allColors.indexOf(a.name);
+			const indexB = allColors.indexOf(b.name);
+			return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+		});
+		
+		sortedColours.forEach((c) => {
 			const $item = $(`
 				<div style="
 					display:flex;
 					align-items:center;
-					gap:8px;
-					padding:8px 12px;
+					gap:5px;
+					padding:4px 8px;
 					background:#f8f9fa;
-					border-radius:6px;
-					border:2px solid ${colorMap[c.name] || '#ccc'};
+					border-radius:3px;
+					border:1px solid ${colorMap[c.name] || '#ccc'};
 				">
 					<div style="
-						width:20px;
-						height:20px;
+						width:12px;
+						height:12px;
 						background:${colorMap[c.name] || '#ccc'};
-						border-radius:4px;
+						border-radius:2px;
 						border:1px solid #ddd;
 					"></div>
-					<span style="font-weight:600;color:#2c3e50;">${c.name}:</span>
-					<span style="color:#495057;">${c.count}</span>
-					<span style="color:#7f8c8d;font-size:0.9rem;">(${c.percentage}%)</span>
+					<span style="color:#495057;font-size:0.75rem;">${c.count}</span>
+					<span style="color:#7f8c8d;font-size:0.7rem;">(${c.percentage}%)</span>
 				</div>
 			`);
-			$legend.append($item);
+			
+			if (leftColors.includes(c.name)) {
+				$legendLeft.append($item);
+			} else if (rightColors.includes(c.name)) {
+				$legendRight.append($item);
+			} else {
+				// If color not in defined lists, add to left
+				$legendLeft.append($item);
+			}
 		});
 	}
 

@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "format: {posting_date}",
  "creation": "2026-01-13 17:35:01.439756",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -29,10 +30,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-13 17:35:42.245619",
+ "modified": "2026-01-14 13:25:23.554131",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Item wise Daily On Hand Colour",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
