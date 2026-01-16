@@ -143,7 +143,7 @@ function getColorMap() {
 		RED: '#ff0000',
 		YELLOW: '#ffcc00', // Deeper yellow color
 		GREEN: '#4dff88',
-		WHITE: '#ffffff',
+		WHITE: '#d3d3d3', // Grayish white for better visibility
 	};
 }
 
@@ -196,7 +196,6 @@ function createChartCard(key, data, colorMap) {
 			align-items:center;
 			gap:5px;
 			padding:4px 8px;
-			background:#f8f9fa;
 			border-radius:3px;
 			border:1px solid #000000;
 		">
@@ -229,7 +228,6 @@ function createChartCard(key, data, colorMap) {
 					align-items:center;
 					gap:5px;
 					padding:4px 8px;
-					background:#f8f9fa;
 					border-radius:3px;
 					border:1px solid #000000;
 				">
@@ -240,8 +238,8 @@ function createChartCard(key, data, colorMap) {
 						border-radius:2px;
 						border:1px solid #ddd;
 					"></div>
-					<span style="color:#495057;font-size:0.75rem;font-weight:bold;">${c.count}</span>
-					<span style="color:#7f8c8d;font-size:0.7rem;font-weight:bold;">(${c.percentage}%)</span>
+					<span style="color:#000000;font-size:0.75rem;font-weight:bold;">${c.count}</span>
+					<span style="color:#000000;font-size:0.7rem;"><strong>(${c.percentage}%)</strong></span>
 				</div>
 			`);
 			
@@ -311,7 +309,8 @@ function renderPieChart(key, data, colorMap) {
 							const label = ctx.label || '';
 							const value = ctx.parsed || 0;
 							const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-							const pct = total ? ((value / total) * 100).toFixed(2) : '0.00';
+							// Show rounded percentage (whole number)
+							const pct = total ? Math.round((value / total) * 100) : 0;
 							return `${label}: ${value} (${pct}%)`;
 						},
 					},

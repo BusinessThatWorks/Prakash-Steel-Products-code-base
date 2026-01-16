@@ -12,6 +12,8 @@ frappe.ui.form.on("Finish Weight", {
             }
             // Fetch colour_code based on grade
             fetch_colour_code_from_grade(frm);
+            // Calculate burning_loss_per when billet_cutting_id changes
+            calculate_burning_loss_per(frm);
         });
     },
     item_code: function(frm) {
@@ -47,6 +49,8 @@ frappe.ui.form.on("Finish Weight", {
                 console.log("Cannot calculate fg_per_pcs_weight - missing values or finish_pcs is 0");
                 frm.set_value("fg_per_pcs_weight", 0);
             }
+            // Calculate burning_loss_per when finish_weight changes
+            calculate_burning_loss_per(frm);
             console.log("=".repeat(50));
         }).catch(function(error) {
             console.error("Error in finish_weight handler:", error);
@@ -85,6 +89,8 @@ frappe.ui.form.on("Finish Weight", {
                     console.log("Calculating fg_per_pcs_weight on refresh - Original:", frm.doc.finish_weight / frm.doc.finish_pcs, "Rounded to 2 decimals:", fg_per_pcs_weight);
                     frm.set_value("fg_per_pcs_weight", fg_per_pcs_weight);
                 }
+                // Calculate burning_loss_per on refresh
+                calculate_burning_loss_per(frm);
             });
         } else if (frm.doc.finish_weight && frm.doc.finish_pcs && frm.doc.finish_pcs > 0) {
             // If no billet_cutting_id but we have values, just calculate fg_per_pcs_weight
@@ -93,6 +99,9 @@ frappe.ui.form.on("Finish Weight", {
             fg_per_pcs_weight = Math.round(fg_per_pcs_weight * 100) / 100;
             console.log("Calculating fg_per_pcs_weight on refresh (no billet_cutting_id) - Original:", frm.doc.finish_weight / frm.doc.finish_pcs, "Rounded to 2 decimals:", fg_per_pcs_weight);
             frm.set_value("fg_per_pcs_weight", fg_per_pcs_weight);
+        } else {
+            // Calculate burning_loss_per on refresh even if no billet_cutting_id (will handle it in the function)
+            calculate_burning_loss_per(frm);
         }
     },
     before_save: function(frm) {
@@ -121,6 +130,20 @@ frappe.ui.form.on("Finish Weight", {
         console.log("=".repeat(50));
         console.log("Finish Weight - after_submit (client-side) called");
         console.log("Finish Weight Document:", frm.doc.name);
+        console.log("=".repeat(50));
+    },
+    melting_weight: function(frm) {
+        console.log("=".repeat(50));
+        console.log("Finish Weight - melting_weight changed:", frm.doc.melting_weight);
+        // Calculate burning_loss_per when melting_weight changes
+        calculate_burning_loss_per(frm);
+        console.log("=".repeat(50));
+    },
+    total_miss_ingot_weight: function(frm) {
+        console.log("=".repeat(50));
+        console.log("Finish Weight - total_miss_ingot_weight changed:", frm.doc.total_miss_ingot_weight);
+        // Calculate burning_loss_per when total_miss_ingot_weight changes
+        calculate_burning_loss_per(frm);
         console.log("=".repeat(50));
     }
 });
@@ -316,6 +339,82 @@ function fetch_colour_code_from_grade(frm) {
         return Promise.resolve();
     }).catch(function(error) {
         console.error("Error fetching colour_code from grade:", error);
+        return Promise.reject(error);
+    });
+}
+
+function calculate_burning_loss_per(frm) {
+    console.log("=".repeat(50));
+    console.log("calculate_burning_loss_per called");
+    console.log("billet_cutting_id:", frm.doc.billet_cutting_id);
+    console.log("finish_weight:", frm.doc.finish_weight);
+    console.log("total_miss_ingot_weight:", frm.doc.total_miss_ingot_weight);
+    console.log("melting_weight:", frm.doc.melting_weight);
+    
+    // Check if billet_cutting_id exists
+    if (!frm.doc.billet_cutting_id) {
+        console.log("No billet_cutting_id found, cannot calculate burning_loss_per");
+        console.log("Setting burning_loss_per to 0");
+        frm.set_value("burning_loss_per", 0);
+        console.log("=".repeat(50));
+        return Promise.resolve();
+    }
+    
+    // Fetch billet_weight and miss_billet_weight from billet_cutting_id
+    return frappe.db.get_doc("Billet Cutting", frm.doc.billet_cutting_id).then(function(billet_cutting_doc) {
+        console.log("Billet Cutting document fetched:", billet_cutting_doc.name);
+        console.log("billet_weight from billet_cutting:", billet_cutting_doc.billet_weight);
+        console.log("miss_billet_weight from billet_cutting:", billet_cutting_doc.miss_billet_weight);
+        
+        // Calculate a = billet_weight + miss_billet_weight
+        let billet_weight = parseInt(billet_cutting_doc.billet_weight) || 0;
+        let miss_billet_weight = parseInt(billet_cutting_doc.miss_billet_weight) || 0;
+        let a = billet_weight + miss_billet_weight;
+        
+        console.log("Step 1 - Calculating 'a':");
+        console.log("  billet_weight:", billet_weight);
+        console.log("  miss_billet_weight:", miss_billet_weight);
+        console.log("  a = billet_weight + miss_billet_weight =", a);
+        
+        // Calculate b = finish_weight + total_miss_ingot_weight + melting_weight
+        let finish_weight = parseInt(frm.doc.finish_weight) || 0;
+        let total_miss_ingot_weight = parseInt(frm.doc.total_miss_ingot_weight) || 0;
+        let melting_weight = parseInt(frm.doc.melting_weight) || 0;
+        let b = finish_weight + total_miss_ingot_weight + melting_weight;
+        
+        console.log("Step 2 - Calculating 'b':");
+        console.log("  finish_weight:", finish_weight);
+        console.log("  total_miss_ingot_weight:", total_miss_ingot_weight);
+        console.log("  melting_weight:", melting_weight);
+        console.log("  b = finish_weight + total_miss_ingot_weight + melting_weight =", b);
+        
+        // Calculate burning_loss_per = (a - b) / a * 100
+        if (a > 0) {
+            let burning_loss_per = ((a - b) / a) * 100;
+            // Round to 2 decimal places
+            burning_loss_per = Math.round(burning_loss_per * 100) / 100;
+            
+            console.log("Step 3 - Calculating burning_loss_per:");
+            console.log("  Formula: (a - b) / a * 100");
+            console.log("  Calculation: (" + a + " - " + b + ") / " + a + " * 100");
+            console.log("  Result before rounding:", ((a - b) / a) * 100);
+            console.log("  Result after rounding to 2 decimals:", burning_loss_per);
+            
+            frm.set_value("burning_loss_per", burning_loss_per);
+            console.log("burning_loss_per set to:", burning_loss_per);
+        } else {
+            console.log("Cannot calculate burning_loss_per - 'a' is 0 (billet_weight + miss_billet_weight = 0)");
+            console.log("Setting burning_loss_per to 0");
+            frm.set_value("burning_loss_per", 0);
+        }
+        
+        console.log("=".repeat(50));
+        return Promise.resolve();
+    }).catch(function(error) {
+        console.error("Error calculating burning_loss_per:", error);
+        console.log("Setting burning_loss_per to 0");
+        frm.set_value("burning_loss_per", 0);
+        console.log("=".repeat(50));
         return Promise.reject(error);
     });
 }

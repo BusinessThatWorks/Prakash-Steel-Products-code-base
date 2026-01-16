@@ -90,6 +90,7 @@
    "fieldtype": "Column Break"
   },
   {
+   "fetch_from": "billet_cutting_id.finish_size",
    "fieldname": "item_code",
    "fieldtype": "Link",
    "label": "Item Code",
@@ -304,7 +305,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-15 15:29:11.626757",
+ "modified": "2026-01-16 12:25:50.477881",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight",
