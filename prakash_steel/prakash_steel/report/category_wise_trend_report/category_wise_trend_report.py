@@ -156,25 +156,47 @@ def get_data(from_date, to_date, sku_type):
 	# Define the 5 categories
 	categories = ["Black", "Red", "Yellow", "Green", "White"]
 	
-	# Build report data rows - one row for each category
+	# First, calculate counts for each category for each date
+	category_counts = {}
+	for category in categories:
+		category_counts[category] = {}
+		for date in date_list:
+			count = 0
+			# Count items that have this category's colour on this date
+			for item_code in valid_items:
+				on_hand_colour = date_item_colour_map[date].get(item_code, "")
+				if on_hand_colour and on_hand_colour.strip().upper() == category.upper():
+					count += 1
+			category_counts[category][date] = count
+	
+	# Calculate total count for each date (sum of all categories)
+	date_totals = {}
+	for date in date_list:
+		total = 0
+		for category in categories:
+			total += category_counts[category][date]
+		date_totals[date] = total
+	
+	# Build report data rows - one row for each category with percentages
 	data = []
 	for category in categories:
 		row = {
 			"category": category
 		}
 		
-		# For each date, count items with this category's colour
+		# For each date, calculate percentage
 		for date in date_list:
 			fieldname = f"date_{date.strftime('%Y_%m_%d')}"
-			count = 0
+			count = category_counts[category][date]
+			total = date_totals[date]
 			
-			# Count items that have this category's colour on this date
-			for item_code in valid_items:
-				on_hand_colour = date_item_colour_map[date].get(item_code, "")
-				if on_hand_colour and on_hand_colour.strip().upper() == category.upper():
-					count += 1
-			
-			row[fieldname] = count
+			# Calculate percentage and round
+			if total > 0:
+				percentage = (count / total) * 100
+				percentage_rounded = round(percentage)
+				row[fieldname] = f"{percentage_rounded}%"
+			else:
+				row[fieldname] = "0%"
 		
 		data.append(row)
 	
