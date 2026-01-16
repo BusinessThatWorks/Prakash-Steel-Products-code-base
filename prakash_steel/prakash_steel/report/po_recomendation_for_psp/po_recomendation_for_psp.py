@@ -1803,33 +1803,71 @@ def get_columns(filters=None):
 			]
 		)
 
+	# Add columns based on buffer_flag
+	if buffer_flag:
+		# For buffer items: Open SO and Qualified Demand
+		columns.extend(
+			[
+				{
+					"label": _("Open SO"),
+					"fieldname": "open_so",
+					"fieldtype": "Int",
+					"width": 120,
+				},
+				{
+					"label": _("On Hand Stock"),
+					"fieldname": "on_hand_stock",
+					"fieldtype": "Int",
+					"width": 130,
+				},
+				{
+					"label": _("WIP/Open PO"),
+					"fieldname": "wip_open_po",
+					"fieldtype": "Int",
+					"width": 120,
+				},
+				{
+					"label": _("Qualified Demand"),
+					"fieldname": "qualify_demand",
+					"fieldtype": "Int",
+					"width": 130,
+				},
+			]
+		)
+	else:
+		# For non-buffer items: Total SO and Open SO
+		columns.extend(
+			[
+				{
+					"label": _("Total SO"),
+					"fieldname": "total_so",
+					"fieldtype": "Int",
+					"width": 120,
+				},
+				{
+					"label": _("On Hand Stock"),
+					"fieldname": "on_hand_stock",
+					"fieldtype": "Int",
+					"width": 130,
+				},
+				{
+					"label": _("WIP/Open PO"),
+					"fieldname": "wip_open_po",
+					"fieldtype": "Int",
+					"width": 120,
+				},
+				{
+					"label": _("Open SO"),
+					"fieldname": "open_so",
+					"fieldtype": "Int",
+					"width": 120,
+				},
+			]
+		)
+
 	# Add remaining common columns
 	columns.extend(
 		[
-			{
-				"label": _("Open SO"),
-				"fieldname": "open_so",
-				"fieldtype": "Int",
-				"width": 120,
-			},
-			{
-				"label": _("On Hand Stock"),
-				"fieldname": "on_hand_stock",
-				"fieldtype": "Int",
-				"width": 130,
-			},
-			{
-				"label": _("WIP/Open PO"),
-				"fieldname": "wip_open_po",
-				"fieldtype": "Int",
-				"width": 120,
-			},
-			{
-				"label": _("Qualified Demand"),
-				"fieldname": "qualify_demand",
-				"fieldtype": "Int",
-				"width": 130,
-			},
 			{
 				"label": _("On Hand Status"),
 				"fieldname": "on_hand_status",
@@ -2087,6 +2125,10 @@ def get_data(filters=None):
 	po_recommendations = {}
 	item_groups_cache = {}  # Cache item_group to check for Raw Material
 
+	# Initialize parent demand map (for non-buffer items)
+	# This will accumulate parent demands from all BOMs
+	parent_demand_map = {}  # item_code -> total parent demand from all BOMs
+
 	# Process each selected item that has sales orders (for BOM traversal)
 	# Sort by item_code for consistent processing order
 	items_with_so = set(so_qty_map.keys())
@@ -2115,6 +2157,30 @@ def get_data(filters=None):
 				required_qty,
 				po_recommendations,
 				remaining_stock,
+				set(),
+				item_groups_cache,
+				level=0,
+			)
+
+	# Calculate parent demand for non-buffer items
+	# Traverse BOMs for all items that have order recommendations > 0
+	# This will accumulate parent demand for non-buffer child items
+	for item_code, order_qty in po_recommendations.items():
+		if order_qty > 0:
+			# Get item buffer flag to check if it's buffer or non-buffer
+			item_buffer_flag = None
+			try:
+				item_doc = frappe.get_doc("Item", item_code)
+				item_buffer_flag = item_doc.get("custom_buffer_flag") or "Non-Buffer"
+			except:
+				item_buffer_flag = "Non-Buffer"
+
+			# Traverse BOM to calculate parent demand for non-buffer children
+			# Both buffer and non-buffer parents can create demand for their non-buffer children
+			traverse_bom_for_parent_demand(
+				item_code,
+				order_qty,
+				parent_demand_map,
 				set(),
 				item_groups_cache,
 				level=0,
@@ -2327,50 +2393,79 @@ def get_data(filters=None):
 				# No MOQ or Batch Size, use net_po_recommendation as is
 				or_with_moq_batch_size = int(flt(net_po_recommendation))
 
-		# Calculate Requirement for non-buffer items (Open SO)
+		# Calculate Requirement for non-buffer items (Parent Demand only)
 		requirement = None
 		is_item_buffer = item_buffer_flag == "Buffer"
 		if not is_item_buffer:
-			requirement = int(flt(open_so))
+			# For non-buffer items: Requirement = Parent Demand only (no Open SO)
+			parent_demand = flt(parent_demand_map.get(item_code, 0))
+			requirement = int(parent_demand)
 
 		# Base row with parent item data
-		base_row = {
-			"item_code": item_code,
-			"item_name": item_name,
-			"sku_type": sku_type,
-			"requirement": requirement,
-			"tog": int(flt(tog)) if is_item_buffer else None,
-			"toy": int(flt(toy)) if is_item_buffer else None,
-			"tor": int(flt(tor)) if is_item_buffer else None,
-			"open_so": int(flt(open_so)),
-			"on_hand_stock": int(flt(on_hand_stock)),
-			"wip_open_po": int(flt(wip_open_po)),
-			"qualify_demand": int(flt(qualify_demand)),
-			"on_hand_status": on_hand_status,
-			"on_hand_colour": on_hand_colour,
-			"order_recommendation": int(flt(order_recommendation)),
-			"batch_size": int(flt(batch_size)),
-			"moq": int(flt(moq)),
-			"or_with_moq_batch_size": int(flt(or_with_moq_batch_size)),
-			"mrq": int(flt(mrq)),
-			"net_po_recommendation": int(flt(net_po_recommendation)),
-			# Initialize child columns as None/0
-			"batch_size_multiple": None,
-			"production_qty_based_on_child_stock": None,
-			"production_qty_based_on_child_stock_wip_open_po": None,
-			"child_item_code": None,
-			"child_item_type": None,
-			"child_sku_type": None,
-			"child_requirement": None,
-			"child_stock": None,
-			"child_stock_soft_allocation_qty": None,
-			"child_stock_shortage": None,
-			"child_full_kit_status": None,
-			"child_wip_open_po": None,
-			"child_wip_open_po_soft_allocation_qty": None,
-			"child_wip_open_po_shortage": None,
-			"child_wip_open_po_full_kit_status": None,
-		}
+		# For non-buffer items: total_so = open_so (all-time), open_so = qualify_demand (delivery_date <= today)
+		# For buffer items: open_so = open_so (all-time), qualify_demand = qualify_demand (delivery_date <= today)
+		if is_item_buffer:
+			# Buffer items: use standard column names
+			base_row = {
+				"item_code": item_code,
+				"item_name": item_name,
+				"sku_type": sku_type,
+				"requirement": requirement,
+				"tog": int(flt(tog)),
+				"toy": int(flt(toy)),
+				"tor": int(flt(tor)),
+				"open_so": int(flt(open_so)),
+				"on_hand_stock": int(flt(on_hand_stock)),
+				"wip_open_po": int(flt(wip_open_po)),
+				"qualify_demand": int(flt(qualify_demand)),
+				"total_so": None,  # Not used for buffer items
+			}
+		else:
+			# Non-buffer items: use different column names
+			base_row = {
+				"item_code": item_code,
+				"item_name": item_name,
+				"sku_type": sku_type,
+				"requirement": requirement,
+				"tog": None,
+				"toy": None,
+				"tor": None,
+				"total_so": int(flt(open_so)),  # Total SO = all-time Open SO
+				"on_hand_stock": int(flt(on_hand_stock)),
+				"wip_open_po": int(flt(wip_open_po)),
+				"open_so": int(flt(qualify_demand)),  # Open SO = Qualified Demand (delivery_date <= today)
+				"qualify_demand": None,  # Not used for non-buffer items
+			}
+
+		# Add common fields
+		base_row.update(
+			{
+				"on_hand_status": on_hand_status,
+				"on_hand_colour": on_hand_colour,
+				"order_recommendation": int(flt(order_recommendation)),
+				"batch_size": int(flt(batch_size)),
+				"moq": int(flt(moq)),
+				"or_with_moq_batch_size": int(flt(or_with_moq_batch_size)),
+				"mrq": int(flt(mrq)),
+				"net_po_recommendation": int(flt(net_po_recommendation)),
+				# Initialize child columns as None/0
+				"batch_size_multiple": None,
+				"production_qty_based_on_child_stock": None,
+				"production_qty_based_on_child_stock_wip_open_po": None,
+				"child_item_code": None,
+				"child_item_type": None,
+				"child_sku_type": None,
+				"child_requirement": None,
+				"child_stock": None,
+				"child_stock_soft_allocation_qty": None,
+				"child_stock_shortage": None,
+				"child_full_kit_status": None,
+				"child_wip_open_po": None,
+				"child_wip_open_po_soft_allocation_qty": None,
+				"child_wip_open_po_shortage": None,
+				"child_wip_open_po_full_kit_status": None,
+			}
+		)
 
 		# Get BOM for this item to find child items
 		bom = get_default_bom(item_code)
@@ -3246,6 +3341,106 @@ def get_open_po_map():
 			open_po_map[item_code] = open_qty
 
 	return open_po_map
+
+
+def traverse_bom_for_parent_demand(
+	parent_item_code,
+	parent_order_qty,
+	parent_demand_map,
+	visited_items,
+	item_groups_cache,
+	level=0,
+):
+	"""
+	Recursively traverse BOM to calculate parent demands for non-buffer child items.
+	For buffer child items: Don't add parent demand (they use TOG-based calculation)
+	For non-buffer child items: Add parent demand to requirement
+
+	Args:
+		parent_item_code: Item code of parent item
+		parent_order_qty: Order quantity needed for parent item
+		parent_demand_map: Dict to accumulate parent demands (item_code -> total parent demand)
+		visited_items: Set of visited items to prevent circular references
+		item_groups_cache: Dict to cache item_group lookups
+		level: Recursion depth
+	"""
+	if parent_item_code in visited_items:
+		return
+
+	visited_items.add(parent_item_code)
+
+	# Check item_group - if Raw Material, stop BOM traversal
+	item_group = item_groups_cache.get(parent_item_code)
+	if not item_group:
+		try:
+			item_doc = frappe.get_doc("Item", parent_item_code)
+			item_group = item_doc.get("item_group")
+			item_groups_cache[parent_item_code] = item_group
+		except:
+			item_group = None
+
+	# If it's a Raw Material, stop BOM traversal (end of branch)
+	if item_group == "Raw Material":
+		return
+
+	# Get BOM for this item
+	bom = get_default_bom(parent_item_code)
+	if not bom:
+		return
+
+	try:
+		bom_doc = frappe.get_doc("BOM", bom)
+		bom_quantity = flt(bom_doc.quantity)  # Quantity of parent item produced by this BOM
+		if bom_quantity <= 0:
+			bom_quantity = 1.0  # Default to 1 if BOM quantity is 0 or negative
+
+		# Process each child item in BOM
+		for bom_item in bom_doc.items:
+			child_item_code = bom_item.item_code
+			bom_item_qty = flt(bom_item.qty)  # Quantity of child item needed in BOM
+
+			# Calculate required qty for child: parent_order_qty * (bom_item_qty / bom_quantity)
+			# This normalizes the BOM item quantity to "per unit of parent item produced"
+			normalized_bom_qty = bom_item_qty / bom_quantity
+			child_required_qty = math.ceil(parent_order_qty * normalized_bom_qty)
+
+			# Check if child is buffer or non-buffer
+			child_buffer_flag = None
+			try:
+				child_item_doc = frappe.get_doc("Item", child_item_code)
+				child_buffer_flag = child_item_doc.get("custom_buffer_flag") or "Non-Buffer"
+			except:
+				child_buffer_flag = "Non-Buffer"
+
+			is_child_buffer = child_buffer_flag == "Buffer"
+
+			if not is_child_buffer:
+				# Non-buffer child: Add parent demand to requirement
+				# Accumulate parent demand (same item can appear in multiple BOMs)
+				if child_item_code in parent_demand_map:
+					parent_demand_map[child_item_code] += child_required_qty
+				else:
+					parent_demand_map[child_item_code] = child_required_qty
+
+				# Recursively traverse child's BOM to calculate further parent demands
+				# Use a new visited_items set to allow traversal from different paths
+				traverse_bom_for_parent_demand(
+					child_item_code,
+					child_required_qty,
+					parent_demand_map,
+					visited_items.copy(),
+					item_groups_cache,
+					level + 1,
+				)
+			# For buffer children, we don't add parent demand (they use TOG-based calculation)
+			# But we still need to traverse their BOM if they have order recommendations
+			# However, for parent demand calculation, we skip buffer items
+
+	except Exception as e:
+		frappe.log_error(
+			f"Error traversing BOM for parent demand for item {parent_item_code}: {str(e)}",
+			"PO Recommendation Error",
+		)
 
 
 def traverse_bom_for_po(
