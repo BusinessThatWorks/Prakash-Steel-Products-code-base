@@ -37,6 +37,7 @@
   "section_break_llkn",
   "billet_weight",
   "column_break_eahe",
+  "burning_loss_per",
   "column_break_ixqq",
   "section_break_dnvj",
   "total_miss_roll_pcs",
@@ -105,7 +106,8 @@
    "fieldname": "bundling_check",
    "fieldtype": "Select",
    "label": "Bundling Check",
-   "options": "\nGood\nBad"
+   "options": "\nGood\nBad",
+   "reqd": 1
   },
   {
    "collapsible": 1,
@@ -264,13 +266,15 @@
   {
    "fieldname": "total_miss_roll_pcs",
    "fieldtype": "Int",
-   "label": "Total Miss Roll (Pcs)"
+   "label": "Total Miss Roll (Pcs)",
+   "read_only": 1
   },
   {
    "description": "In Kg",
    "fieldname": "total_miss_roll_weight",
    "fieldtype": "Int",
-   "label": "Total Miss Roll Weight"
+   "label": "Total Miss Roll Weight",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_xhym",
@@ -279,20 +283,28 @@
   {
    "fieldname": "total_miss_ingot_pcs",
    "fieldtype": "Int",
-   "label": "Total Miss Ingot / Billet (Pcs)"
+   "label": "Total Miss Ingot / Billet (Pcs)",
+   "read_only": 1
   },
   {
    "description": "In Kg",
    "fieldname": "total_miss_ingot_weight",
    "fieldtype": "Int",
-   "label": "Total Miss Ingot / Billet Weight"
+   "label": "Total Miss Ingot / Billet Weight",
+   "read_only": 1
+  },
+  {
+   "fieldname": "burning_loss_per",
+   "fieldtype": "Float",
+   "label": "Burning Loss %",
+   "precision": "2"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-09 16:31:07.849733",
+ "modified": "2026-01-15 15:29:11.626757",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight",

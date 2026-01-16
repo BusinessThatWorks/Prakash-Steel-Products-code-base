@@ -141,7 +141,7 @@ function getColorMap() {
 	return {
 		BLACK: '#000000',
 		RED: '#ff0000',
-		YELLOW: '#ffff99',
+		YELLOW: '#ffcc00', // Deeper yellow color
 		GREEN: '#4dff88',
 		WHITE: '#ffffff',
 	};
@@ -165,16 +165,6 @@ function createChartCard(key, data, colorMap) {
 				color:#2c3e50;
 				text-align:center;
 			">${title}</h3>
-			<div style="
-				text-align:center;
-				margin-bottom:8px;
-			">
-				<span style="
-					color:#0066cc;
-					font-size:0.9rem;
-					font-weight:600;
-				">Total: <span class="chart-total-${chartId}">0</span></span>
-			</div>
 			<div style="position:relative;height:180px;margin-bottom:12px;">
 				<canvas id="chart-${chartId}" style="max-height:180px;"></canvas>
 			</div>
@@ -184,6 +174,7 @@ function createChartCard(key, data, colorMap) {
 				justify-content:center;
 				margin-top:8px;
 			">
+				<div class="legend-total" style="display:flex;flex-direction:column;gap:6px;"></div>
 				<div class="legend-left" style="display:flex;flex-direction:column;gap:6px;"></div>
 				<div class="legend-right" style="display:flex;flex-direction:column;gap:6px;"></div>
 			</div>
@@ -192,20 +183,40 @@ function createChartCard(key, data, colorMap) {
 
 	// Calculate and display total
 	const total = data.total_items || data.total_orders || (data.colours ? data.colours.reduce((sum, c) => sum + c.count, 0) : 0);
-	$card.find(`.chart-total-${chartId}`).text(total);
 	
 	const $legend = $card.find(`.chart-legend-${chartId}`);
+	const $legendTotal = $legend.find('.legend-total');
 	const $legendLeft = $legend.find('.legend-left');
 	const $legendRight = $legend.find('.legend-right');
 	
-	// Define left and right column colors
-	const leftColors = ['BLACK', 'RED', 'WHITE'];
+	// Add Total to the separate total block (leftmost)
+	const $totalItem = $(`
+		<div style="
+			display:flex;
+			align-items:center;
+			gap:5px;
+			padding:4px 8px;
+			background:#f8f9fa;
+			border-radius:3px;
+			border:1px solid #000000;
+		">
+			<span style="
+				color:#0066cc;
+				font-size:0.9rem;
+				font-weight:600;
+			">Total: ${total}</span>
+		</div>
+	`);
+	$legendTotal.append($totalItem);
+	
+	// Define middle and right column colors
+	const middleColors = ['BLACK', 'RED', 'WHITE'];
 	const rightColors = ['YELLOW', 'GREEN'];
 	
 	if (data.colours && data.colours.length) {
 		// Sort colors by the defined order
 		const sortedColours = data.colours.sort((a, b) => {
-			const allColors = [...leftColors, ...rightColors];
+			const allColors = [...middleColors, ...rightColors];
 			const indexA = allColors.indexOf(a.name);
 			const indexB = allColors.indexOf(b.name);
 			return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
@@ -220,7 +231,7 @@ function createChartCard(key, data, colorMap) {
 					padding:4px 8px;
 					background:#f8f9fa;
 					border-radius:3px;
-					border:1px solid ${colorMap[c.name] || '#ccc'};
+					border:1px solid #000000;
 				">
 					<div style="
 						width:12px;
@@ -229,17 +240,17 @@ function createChartCard(key, data, colorMap) {
 						border-radius:2px;
 						border:1px solid #ddd;
 					"></div>
-					<span style="color:#495057;font-size:0.75rem;">${c.count}</span>
-					<span style="color:#7f8c8d;font-size:0.7rem;">(${c.percentage}%)</span>
+					<span style="color:#495057;font-size:0.75rem;font-weight:bold;">${c.count}</span>
+					<span style="color:#7f8c8d;font-size:0.7rem;font-weight:bold;">(${c.percentage}%)</span>
 				</div>
 			`);
 			
-			if (leftColors.includes(c.name)) {
+			if (middleColors.includes(c.name)) {
 				$legendLeft.append($item);
 			} else if (rightColors.includes(c.name)) {
 				$legendRight.append($item);
 			} else {
-				// If color not in defined lists, add to left
+				// If color not in defined lists, add to middle
 				$legendLeft.append($item);
 			}
 		});
