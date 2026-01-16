@@ -166,10 +166,37 @@
 
 frappe.ui.form.on("Billet Cutting", {
     refresh(frm) {
+        console.log("🔄 Billet Cutting refresh event triggered");
+        console.log("📄 Document name:", frm.doc.name);
+        console.log("📋 Production Plan:", frm.doc.production_plan);
+        console.log("🔧 Billet Size:", frm.doc.billet_size);
+        console.log("📊 Is new:", frm.is_new());
+        console.log("💾 Is dirty:", frm.is_dirty());
+        
         // Store if form was dirty before we do anything
         const was_dirty = frm.is_dirty();
         
         toggle_miss_billet_fields(frm);
+        
+        // Restore billet_size options if production_plan exists (even in draft state)
+        if (frm.doc.production_plan) {
+            console.log("✅ Production Plan exists, restoring billet_size options...");
+            // Store current billet_size value to preserve it
+            const current_billet_size = frm.doc.billet_size;
+            console.log("💾 Preserving current billet_size value:", current_billet_size);
+            
+            // Load options from production plan
+            load_billet_size_options_from_production_plan(frm, function() {
+                // Restore the billet_size value if it was set
+                if (current_billet_size) {
+                    console.log("🔄 Restoring billet_size value:", current_billet_size);
+                    // Use set_value to ensure it's set properly
+                    frm.set_value("billet_size", current_billet_size);
+                }
+            });
+        } else {
+            console.log("❌ No Production Plan, skipping billet_size options restoration");
+        }
         
         // Only calculate if form is dirty (user is editing) or if it's a new form
         // Don't recalculate on refresh after save to avoid making form dirty
@@ -229,67 +256,24 @@ frappe.ui.form.on("Billet Cutting", {
 
         if (!frm.doc.production_plan) {
             console.log("❌ No Production Plan selected");
+            // Clear billet_size options if production plan is cleared
+            frm.set_df_property("billet_size", "options", "");
+            frm.refresh_field("billet_size");
             return;
         }
 
         console.log("✅ Selected Production Plan ID:", frm.doc.production_plan);
+        
+        // Store current billet_size value to preserve it if it's still valid
+        const current_billet_size = frm.doc.billet_size;
+        console.log("💾 Current billet_size value:", current_billet_size);
 
-        frappe.call({
-            method: "frappe.client.get",
-            args: {
-                doctype: "Production Plan",
-                name: frm.doc.production_plan
-            },
-            callback: function (r) {
-                console.log("📦 Full frappe.call response:", r);
-
-                if (!r.message) {
-                    console.log("❌ No document returned");
-                    return;
-                }
-
-                let pp = r.message;
-                console.log("📄 Production Plan Doc:", pp);
-
-                if (!pp.mr_items) {
-                    console.log("❌ mr_items not found in Production Plan");
-                    return;
-                }
-
-                console.log("📋 mr_items rows count:", pp.mr_items.length);
-
-                let item_codes = [];
-
-                pp.mr_items.forEach((row, index) => {
-                    console.log(`➡️ Row ${index}:`, row);
-
-                    if (row.item_code) {
-                        item_codes.push(row.item_code);
-                        console.log("➕ item_code added:", row.item_code);
-                    } else {
-                        console.log("⚠️ item_code missing in row", index);
-                    }
-                });
-
-                console.log("🧾 Final item_codes array:", item_codes);
-
-                if (item_codes.length === 0) {
-                    console.log("❌ No item codes collected");
-                    return;
-                }
-
-                // Remove duplicates
-                item_codes = [...new Set(item_codes)];
-                console.log("🧹 Unique item_codes:", item_codes);
-
-                frm.set_df_property(
-                    "billet_size",
-                    "options",
-                    item_codes.join("\n")
-                );
-
-                console.log("✅ billet_size options set");
-
+        // Load options from production plan
+        load_billet_size_options_from_production_plan(frm, function() {
+            // Try to restore the billet_size value if it's still in the new options
+            if (current_billet_size) {
+                console.log("🔄 Attempting to restore billet_size value:", current_billet_size);
+                // The value will be preserved automatically if it's in the options
                 frm.refresh_field("billet_size");
             }
         });
@@ -403,6 +387,86 @@ function calculate_fields(frm) {
             }
         }, 100);
     }
+}
+
+function load_billet_size_options_from_production_plan(frm, callback) {
+    console.log("📥 load_billet_size_options_from_production_plan called");
+    console.log("📋 Production Plan:", frm.doc.production_plan);
+
+    if (!frm.doc.production_plan) {
+        console.log("❌ No Production Plan provided");
+        if (callback) callback();
+        return;
+    }
+
+    frappe.call({
+        method: "frappe.client.get",
+        args: {
+            doctype: "Production Plan",
+            name: frm.doc.production_plan
+        },
+        callback: function (r) {
+            console.log("📦 Full frappe.call response:", r);
+
+            if (!r.message) {
+                console.log("❌ No document returned");
+                if (callback) callback();
+                return;
+            }
+
+            let pp = r.message;
+            console.log("📄 Production Plan Doc:", pp);
+
+            if (!pp.mr_items) {
+                console.log("❌ mr_items not found in Production Plan");
+                if (callback) callback();
+                return;
+            }
+
+            console.log("📋 mr_items rows count:", pp.mr_items.length);
+
+            let item_codes = [];
+
+            pp.mr_items.forEach((row, index) => {
+                console.log(`➡️ Row ${index}:`, row);
+
+                if (row.item_code) {
+                    item_codes.push(row.item_code);
+                    console.log("➕ item_code added:", row.item_code);
+                } else {
+                    console.log("⚠️ item_code missing in row", index);
+                }
+            });
+
+            console.log("🧾 Final item_codes array:", item_codes);
+
+            if (item_codes.length === 0) {
+                console.log("❌ No item codes collected");
+                if (callback) callback();
+                return;
+            }
+
+            // Remove duplicates
+            item_codes = [...new Set(item_codes)];
+            console.log("🧹 Unique item_codes:", item_codes);
+
+            // Set the options
+            frm.set_df_property(
+                "billet_size",
+                "options",
+                item_codes.join("\n")
+            );
+
+            console.log("✅ billet_size options set");
+
+            frm.refresh_field("billet_size");
+            
+            if (callback) {
+                console.log("✅ Calling callback function");
+                callback();
+            }
+        }
+    });
 }
 
 function toggle_miss_billet_fields(frm) {
