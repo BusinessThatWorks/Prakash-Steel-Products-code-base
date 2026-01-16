@@ -2,8 +2,9 @@
 # For license information, please see license.txt
 
 import frappe
+import math
 from frappe import _
-from frappe.utils import getdate, date_diff, add_days
+from frappe.utils import getdate, date_diff, add_days, flt, today
 
 
 def calculate_sku_type(buffer_flag, item_type):
@@ -88,8 +89,15 @@ def get_columns(from_date, to_date, sku_type):
 
 
 def get_data(from_date, to_date, sku_type):
-	"""Query Item wise Daily On Hand Colour and build report data for categories"""
+	"""Query data and build report data for categories"""
 	
+	# Handle special cases: Pending SO and Open PO
+	if sku_type == "Pending SO":
+		return get_pending_so_data(from_date, to_date)
+	elif sku_type == "Open PO":
+		return get_open_po_data(from_date, to_date)
+	
+	# Original logic for SKU types (BBMTA, RBMTA, etc.)
 	# Get all dates in range
 	date_list = []
 	current_date = from_date
@@ -197,6 +205,152 @@ def get_data(from_date, to_date, sku_type):
 				row[fieldname] = f"{percentage_rounded}%"
 			else:
 				row[fieldname] = "0%"
+		
+		data.append(row)
+	
+	return data
+
+
+def calculate_order_status(delivery_date, transaction_date, check_date):
+	"""Calculate order status (BLACK, RED, YELLOW, GREEN, WHITE) based on buffer_status logic"""
+	if not delivery_date or not transaction_date:
+		return "BLACK"
+	
+	delay_days = date_diff(check_date, delivery_date)
+	remaining_days = -flt(delay_days)
+	lead_time = date_diff(delivery_date, transaction_date)
+	
+	buffer_status = None
+	if remaining_days is not None:
+		if flt(remaining_days) == 0:
+			buffer_status = 0
+		elif lead_time and lead_time > 0:
+			buffer_status = (flt(remaining_days) / flt(lead_time)) * 100
+		else:
+			buffer_status = flt(remaining_days) * 100
+	
+	numeric_status = None
+	if buffer_status is not None:
+		numeric_status = math.ceil(buffer_status)
+	
+	if numeric_status is None:
+		return "BLACK"
+	elif numeric_status < 0:
+		return "BLACK"
+	elif numeric_status == 0:
+		return "RED"
+	elif 1 <= numeric_status <= 34:
+		return "RED"
+	elif 35 <= numeric_status <= 67:
+		return "YELLOW"
+	elif 68 <= numeric_status <= 100:
+		return "GREEN"
+	else:
+		return "WHITE"
+
+
+def get_pending_so_data(from_date, to_date):
+	"""Get Pending SO data with color status for each date"""
+	# Get all dates in range
+	date_list = []
+	current_date = from_date
+	while current_date <= to_date:
+		date_list.append(current_date)
+		current_date = add_days(current_date, 1)
+	
+	# Get all Sales Orders with status 'To Deliver and Bill' that existed during the date range
+	# We need to get SOs that were active at any point during the date range
+	so_data = frappe.db.sql("""
+		SELECT
+			so.name as sales_order,
+			so.transaction_date as date,
+			MIN(soi.delivery_date) as delivery_date
+		FROM
+			`tabSales Order` so
+		INNER JOIN
+			`tabSales Order Item` soi ON soi.parent = so.name
+		WHERE
+			so.status = 'To Deliver and Bill'
+			AND so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled')
+			AND so.docstatus = 1
+			AND (soi.qty - IFNULL(soi.delivered_qty, 0)) > 0
+			AND so.transaction_date <= %s
+		GROUP BY
+			so.name, so.transaction_date
+		""",
+		(to_date,),  # Use to_date instead of today() to include historical data
+		as_dict=1,
+	)
+	
+	# Calculate status for each SO on each date
+	categories = ["Black", "Red", "Yellow", "Green", "White"]
+	category_counts = {}
+	for category in categories:
+		category_counts[category] = {}
+		for date in date_list:
+			category_counts[category][date] = 0
+	
+	for so in so_data:
+		delivery_date = so.get("delivery_date")
+		transaction_date = so.get("date")
+		
+		# Calculate status for each date in range
+		# Only count this SO if it existed on this date (transaction_date <= check_date)
+		for date in date_list:
+			if transaction_date and getdate(transaction_date) <= date:
+				order_status = calculate_order_status(delivery_date, transaction_date, date)
+				if order_status.upper() in [c.upper() for c in categories]:
+					category_counts[order_status.capitalize()][date] += 1
+	
+	# Calculate totals and percentages
+	date_totals = {}
+	for date in date_list:
+		total = 0
+		for category in categories:
+			total += category_counts[category][date]
+		date_totals[date] = total
+	
+	# Build report data
+	data = []
+	for category in categories:
+		row = {"category": category}
+		for date in date_list:
+			fieldname = f"date_{date.strftime('%Y_%m_%d')}"
+			count = category_counts[category][date]
+			total = date_totals[date]
+			
+			if total > 0:
+				percentage = (count / total) * 100
+				percentage_rounded = round(percentage)
+				row[fieldname] = f"{percentage_rounded}%"
+			else:
+				row[fieldname] = "0%"
+		
+		data.append(row)
+	
+	return data
+
+
+def get_open_po_data(from_date, to_date):
+	"""Get Open PO data - placeholder (no logic implemented yet, same as prakash_steel_planni)"""
+	# Get all dates in range
+	date_list = []
+	current_date = from_date
+	while current_date <= to_date:
+		date_list.append(current_date)
+		current_date = add_days(current_date, 1)
+	
+	# Placeholder: Return empty data (0% for all categories) since Open PO logic is not implemented yet
+	# This matches the behavior in prakash_steel_planni where get_open_po_status() is just a placeholder
+	categories = ["Black", "Red", "Yellow", "Green", "White"]
+	
+	# Build report data with 0% for all categories and dates
+	data = []
+	for category in categories:
+		row = {"category": category}
+		for date in date_list:
+			fieldname = f"date_{date.strftime('%Y_%m_%d')}"
+			row[fieldname] = "0%"
 		
 		data.append(row)
 	
