@@ -540,6 +540,57 @@ frappe.query_reports["PO Recomendation for PSP"] = {
 			);
 		});
 		*/
+		
+		// Log calculation breakdown for each item in browser console
+		// This will show the detailed breakdown similar to MRP generation
+		function logCalculationBreakdowns() {
+			setTimeout(function() {
+				try {
+					// Get report data
+					let data = report.data || [];
+					
+					if (data && data.length > 0) {
+						console.log("\n" + "=".repeat(100));
+						console.log("PO RECOMMENDATION FOR PSP - CALCULATION BREAKDOWN");
+						console.log("=".repeat(100) + "\n");
+						
+						// Track items we've already logged (to avoid duplicates from child rows)
+						let logged_items = new Set();
+						
+						data.forEach(function (row, index) {
+							if (row && row.item_code && !logged_items.has(row.item_code)) {
+								logged_items.add(row.item_code);
+								
+								// Log the breakdown if available
+								if (row.calculation_breakdown) {
+									console.log(row.calculation_breakdown);
+									console.log("-".repeat(100));
+								}
+							}
+						});
+						
+						console.log("\n" + "=".repeat(100));
+						console.log("END OF CALCULATION BREAKDOWN");
+						console.log("=".repeat(100) + "\n");
+					}
+				} catch (e) {
+					console.error("Error logging calculation breakdown:", e);
+				}
+			}, 2000); // Wait for data to load
+		}
+		
+		// Log when report loads
+		logCalculationBreakdowns();
+		
+		// Also log when report refreshes
+		if (report.refresh) {
+			let originalRefresh = report.refresh;
+			report.refresh = function() {
+				let result = originalRefresh.apply(this, arguments);
+				setTimeout(logCalculationBreakdowns, 2000);
+				return result;
+			};
+		}
 	},
 
 	formatter: function (value, row, column, data, default_formatter) {
