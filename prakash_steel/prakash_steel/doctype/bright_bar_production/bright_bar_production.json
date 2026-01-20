@@ -1,0 +1,275 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-01-17 14:43:21.789195",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_t64h",
+  "amended_from",
+  "production_plan",
+  "column_break_diqx",
+  "production_date",
+  "raw_material_details_section",
+  "raw_material",
+  "column_break_xzpd",
+  "actual_rm_consumption",
+  "column_break_vvxp",
+  "rm_source_warehouse",
+  "column_break_onht",
+  "section_break_mhqr",
+  "stock_consumption_status",
+  "column_break_czzs",
+  "stock_available_in_warehouse",
+  "column_break_jyfc",
+  "section_break_rgxz",
+  "die_number",
+  "column_break_gxlf",
+  "column_break_akac",
+  "column_break_ihke",
+  "finished_goods_details_section",
+  "finished_good",
+  "fg_target_warehouse",
+  "column_break_pefo",
+  "fg_weight",
+  "end_cutting_weight",
+  "column_break_wzyu",
+  "finish_length",
+  "tolerance",
+  "broken_item_weight",
+  "section_break_aukp",
+  "remarks",
+  "column_break_fxyr",
+  "wastage_per",
+  "column_break_nlvv"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_t64h",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Bright Bar Production",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "production_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Production Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "raw_material",
+   "fieldtype": "Link",
+   "label": "Raw Material",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "raw_material_details_section",
+   "fieldtype": "Section Break",
+   "label": "Raw Material Details"
+  },
+  {
+   "fieldname": "column_break_xzpd",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "In Kg",
+   "fieldname": "actual_rm_consumption",
+   "fieldtype": "Int",
+   "label": "Actual RM Consumption",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_vvxp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "production_plan",
+   "fieldtype": "Link",
+   "label": "Production Plan",
+   "options": "Production Plan",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_diqx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_onht",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_rgxz",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "die_number",
+   "fieldtype": "Int",
+   "label": "Die Number",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_gxlf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_akac",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_ihke",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "finished_goods_details_section",
+   "fieldtype": "Section Break",
+   "label": "Finished Goods Details"
+  },
+  {
+   "fieldname": "finished_good",
+   "fieldtype": "Link",
+   "label": "Finished Good",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_pefo",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_wzyu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "In Kg",
+   "fieldname": "fg_weight",
+   "fieldtype": "Int",
+   "label": "FG Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "tolerance",
+   "fieldtype": "Float",
+   "label": "Tolerance",
+   "reqd": 1
+  },
+  {
+   "description": "In Kg",
+   "fieldname": "end_cutting_weight",
+   "fieldtype": "Int",
+   "label": "End Cutting Weight",
+   "reqd": 1
+  },
+  {
+   "fieldname": "finish_length",
+   "fieldtype": "Data",
+   "label": "Finish Length",
+   "reqd": 1
+  },
+  {
+   "description": "If any",
+   "fieldname": "broken_item_weight",
+   "fieldtype": "Int",
+   "label": "Broken Item Weight"
+  },
+  {
+   "default": "Bright Bar Unit - PSPL",
+   "fieldname": "rm_source_warehouse",
+   "fieldtype": "Link",
+   "label": "RM Source Warehouse",
+   "options": "Warehouse",
+   "reqd": 1
+  },
+  {
+   "default": "Bright Bar Unit - PSPL",
+   "fieldname": "fg_target_warehouse",
+   "fieldtype": "Link",
+   "label": "FG Target Warehouse",
+   "options": "Warehouse",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_aukp",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "column_break_fxyr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_nlvv",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_mhqr",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "stock_consumption_status",
+   "fieldtype": "Select",
+   "label": "Stock Consumption Status",
+   "options": "\nAll Stock\nStock Left"
+  },
+  {
+   "fieldname": "column_break_czzs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "stock_available_in_warehouse",
+   "fieldtype": "Int",
+   "label": "Stock Available in Warehouse"
+  },
+  {
+   "fieldname": "column_break_jyfc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "wastage_per",
+   "fieldtype": "Float",
+   "label": "Wastage %",
+   "precision": "2"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-01-17 16:27:56.195681",
+ "modified_by": "Administrator",
+ "module": "Prakash Steel",
+ "name": "Bright Bar Production",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
