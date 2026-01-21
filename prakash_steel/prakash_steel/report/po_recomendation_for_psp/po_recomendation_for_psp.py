@@ -1267,12 +1267,12 @@ def get_data(filters=None):
 		# - order_recommendation = final_order_rec (base order recommendation after MRQ)
 		# - net_po_recommendation = final_order_rec (same, before MOQ/Batch Size)
 		# - or_with_moq_batch_size = net_order_rec (after MOQ/Batch Size)
-		order_recommendation = int(flt(final_order_rec))
-		net_po_recommendation = int(flt(final_order_rec))  # Base order recommendation (before MOQ/Batch Size)
-		or_with_moq_batch_size = int(flt(net_order_rec))  # Net order recommendation (after MOQ/Batch Size)
+		order_recommendation = math.ceil(flt(final_order_rec))
+		net_po_recommendation = math.ceil(flt(final_order_rec))  # Base order recommendation (before MOQ/Batch Size)
+		or_with_moq_batch_size = math.ceil(flt(net_order_rec))  # Net order recommendation (after MOQ/Batch Size)
 
 		# Combine WIP and Open PO for display
-		wip_open_po = int(flt(wip) + flt(open_po))
+		wip_open_po = math.ceil(flt(wip) + flt(open_po))
 
 		# Base row with parent item data
 		is_item_buffer = item_buffer_flag == "Buffer"
@@ -1331,13 +1331,13 @@ def get_data(filters=None):
 				"item_name": item_name,
 				"sku_type": sku_type,
 				"requirement": None,
-				"tog": int(flt(tog)),
-				"toy": int(flt(toy)),
-				"tor": int(flt(tor)),
-				"open_so": int(flt(open_so)),
-				"on_hand_stock": int(flt(on_hand_stock)),
-				"wip_open_po": int(flt(wip_open_po)),
-				"qualify_demand": int(flt(qualify_demand)),
+				"tog": math.ceil(flt(tog)),
+				"toy": math.ceil(flt(toy)),
+				"tor": math.ceil(flt(tor)),
+				"open_so": math.ceil(flt(open_so)),
+				"on_hand_stock": math.ceil(flt(on_hand_stock)),
+				"wip_open_po": math.ceil(flt(wip_open_po)),
+				"qualify_demand": math.ceil(flt(qualify_demand)),
 			}
 		else:
 			# Non-buffer items: use same column names
@@ -1350,16 +1350,16 @@ def get_data(filters=None):
 				"item_code": item_code,
 				"item_name": item_name,
 				"sku_type": sku_type,
-				"requirement": int(flt(parent_demand)),  # Parent demand only (Open SO is in separate column)
+				"requirement": math.ceil(flt(parent_demand)),  # Parent demand only (Open SO is in separate column)
 				"tog": None,
 				"toy": None,
 				"tor": None,
-				"open_so": int(flt(open_so)),  # All-time Open SO
-				"total_so": int(flt(open_so)),  # Total SO = All-time Open SO (same as buffer items' open_so)
-				"on_hand_stock": int(flt(on_hand_stock)),
-				"wip_open_po": int(flt(wip_open_po)),
-				"qualify_demand": int(flt(qualify_demand)),  # Qualified Demand
-				"open_so_qualified": int(
+				"open_so": math.ceil(flt(open_so)),  # All-time Open SO
+				"total_so": math.ceil(flt(open_so)),  # Total SO = All-time Open SO (same as buffer items' open_so)
+				"on_hand_stock": math.ceil(flt(on_hand_stock)),
+				"wip_open_po": math.ceil(flt(wip_open_po)),
+				"qualify_demand": math.ceil(flt(qualify_demand)),  # Qualified Demand
+				"open_so_qualified": math.ceil(
 					flt(qualify_demand)
 				),  # Open SO = Qualified Demand (same as buffer items' qualify_demand)
 			}
@@ -1369,12 +1369,12 @@ def get_data(filters=None):
 			{
 				"on_hand_status": on_hand_status,
 				"on_hand_colour": on_hand_colour,
-				"order_recommendation": int(flt(order_recommendation)),
-				"batch_size": int(flt(batch_size)),
-				"moq": int(flt(moq)),
-				"or_with_moq_batch_size": int(flt(or_with_moq_batch_size)),
-				"mrq": int(flt(mrq)),
-				"net_po_recommendation": int(flt(net_po_recommendation)),
+				"order_recommendation": math.ceil(flt(order_recommendation)),
+				"batch_size": math.ceil(flt(batch_size)),
+				"moq": math.ceil(flt(moq)),
+				"or_with_moq_batch_size": math.ceil(flt(or_with_moq_batch_size)),
+				"mrq": math.ceil(flt(mrq)),
+				"net_po_recommendation": math.ceil(flt(net_po_recommendation)),
 				"calculation_breakdown": calculation_breakdown,  # Add breakdown for console logging
 				# Initialize child columns as None/0
 				"batch_size_multiple": None,
@@ -1402,13 +1402,17 @@ def get_data(filters=None):
 		if bom:
 			try:
 				bom_doc = frappe.get_doc("BOM", bom)
+				bom_quantity = flt(bom_doc.quantity) or 1.0
 				# Get all child items from BOM
 				for bom_item in bom_doc.items:
 					child_item_code = bom_item.item_code
+					child_bom_qty = flt(bom_item.qty)
+					# Store BOM qty and BOM quantity so we can apply the correct ratio later
 					child_items.append(
 						{
 							"item_code": child_item_code,
-							"qty": flt(bom_item.qty),
+							"bom_qty": child_bom_qty,
+							"bom_quantity": bom_quantity,
 						}
 					)
 			except Exception as e:
@@ -1421,6 +1425,8 @@ def get_data(filters=None):
 		if child_items:
 			for child_item_info in child_items:
 				child_item_code = child_item_info["item_code"]
+				child_bom_qty = flt(child_item_info.get("bom_qty", 0))
+				child_bom_quantity = flt(child_item_info.get("bom_quantity", 1.0)) or 1.0
 
 				# Fetch child item details
 				child_item_type = None
@@ -1445,7 +1451,7 @@ def get_data(filters=None):
 							(child_item_code,),
 							as_dict=True,
 						)
-						total_stock = int(
+						total_stock = math.ceil(
 							flt(stock_data[0].stock if stock_data and stock_data[0].stock else 0)
 						)
 						child_stock_map[child_item_code] = total_stock
@@ -1457,13 +1463,19 @@ def get_data(filters=None):
 						f"Error fetching child item {child_item_code}: {str(e)}", "PO Recommendation Error"
 					)
 
-				child_requirement = int(flt(or_with_moq_batch_size))
+				# Child Requirement should be based on the parent's net order recommendation
+				# multiplied by the BOM ratio (BOM Item Qty / BOM Qty), same as in mrp_genaration.py.
+				# Example from your log:
+				#   From parent B 50mm Round MS (Net Order Qty: 35500) × (BOM Item Qty: 0.87 / BOM Qty: 0.95)
+				#   = 35500 × 0.9158 = 32510.53 (parent demand for child 38mm Round C4)
+				normalized_bom_qty = child_bom_qty / child_bom_quantity if child_bom_quantity else 0
+				child_requirement = math.ceil(flt(or_with_moq_batch_size) * normalized_bom_qty)
 
 				# Get Child WIP and Open PO (same logic as parent items)
 				child_wip = flt(wip_map.get(child_item_code, 0))
 				child_open_po = flt(open_po_map.get(child_item_code, 0))
 				# Combine WIP and Open PO for display
-				child_wip_open_po = int(flt(child_wip) + flt(child_open_po))
+				child_wip_open_po = math.ceil(flt(child_wip) + flt(child_open_po))
 				# Store total WIP/Open PO for this child item (for FIFO allocation)
 				if child_item_code not in child_wip_open_po_map:
 					child_wip_open_po_map[child_item_code] = child_wip_open_po
@@ -1477,6 +1489,9 @@ def get_data(filters=None):
 				row["child_requirement"] = child_requirement
 				row["child_stock"] = child_stock
 				row["child_wip_open_po"] = child_wip_open_po
+				# Keep BOM qty info on the row so we can translate child qty back to parent production qty
+				row["child_bom_qty"] = child_bom_qty
+				row["child_bom_quantity"] = child_bom_quantity
 				# child_stock_soft_allocation_qty and child_stock_shortage will be calculated after sorting
 				row["child_stock_soft_allocation_qty"] = None
 				row["child_stock_shortage"] = None
@@ -1599,11 +1614,17 @@ def get_data(filters=None):
 			stock_allocated = min(child_requirement, available_stock)
 			stock_shortage = child_requirement - stock_allocated
 
-			row["child_stock_soft_allocation_qty"] = int(stock_allocated)
-			row["child_stock_shortage"] = int(stock_shortage)
+			row["child_stock_soft_allocation_qty"] = math.ceil(stock_allocated)
+			row["child_stock_shortage"] = math.ceil(stock_shortage)
 
-			production_qty_based_on_child_stock = math.floor(flt(stock_allocated))
-			row["production_qty_based_on_child_stock"] = int(production_qty_based_on_child_stock)
+			# Convert allocated CHILD stock qty into PARENT production qty using BOM ratio:
+			# Parent units per 1 child unit = BOM Qty / BOM Item Qty
+			child_bom_qty = flt(row.get("child_bom_qty", 0))
+			child_bom_quantity = flt(row.get("child_bom_quantity", 1.0)) or 1.0
+			parent_per_child_factor = (child_bom_quantity / child_bom_qty) if child_bom_qty else 0
+
+			production_qty_based_on_child_stock = math.ceil(flt(stock_allocated) * parent_per_child_factor)
+			row["production_qty_based_on_child_stock"] = production_qty_based_on_child_stock
 
 			# Apply FIFO allocation for WIP/Open PO against remaining requirement (after stock allocation)
 			remaining_requirement_after_stock = stock_shortage
@@ -1611,8 +1632,8 @@ def get_data(filters=None):
 			wip_open_po_allocated = min(remaining_requirement_after_stock, available_wip_open_po)
 			wip_open_po_shortage = remaining_requirement_after_stock - wip_open_po_allocated
 
-			row["child_wip_open_po_soft_allocation_qty"] = int(wip_open_po_allocated)
-			row["child_wip_open_po_shortage"] = int(wip_open_po_shortage)
+			row["child_wip_open_po_soft_allocation_qty"] = math.ceil(wip_open_po_allocated)
+			row["child_wip_open_po_shortage"] = math.ceil(wip_open_po_shortage)
 
 			# Calculate Child WIP/Open PO Full-kit Status
 			# IMPORTANT:
@@ -1631,10 +1652,13 @@ def get_data(filters=None):
 			else:
 				row["child_wip_open_po_full_kit_status"] = "Partial"
 
-			# Calculate Production qty based on child stock+WIP/Open PO = (child_stock_soft_allocation_qty + child_wip_open_po_soft_allocation_qty)
+			# Calculate Production qty based on child stock+WIP/Open PO
+			# Start from total CHILD qty allocated (stock + WIP/Open PO) and convert to PARENT qty
 			total_allocated = flt(stock_allocated) + flt(wip_open_po_allocated)
-			production_qty_based_on_child_stock_wip_open_po = math.floor(total_allocated)
-			row["production_qty_based_on_child_stock_wip_open_po"] = int(
+			production_qty_based_on_child_stock_wip_open_po = math.ceil(
+				total_allocated * parent_per_child_factor
+			)
+			row["production_qty_based_on_child_stock_wip_open_po"] = (
 				production_qty_based_on_child_stock_wip_open_po
 			)
 
