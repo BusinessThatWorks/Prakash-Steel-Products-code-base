@@ -26,6 +26,16 @@ frappe.query_reports["SKU wise Trend Report"] = {
 			width: "80",
 			reqd: 1,
 			options: "BBMTA\nRBMTA\nPTA\nBOTA\nTRMTA",
+		},
+		{
+			fieldname: "item_code",
+			label: __("Item Code"),
+			fieldtype: "MultiSelectList",
+			width: "80",
+			options: "Item",
+			get_data: function (txt) {
+				return frappe.db.get_link_options("Item", txt);
+			},
 		}
 	],
 
