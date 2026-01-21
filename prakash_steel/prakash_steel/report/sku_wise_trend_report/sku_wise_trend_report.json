@@ -28,6 +28,14 @@
    "mandatory": 1,
    "options": "BBMTA\nRBMTA\nPTA\nBOTA\nTRMTA",
    "wildcard": 0
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "MultiSelectList",
+   "label": "Item Code",
+   "mandatory": 0,
+   "options": "Item",
+   "wildcard": 0
   }
  ],
  "idx": 0,
