@@ -1615,10 +1615,16 @@ def get_data(filters=None):
 			row["child_wip_open_po_shortage"] = int(wip_open_po_shortage)
 
 			# Calculate Child WIP/Open PO Full-kit Status
-			# If child_wip_open_po_shortage = 0 → "Full-kit" (regardless of allocation)
-			# If child_wip_open_po_shortage > 0 AND child_wip_open_po_soft_allocation_qty = 0 → "Pending"
-			# If child_wip_open_po_shortage > 0 AND child_wip_open_po_soft_allocation_qty > 0 → "Partial"
-			if flt(wip_open_po_shortage) == 0:
+			# IMPORTANT:
+			# - If net_order_recommendation (or_with_moq_batch_size) is 0 → blank (no order to fulfill)
+			# - If child_wip_open_po_shortage = 0 → "Full-kit" (regardless of allocation)
+			# - If child_wip_open_po_shortage > 0 AND child_wip_open_po_soft_allocation_qty = 0 → "Pending"
+			# - If child_wip_open_po_shortage > 0 AND child_wip_open_po_soft_allocation_qty > 0 → "Partial"
+			net_order_recommendation = flt(row.get("or_with_moq_batch_size", 0))
+			
+			if flt(net_order_recommendation) == 0:
+				row["child_wip_open_po_full_kit_status"] = None
+			elif flt(wip_open_po_shortage) == 0:
 				row["child_wip_open_po_full_kit_status"] = "Full-kit"
 			elif flt(wip_open_po_allocated) == 0:
 				row["child_wip_open_po_full_kit_status"] = "Pending"
