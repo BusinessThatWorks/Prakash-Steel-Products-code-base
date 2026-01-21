@@ -562,6 +562,12 @@ def get_columns(filters=None):
 					"width": 120,
 				},
 				{
+					"label": _("Open SO"),
+					"fieldname": "open_so_qualified",
+					"fieldtype": "Int",
+					"width": 120,
+				},
+				{
 					"label": _("On Hand Stock"),
 					"fieldname": "on_hand_stock",
 					"fieldtype": "Int",
@@ -579,12 +585,6 @@ def get_columns(filters=None):
 					"fieldtype": "Int",
 					"width": 130,
 					"hidden": 1,
-				},
-				{
-					"label": _("Open SO"),
-					"fieldname": "open_so_qualified",
-					"fieldtype": "Int",
-					"width": 120,
 				},
 			]
 		)
@@ -1632,17 +1632,22 @@ def get_data(filters=None):
 				production_qty_based_on_child_stock_wip_open_po
 			)
 
-			# Calculate Child Full-kit Status based on total shortage (stock + WIP/Open PO)
-			# If order_recommendation is 0, keep it blank (no order to fulfill)
+			# Calculate Child Stock Full-kit Status
+			# IMPORTANT:
+			# - This column is intended to reflect coverage from STOCK ONLY
+			# - WIP / Open PO coverage is shown separately in child_wip_open_po_full_kit_status
+			# Logic (stock based only):
+			#   - If order_recommendation is 0  → blank (no order to fulfill)
+			#   - If stock_shortage = 0        → "Full-kit"
+			#   - If stock_shortage > 0 and stock_allocated = 0 → "Pending"
+			#   - If stock_shortage > 0 and stock_allocated > 0 → "Partial"
 			order_recommendation = flt(row.get("order_recommendation", 0))
-			total_shortage = flt(stock_shortage) + flt(wip_open_po_shortage)
-			total_allocated = flt(stock_allocated) + flt(wip_open_po_allocated)
 
 			if flt(order_recommendation) == 0:
 				row["child_full_kit_status"] = None
-			elif flt(total_shortage) == 0:
+			elif flt(stock_shortage) == 0:
 				row["child_full_kit_status"] = "Full-kit"
-			elif flt(total_allocated) == 0:
+			elif flt(stock_allocated) == 0:
 				row["child_full_kit_status"] = "Pending"
 			else:
 				row["child_full_kit_status"] = "Partial"
