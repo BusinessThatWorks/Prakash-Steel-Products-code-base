@@ -42,6 +42,7 @@ def execute(filters=None):
 	from_date = getdate(filters.get("from_date"))
 	to_date = getdate(filters.get("to_date"))
 	sku_type = filters.get("sku_type")
+	item_code_filter = filters.get("item_code")  # Can be a list or single value
 	
 	if from_date > to_date:
 		frappe.throw(_("From Date cannot be greater than To Date"))
@@ -50,7 +51,7 @@ def execute(filters=None):
 	columns = get_columns(from_date, to_date)
 	
 	# Get data
-	data = get_data(from_date, to_date, sku_type)
+	data = get_data(from_date, to_date, sku_type, item_code_filter)
 	
 	return columns, data
 
@@ -85,7 +86,7 @@ def get_columns(from_date, to_date):
 	return columns
 
 
-def get_data(from_date, to_date, sku_type):
+def get_data(from_date, to_date, sku_type, item_code_filter=None):
 	"""Query Item wise Daily On Hand Colour and build report data"""
 	
 	# Get all dates in range
@@ -132,6 +133,15 @@ def get_data(from_date, to_date, sku_type):
 	for date in date_list:
 		all_items.update(date_item_colour_map[date].keys())
 	
+	# Process item_code filter - convert to list if it's a string or list
+	filtered_item_codes = None
+	if item_code_filter:
+		if isinstance(item_code_filter, str):
+			# If it's a string, convert to list (handles single item or comma-separated)
+			filtered_item_codes = [item.strip() for item in item_code_filter.split(",") if item.strip()]
+		elif isinstance(item_code_filter, list):
+			filtered_item_codes = [item for item in item_code_filter if item]
+	
 	# Get current buffer status and item type for all items
 	# Only include items that are currently buffer items with the selected SKU type
 	valid_items = set()
@@ -149,7 +159,9 @@ def get_data(from_date, to_date, sku_type):
 			
 			# Only include items that currently have the selected SKU type
 			if current_sku_type == sku_type:
-				valid_items.add(item.name)
+				# Apply item_code filter if provided
+				if filtered_item_codes is None or item.name in filtered_item_codes:
+					valid_items.add(item.name)
 	
 	# Get item names for valid items only
 	item_names = {}

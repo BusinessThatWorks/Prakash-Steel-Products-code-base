@@ -1683,24 +1683,106 @@ def get_stock_map_for_mrp(item_codes):
 
 
 def get_wip_map_for_mrp():
-	"""Get WIP (Work In Progress) map - sum of qty from Work Order"""
-	wip_rows = frappe.db.sql(
-		"""
-		SELECT
-			wo.production_item as item_code,
-			SUM(IFNULL(wo.qty, 0)) as wip_qty
-		FROM
-			`tabWork Order` wo
-		WHERE
-			wo.status NOT IN ('Completed', 'Cancelled')
-			AND wo.docstatus = 1
-		GROUP BY
-			wo.production_item
-		""",
-		as_dict=True,
-	)
+	"""Get WIP (Work In Progress) map - sum of (qty - produced_qty) from Work Order (where status is not Completed or Cancelled)
+	for ALL items (all-time data)
 
-	return {d.item_code: flt(d.wip_qty) for d in wip_rows}
+	Note: We use only Work Order WIP to avoid double-counting, as work_order_qty in Sales Order Items
+	typically reflects the same Work Order quantity. We calculate remaining quantity as qty - produced_qty.
+
+	This function now checks Production Plan Settings to determine which method to use:
+	- If "from_work_order" is checked: uses Work Order based calculation (existing logic)
+	- If "from_production_plan" is checked: uses Production Plan based calculation (new logic)
+	"""
+	# Get Production Plan Settings
+	try:
+		settings = frappe.get_single("Production planning settings")
+	except Exception:
+		# If settings don't exist, default to work order method
+		settings = frappe._dict({"from_work_order": 1, "from_production_plan": 0})
+
+	wip_map = {}
+
+	# Check which method is selected
+	if settings.get("from_work_order"):
+		# Existing logic: Get WIP from Work Order (qty - produced_qty) - only for Work Orders that are not Completed or Cancelled
+		wip_rows_wo = frappe.db.sql(
+			"""
+			SELECT
+				wo.production_item as item_code,
+				SUM(GREATEST(0, IFNULL(wo.qty, 0) - IFNULL(wo.produced_qty, 0))) as wip_qty
+			FROM
+				`tabWork Order` wo
+			WHERE
+				wo.status NOT IN ('Completed', 'Cancelled')
+				AND wo.docstatus = 1
+			GROUP BY
+				wo.production_item
+			""",
+			as_dict=True,
+		)
+
+		# Build WIP map from Work Orders only
+		for row in wip_rows_wo:
+			item_code = row.item_code
+			wip_map[item_code] = flt(row.wip_qty)
+
+	elif settings.get("from_production_plan"):
+		# New logic: Get WIP from Production Plan
+		# Get all Production Plans
+		production_plans = frappe.get_all("Production Plan", filters={"docstatus": 1}, fields=["name"])
+
+		for pp in production_plans:
+			pp_name = pp.name
+
+			# Get Production Plan document to access po_items child table
+			try:
+				pp_doc = frappe.get_doc("Production Plan", pp_name)
+
+				# Check if po_items child table exists
+				if hasattr(pp_doc, "po_items") and pp_doc.po_items:
+					# Iterate through each item in po_items
+					for po_item in pp_doc.po_items:
+						item_code = po_item.item_code
+						planned_qty = flt(po_item.planned_qty) if po_item.planned_qty else 0
+
+						if not item_code:
+							continue
+
+						# Get all submitted Finished Weight documents linked to this Production Plan
+						# Sum all finish_weight values
+						finished_weight_sum = frappe.db.sql(
+							"""
+							SELECT COALESCE(SUM(finish_weight), 0) as total_finish_weight
+							FROM `tabFinish Weight`
+							WHERE production_plan = %s
+							AND docstatus = 1
+							AND item_code = %s
+							""",
+							(pp_name, item_code),
+							as_dict=True,
+						)
+
+						total_finished = (
+							flt(finished_weight_sum[0].total_finish_weight) if finished_weight_sum else 0
+						)
+
+						# Calculate WIP: planned_qty - sum of all finish_weight
+						wip_qty = max(0, planned_qty - total_finished)  # Ensure non-negative
+
+						# Add to wip_map (sum if item_code already exists from another production plan)
+						if item_code in wip_map:
+							wip_map[item_code] += wip_qty
+						else:
+							wip_map[item_code] = wip_qty
+
+			except Exception as e:
+				frappe.log_error(
+					f"Error processing Production Plan {pp_name} in get_wip_map_for_mrp: {str(e)}",
+					"MRP Generation WIP Calculation Error",
+				)
+				continue
+
+	return wip_map
 
 
 def get_open_so_map_for_mrp():
