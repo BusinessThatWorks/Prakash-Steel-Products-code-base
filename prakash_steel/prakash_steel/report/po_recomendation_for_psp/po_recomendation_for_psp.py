@@ -1618,10 +1618,10 @@ def get_data(filters=None):
 			row["child_stock_shortage"] = math.ceil(stock_shortage)
 
 			# Convert allocated CHILD stock qty into PARENT production qty using BOM ratio:
-			# Parent units per 1 child unit = BOM Qty / BOM Item Qty
+			# Parent units per 1 child unit = BOM Item Qty / BOM Qty  (same direction as requirement calc)
 			child_bom_qty = flt(row.get("child_bom_qty", 0))
 			child_bom_quantity = flt(row.get("child_bom_quantity", 1.0)) or 1.0
-			parent_per_child_factor = (child_bom_quantity / child_bom_qty) if child_bom_qty else 0
+			parent_per_child_factor = (child_bom_qty / child_bom_quantity) if child_bom_quantity else 0
 
 			production_qty_based_on_child_stock = math.ceil(flt(stock_allocated) * parent_per_child_factor)
 			row["production_qty_based_on_child_stock"] = production_qty_based_on_child_stock
@@ -2286,11 +2286,32 @@ def get_wip_map(filters):
 							as_dict=True,
 						)
 
-						total_finished = (
+						total_finished_from_fw = (
 							flt(finished_weight_sum[0].total_finish_weight) if finished_weight_sum else 0
 						)
 
-						# Calculate WIP: planned_qty - sum of all finish_weight
+						# Get all submitted Bright Bar Production documents linked to this Production Plan
+						# Sum all fg_weight values
+						bright_bar_production_sum = frappe.db.sql(
+							"""
+							SELECT COALESCE(SUM(fg_weight), 0) as total_fg_weight
+							FROM `tabBright Bar Production`
+							WHERE production_plan = %s
+							AND docstatus = 1
+							AND item_code = %s
+							""",
+							(pp_name, item_code),
+							as_dict=True,
+						)
+
+						total_finished_from_bbp = (
+							flt(bright_bar_production_sum[0].total_fg_weight) if bright_bar_production_sum else 0
+						)
+
+						# Total finished = finish_weight + fg_weight
+						total_finished = total_finished_from_fw + total_finished_from_bbp
+
+						# Calculate WIP: planned_qty - sum of all finish_weight and fg_weight
 						wip_qty = max(0, planned_qty - total_finished)  # Ensure non-negative
 
 						# Add to wip_map (sum if item_code already exists from another production plan)
