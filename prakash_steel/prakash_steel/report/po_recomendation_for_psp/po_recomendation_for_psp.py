@@ -542,6 +542,18 @@ def get_columns(filters=None):
 					"fieldtype": "Int",
 					"width": 130,
 				},
+				{
+					"label": _("On Hand Status"),
+					"fieldname": "on_hand_status",
+					"fieldtype": "Data",
+					"width": 130,
+				},
+				{
+					"label": _("On Hand Colour"),
+					"fieldname": "on_hand_colour",
+					"fieldtype": "Data",
+					"width": 130,
+				},
 			]
 		)
 	else:
@@ -592,18 +604,6 @@ def get_columns(filters=None):
 	# Add remaining common columns
 	columns.extend(
 		[
-			{
-				"label": _("On Hand Status"),
-				"fieldname": "on_hand_status",
-				"fieldtype": "Data",
-				"width": 130,
-			},
-			{
-				"label": _("On Hand Colour"),
-				"fieldname": "on_hand_colour",
-				"fieldtype": "Data",
-				"width": 130,
-			},
 			{
 				"label": _("Order Recommendation"),
 				"fieldname": "order_recommendation",
@@ -1199,39 +1199,47 @@ def get_data(filters=None):
 		# Get Qualified Demand (Open SO with delivery_date <= today)
 		qualify_demand = flt(qualified_demand_map.get(item_code, 0))
 
+		# Check if item is buffer or non-buffer
+		is_item_buffer = item_buffer_flag == "Buffer"
+		
 		# Calculate On Hand Status = on_hand_stock / (TOG + qualify_demand) (rounded up)
+		# Only calculate for buffer items; set to None for non-buffer items
 		on_hand_status_value = None
-		denominator = flt(tog) + flt(qualify_demand)
-		if denominator > 0:
-			on_hand_status_value = flt(on_hand_stock) / denominator
-		else:
-			# If denominator is 0, set to None (cannot calculate)
-			on_hand_status_value = None
+		on_hand_status = None
+		on_hand_colour = None
+		
+		if is_item_buffer:
+			denominator = flt(tog) + flt(qualify_demand)
+			if denominator > 0:
+				on_hand_status_value = flt(on_hand_stock) / denominator
+			else:
+				# If denominator is 0, set to None (cannot calculate)
+				on_hand_status_value = None
 
-		numeric_status = None
-		if on_hand_status_value is not None:
-			numeric_status = math.ceil(on_hand_status_value)
+			numeric_status = None
+			if on_hand_status_value is not None:
+				numeric_status = math.ceil(on_hand_status_value)
 
-		# Derive On Hand Colour from numeric status
-		# 0% → BLACK, 1-34% → RED, 35-67% → YELLOW, 68-100% → GREEN, >100% → WHITE
-		if numeric_status is None:
-			on_hand_colour = None
-		elif numeric_status == 0:
-			on_hand_colour = "BLACK"
-		elif 1 <= numeric_status <= 34:
-			on_hand_colour = "RED"
-		elif 35 <= numeric_status <= 67:
-			on_hand_colour = "YELLOW"
-		elif 68 <= numeric_status <= 100:
-			on_hand_colour = "GREEN"
-		else:  # > 100
-			on_hand_colour = "WHITE"
+			# Derive On Hand Colour from numeric status
+			# 0% → BLACK, 1-34% → RED, 35-67% → YELLOW, 68-100% → GREEN, >100% → WHITE
+			if numeric_status is None:
+				on_hand_colour = None
+			elif numeric_status == 0:
+				on_hand_colour = "BLACK"
+			elif 1 <= numeric_status <= 34:
+				on_hand_colour = "RED"
+			elif 35 <= numeric_status <= 67:
+				on_hand_colour = "YELLOW"
+			elif 68 <= numeric_status <= 100:
+				on_hand_colour = "GREEN"
+			else:  # > 100
+				on_hand_colour = "WHITE"
 
-		# Calculate On Hand Status (rounded up value with % sign)
-		if numeric_status is not None:
-			on_hand_status = f"{int(numeric_status)}%"
-		else:
-			on_hand_status = None
+			# Calculate On Hand Status (rounded up value with % sign)
+			if numeric_status is not None:
+				on_hand_status = f"{int(numeric_status)}%"
+			else:
+				on_hand_status = None
 
 		# Get item name
 		item_name = item_info.get("item_name", "")
@@ -1369,6 +1377,7 @@ def get_data(filters=None):
 			{
 				"on_hand_status": on_hand_status,
 				"on_hand_colour": on_hand_colour,
+				"buffer_flag": item_buffer_flag,  # Add buffer_flag for JavaScript formatter
 				"order_recommendation": math.ceil(flt(order_recommendation)),
 				"batch_size": math.ceil(flt(batch_size)),
 				"moq": math.ceil(flt(moq)),
