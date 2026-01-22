@@ -2291,14 +2291,14 @@ def get_wip_map(filters):
 						)
 
 						# Get all submitted Bright Bar Production documents linked to this Production Plan
-						# Sum all fg_weight values
+						# Sum all fg_weight values where finished_good matches the item_code
 						bright_bar_production_sum = frappe.db.sql(
 							"""
 							SELECT COALESCE(SUM(fg_weight), 0) as total_fg_weight
 							FROM `tabBright Bar Production`
 							WHERE production_plan = %s
 							AND docstatus = 1
-							AND item_code = %s
+							AND finished_good = %s
 							""",
 							(pp_name, item_code),
 							as_dict=True,
