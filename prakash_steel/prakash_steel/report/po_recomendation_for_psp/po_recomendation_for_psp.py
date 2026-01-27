@@ -542,6 +542,18 @@ def get_columns(filters=None):
 					"fieldtype": "Int",
 					"width": 130,
 				},
+				{
+					"label": _("On Hand Status"),
+					"fieldname": "on_hand_status",
+					"fieldtype": "Data",
+					"width": 130,
+				},
+				{
+					"label": _("On Hand Colour"),
+					"fieldname": "on_hand_colour",
+					"fieldtype": "Data",
+					"width": 130,
+				},
 			]
 		)
 	else:
@@ -592,18 +604,6 @@ def get_columns(filters=None):
 	# Add remaining common columns
 	columns.extend(
 		[
-			{
-				"label": _("On Hand Status"),
-				"fieldname": "on_hand_status",
-				"fieldtype": "Data",
-				"width": 130,
-			},
-			{
-				"label": _("On Hand Colour"),
-				"fieldname": "on_hand_colour",
-				"fieldtype": "Data",
-				"width": 130,
-			},
 			{
 				"label": _("Order Recommendation"),
 				"fieldname": "order_recommendation",
@@ -1199,39 +1199,47 @@ def get_data(filters=None):
 		# Get Qualified Demand (Open SO with delivery_date <= today)
 		qualify_demand = flt(qualified_demand_map.get(item_code, 0))
 
+		# Check if item is buffer or non-buffer
+		is_item_buffer = item_buffer_flag == "Buffer"
+		
 		# Calculate On Hand Status = on_hand_stock / (TOG + qualify_demand) (rounded up)
+		# Only calculate for buffer items; set to None for non-buffer items
 		on_hand_status_value = None
-		denominator = flt(tog) + flt(qualify_demand)
-		if denominator > 0:
-			on_hand_status_value = flt(on_hand_stock) / denominator
-		else:
-			# If denominator is 0, set to None (cannot calculate)
-			on_hand_status_value = None
+		on_hand_status = None
+		on_hand_colour = None
+		
+		if is_item_buffer:
+			denominator = flt(tog) + flt(qualify_demand)
+			if denominator > 0:
+				on_hand_status_value = flt(on_hand_stock) / denominator
+			else:
+				# If denominator is 0, set to None (cannot calculate)
+				on_hand_status_value = None
 
-		numeric_status = None
-		if on_hand_status_value is not None:
-			numeric_status = math.ceil(on_hand_status_value)
+			numeric_status = None
+			if on_hand_status_value is not None:
+				numeric_status = math.ceil(on_hand_status_value)
 
-		# Derive On Hand Colour from numeric status
-		# 0% → BLACK, 1-34% → RED, 35-67% → YELLOW, 68-100% → GREEN, >100% → WHITE
-		if numeric_status is None:
-			on_hand_colour = None
-		elif numeric_status == 0:
-			on_hand_colour = "BLACK"
-		elif 1 <= numeric_status <= 34:
-			on_hand_colour = "RED"
-		elif 35 <= numeric_status <= 67:
-			on_hand_colour = "YELLOW"
-		elif 68 <= numeric_status <= 100:
-			on_hand_colour = "GREEN"
-		else:  # > 100
-			on_hand_colour = "WHITE"
+			# Derive On Hand Colour from numeric status
+			# 0% → BLACK, 1-34% → RED, 35-67% → YELLOW, 68-100% → GREEN, >100% → WHITE
+			if numeric_status is None:
+				on_hand_colour = None
+			elif numeric_status == 0:
+				on_hand_colour = "BLACK"
+			elif 1 <= numeric_status <= 34:
+				on_hand_colour = "RED"
+			elif 35 <= numeric_status <= 67:
+				on_hand_colour = "YELLOW"
+			elif 68 <= numeric_status <= 100:
+				on_hand_colour = "GREEN"
+			else:  # > 100
+				on_hand_colour = "WHITE"
 
-		# Calculate On Hand Status (rounded up value with % sign)
-		if numeric_status is not None:
-			on_hand_status = f"{int(numeric_status)}%"
-		else:
-			on_hand_status = None
+			# Calculate On Hand Status (rounded up value with % sign)
+			if numeric_status is not None:
+				on_hand_status = f"{int(numeric_status)}%"
+			else:
+				on_hand_status = None
 
 		# Get item name
 		item_name = item_info.get("item_name", "")
@@ -1369,6 +1377,7 @@ def get_data(filters=None):
 			{
 				"on_hand_status": on_hand_status,
 				"on_hand_colour": on_hand_colour,
+				"buffer_flag": item_buffer_flag,  # Add buffer_flag for JavaScript formatter
 				"order_recommendation": math.ceil(flt(order_recommendation)),
 				"batch_size": math.ceil(flt(batch_size)),
 				"moq": math.ceil(flt(moq)),
@@ -2273,46 +2282,83 @@ def get_wip_map(filters):
 							continue
 
 						# Get all submitted Finished Weight documents linked to this Production Plan
-						# Sum all finish_weight values
-						finished_weight_sum = frappe.db.sql(
+						# Get individual documents with their finish_weight values for breakdown
+						finished_weight_docs = frappe.db.sql(
 							"""
-							SELECT COALESCE(SUM(finish_weight), 0) as total_finish_weight
+							SELECT name, finish_weight
 							FROM `tabFinish Weight`
 							WHERE production_plan = %s
 							AND docstatus = 1
 							AND item_code = %s
+							ORDER BY name
 							""",
 							(pp_name, item_code),
 							as_dict=True,
 						)
 
-						total_finished_from_fw = (
-							flt(finished_weight_sum[0].total_finish_weight) if finished_weight_sum else 0
-						)
+						total_finished_from_fw = sum(flt(doc.finish_weight) for doc in finished_weight_docs)
 
 						# Get all submitted Bright Bar Production documents linked to this Production Plan
-						# Sum all fg_weight values where finished_good matches the item_code
-						bright_bar_production_sum = frappe.db.sql(
+						# Get individual documents with their fg_weight values for breakdown
+						bright_bar_production_docs = frappe.db.sql(
 							"""
-							SELECT COALESCE(SUM(fg_weight), 0) as total_fg_weight
+							SELECT name, fg_weight
 							FROM `tabBright Bar Production`
 							WHERE production_plan = %s
 							AND docstatus = 1
 							AND finished_good = %s
+							ORDER BY name
 							""",
 							(pp_name, item_code),
 							as_dict=True,
 						)
 
-						total_finished_from_bbp = (
-							flt(bright_bar_production_sum[0].total_fg_weight) if bright_bar_production_sum else 0
-						)
+						total_finished_from_bbp = sum(flt(doc.fg_weight) for doc in bright_bar_production_docs)
 
 						# Total finished = finish_weight + fg_weight
 						total_finished = total_finished_from_fw + total_finished_from_bbp
 
 						# Calculate WIP: planned_qty - sum of all finish_weight and fg_weight
 						wip_qty = max(0, planned_qty - total_finished)  # Ensure non-negative
+
+						# Build WIP calculation breakdown
+						breakdown_lines = []
+						breakdown_lines.append("=" * 80)
+						breakdown_lines.append(f"WIP Calculation Breakdown")
+						breakdown_lines.append("=" * 80)
+						breakdown_lines.append(f"Production Plan: {pp_name}")
+						breakdown_lines.append(f"Item Code: {item_code}")
+						breakdown_lines.append(f"Planned Quantity: {planned_qty}")
+						breakdown_lines.append("")
+						breakdown_lines.append("Finish Weight Documents:")
+						if finished_weight_docs:
+							for fw_doc in finished_weight_docs:
+								breakdown_lines.append(f"  - {fw_doc.name}: finish_weight = {flt(fw_doc.finish_weight)}")
+							breakdown_lines.append(f"  Total from Finish Weight: {total_finished_from_fw}")
+						else:
+							breakdown_lines.append("  (No Finish Weight documents found)")
+							breakdown_lines.append("  Total from Finish Weight: 0")
+						breakdown_lines.append("")
+						breakdown_lines.append("Bright Bar Production Documents:")
+						if bright_bar_production_docs:
+							for bbp_doc in bright_bar_production_docs:
+								breakdown_lines.append(f"  - {bbp_doc.name}: fg_weight = {flt(bbp_doc.fg_weight)}")
+							breakdown_lines.append(f"  Total from Bright Bar Production: {total_finished_from_bbp}")
+						else:
+							breakdown_lines.append("  (No Bright Bar Production documents found)")
+							breakdown_lines.append("  Total from Bright Bar Production: 0")
+						breakdown_lines.append("")
+						breakdown_lines.append(f"Total Finished: {total_finished_from_fw} + {total_finished_from_bbp} = {total_finished}")
+						breakdown_lines.append(f"WIP Calculation: Planned Qty - Total Finished = {planned_qty} - {total_finished} = {wip_qty}")
+						breakdown_lines.append("=" * 80)
+
+						# Log the breakdown
+						breakdown_str = "\n".join(breakdown_lines)
+						print(breakdown_str)
+						frappe.log_error(
+							breakdown_str,
+							"WIP Calculation Breakdown",
+						)
 
 						# Add to wip_map (sum if item_code already exists from another production plan)
 						if item_code in wip_map:
