@@ -268,6 +268,7 @@ doctype_js = {
     "Item": "public/js/item.js",
     "Stock Entry": "public/js/stock_entry.js",
     "Purchase Receipt": "public/js/purchase_receipt.js",
+    "Sales Invoice": "public/js/sales_invoice.js",
 }
 
 # Page JS
