@@ -1,0 +1,35 @@
+{
+    "content": null,
+    "creation": "2025-01-27 16:15:26.793032",
+    "docstatus": 0,
+    "doctype": "Page",
+    "idx": 0,
+    "modified": "2025-01-27 17:31:19.086474",
+    "modified_by": "Administrator",
+    "module": "Prakash Steel",
+    "name": "item-insight-dashboard",
+    "owner": "Administrator",
+    "page_name": "item-insight-dashboard",
+    "roles": [
+        {
+            "role": "System Manager"
+        },
+        {
+            "role": "Sales Manager"
+        },
+        {
+            "role": "Sales User"
+        },
+        {
+            "role": "Purchase Manager"
+        },
+        {
+            "role": "Purchase User"
+        }
+    ],
+    "script": null,
+    "standard": "Yes",
+    "style": null,
+    "system_page": 1,
+    "title": "Item Insight Dashboard"
+}

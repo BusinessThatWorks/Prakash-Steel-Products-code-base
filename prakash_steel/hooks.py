@@ -138,23 +138,27 @@ app_license = "mit"
 # Hook on document methods and events
 
 doc_events = {
-	# 	# "Stock Entry": {
-	# 	# 	"validate": "prakash_steel.utils.stock_entry.validate_vehicle_no_for_material_transfer",
-	# 	# 	"on_submit": "prakash_steel.utils.stock_entry.update_decoupled_lead_time_on_stock_entry_submit",
-	# 	# },
-	"Item": {
-		"validate": "prakash_steel.utils.item.validate_min_order_qty_and_batch_size",
-		"on_update": "prakash_steel.utils.item.update_decoupled_lead_time_on_item_save",
-	},
-	"BOM": {
-		"on_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
-		"on_update_after_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
-	},
-	"Purchase Receipt": {
-		"on_submit": "prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
-	},
-	# Note: Finish Weight on_submit is handled in the Document class itself
-	# No need to register here as class methods are automatically called
+    # 	# "Stock Entry": {
+    # 	# 	"validate": "prakash_steel.utils.stock_entry.validate_vehicle_no_for_material_transfer",
+    # 	# 	"on_submit": "prakash_steel.utils.stock_entry.update_decoupled_lead_time_on_stock_entry_submit",
+    # 	# },
+    "Item": {
+        "validate": "prakash_steel.utils.item.validate_min_order_qty_and_batch_size",
+        "on_update": "prakash_steel.utils.item.update_decoupled_lead_time_on_item_save",
+    },
+    "BOM": {
+        "on_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
+        "on_update_after_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
+    },
+    "Purchase Receipt": {
+        "on_submit": "prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
+    },
+    "Sales Invoice": {
+        "validate": "prakash_steel.utils.sales_invoice.validate_sales_order_items_required",
+        "on_submit": "prakash_steel.utils.sales_invoice.create_stock_entries_on_submit",
+    },
+    # Note: Finish Weight on_submit is handled in the Document class itself
+    # No need to register here as class methods are automatically called
 }
 
 # Scheduled Tasks
@@ -227,7 +231,7 @@ doc_events = {
 # 		"partial": 1,
 # 	},
 # 	{
-# 		100mm Billet 20MnCr5"doctype": "{doctype_2}",
+# 		"doctype": "{doctype_2}",
 # 		"filter_by": "{filter_by}",
 # 		"partial": 1,
 # 	},
@@ -255,21 +259,23 @@ doc_events = {
 # }
 
 fixtures = [
-	{"doctype": "Custom Field", "filters": {"module": "Prakash Steel"}},
+    {"doctype": "Custom Field", "filters": {"module": "Prakash Steel"}},
 ]
 
 doctype_js = {
-	"Material Request": "public/js/material_request.js",
-	"Sales Order": "public/js/sales_order.js",
-	"Item": "public/js/item.js",
-	"Stock Entry": "public/js/stock_entry.js",
-	"Purchase Receipt": "public/js/purchase_receipt.js",
+    "Material Request": "public/js/material_request.js",
+    "Sales Order": "public/js/sales_order.js",
+    "Item": "public/js/item.js",
+    "Stock Entry": "public/js/stock_entry.js",
+    "Purchase Receipt": "public/js/purchase_receipt.js",
+    "Sales Invoice": "public/js/sales_invoice.js",
 }
 
 # Page JS
 page_js = {
-	"procurement-tracker-dashboard": "prakash_steel/page/procurement_tracker_dashboard/procurement_tracker_dashboard.js",
-	"sales-summary-dashboard": "prakash_steel/page/sales_summary_dashboard/sales_summary_dashboard.js",
+    "procurement-tracker-dashboard": "prakash_steel/page/procurement_tracker_dashboard/procurement_tracker_dashboard.js",
+    "sales-summary-dashboard": "prakash_steel/page/sales_summary_dashboard/sales_summary_dashboard.js",
+    "item-insight-dashboard": "prakash_steel/page/item_insight_dashboard/item_insight_dashboard.js",
 }
 app_include_js = ["/assets/prakash_steel/js/number_cards_uom.js"]
 
@@ -277,18 +283,18 @@ app_include_js = ["/assets/prakash_steel/js/number_cards_uom.js"]
 # ---------------
 
 scheduler_events = {
-	# Cron job to capture daily on hand colour snapshot from
-	# "PO Recommendation for PSP" report into
-	# "Item wise Daily On Hand Colour" doctype.
-	"cron": {
-		# Runs every day at 14:31 server time
-		"52 14 * * *": [
-			"prakash_steel.prakash_steel.report.po_recomendation_for_psp.po_recomendation_for_psp.save_daily_on_hand_colour"
-		]
-	},
-	# Generic 'all' scheduler hook that runs frequently; wrapper
-	# function ensures we only snapshot once per day after 14:31.
-	# "all": [
-	# 	"prakash_steel.prakash_steel.report.po_recomendation_for_psp.po_recomendation_for_psp.run_daily_on_hand_colour_snapshot"
-	# ],
+    # Cron job to capture daily on hand colour snapshot from
+    # "PO Recommendation for PSP" report into
+    # "Item wise Daily On Hand Colour" doctype.
+    "cron": {
+        # Runs every day at 14:31 server time
+        "52 14 * * *": [
+            "prakash_steel.prakash_steel.report.po_recomendation_for_psp.po_recomendation_for_psp.save_daily_on_hand_colour"
+        ]
+    },
+    # Generic 'all' scheduler hook that runs frequently; wrapper
+    # function ensures we only snapshot once per day after 14:31.
+    # "all": [
+    # 	"prakash_steel.prakash_steel.report.po_recomendation_for_psp.po_recomendation_for_psp.run_daily_on_hand_colour_snapshot"
+    # ],
 }
