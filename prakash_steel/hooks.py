@@ -150,10 +150,10 @@ doc_events = {
 	"Purchase Receipt": {
 		"on_submit": "prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
 	},
-	"Sales Invoice": {
-		"validate": "prakash_steel.utils.sales_invoice.validate_sales_order_items_required",
-		"on_submit": "prakash_steel.utils.sales_invoice.create_stock_entries_on_submit",
-	},
+	# "Sales Invoice": {
+	# 	"validate": "prakash_steel.utils.sales_invoice.validate_sales_order_items_required",
+	# 	"on_submit": "prakash_steel.utils.sales_invoice.create_stock_entries_on_submit",
+	# },
 	# Note: Finish Weight on_submit is handled in the Document class itself
 	# No need to register here as class methods are automatically called
 }
