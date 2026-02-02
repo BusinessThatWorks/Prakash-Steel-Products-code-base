@@ -123,6 +123,55 @@ frappe.ui.form.on("Item", {
     custom_batch_size: function (frm) {
         // Handle mutual exclusivity when custom_batch_size changes
         handle_min_order_qty_batch_size_exclusivity(frm);
+    },
+
+    after_save: function (frm) {
+        const normalized = (frm.doc.item_group || '').trim().toLowerCase();
+        const groupsRequiringBOM = new Set([
+            'sub assemblies',
+            'sub assembly',
+            'finished goods',
+            'finished good'
+        ]);
+
+        console.log("Checking item group:", normalized);
+
+        if (groupsRequiringBOM.has(normalized)) {
+            console.log("Matched group requiring BOM");
+
+            // Check if item already has a BOM before showing the message
+            frappe.call({
+                method: "prakash_steel.api.check_item_has_bom.check_item_has_bom",
+                args: {
+                    item_code: frm.doc.item_code
+                },
+                callback: function (r) {
+                    if (r.message === false) {
+                        // Item does not have a BOM, show the message
+                        console.log("Item does not have BOM, showing message");
+                        frappe.msgprint({
+                            title: 'Action Required',
+                            message: 'Please create a BOM for this item.',
+                            indicator: 'green'
+                        });
+                    } else {
+                        // Item already has a BOM, don't show the message
+                        console.log("Item already has BOM, skipping message");
+                    }
+                },
+                error: function (err) {
+                    console.error("Error checking BOM:", err);
+                    // On error, show the message to be safe
+                    frappe.msgprint({
+                        title: 'Action Required',
+                        message: 'Please create a BOM for this item.',
+                        indicator: 'green'
+                    });
+                }
+            });
+        } else {
+            console.log("Item group does not require BOM");
+        }
     }
 
 });
