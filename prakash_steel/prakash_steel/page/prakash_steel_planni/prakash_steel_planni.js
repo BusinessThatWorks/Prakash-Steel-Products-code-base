@@ -157,6 +157,7 @@ function createChartCard(key, data, colorMap) {
 			border-radius:8px;
 			padding:16px;
 			box-shadow:0 2px 8px rgba(0,0,0,0.1);
+			position:relative;
 		">
 			<h3 style="
 				margin:0 0 8px 0;
@@ -174,7 +175,6 @@ function createChartCard(key, data, colorMap) {
 				justify-content:center;
 				margin-top:8px;
 			">
-				<div class="legend-total" style="display:flex;flex-direction:column;gap:6px;"></div>
 				<div class="legend-left" style="display:flex;flex-direction:column;gap:6px;"></div>
 				<div class="legend-right" style="display:flex;flex-direction:column;gap:6px;"></div>
 			</div>
@@ -183,21 +183,17 @@ function createChartCard(key, data, colorMap) {
 
 	// Calculate and display total
 	const total = data.total_items || data.total_orders || (data.colours ? data.colours.reduce((sum, c) => sum + c.count, 0) : 0);
-	
+
 	const $legend = $card.find(`.chart-legend-${chartId}`);
-	const $legendTotal = $legend.find('.legend-total');
 	const $legendLeft = $legend.find('.legend-left');
 	const $legendRight = $legend.find('.legend-right');
-	
-	// Add Total to the separate total block (leftmost)
+
+	// Add Total to the bottom left corner of the card
 	const $totalItem = $(`
 		<div style="
-			display:flex;
-			align-items:center;
-			gap:5px;
-			padding:4px 8px;
-			border-radius:3px;
-			border:1px solid #000000;
+			position:absolute;
+			bottom:8px;
+			left:16px;
 		">
 			<span style="
 				color:#0066cc;
@@ -206,53 +202,57 @@ function createChartCard(key, data, colorMap) {
 			">Total: ${total}</span>
 		</div>
 	`);
-	$legendTotal.append($totalItem);
-	
+	$card.append($totalItem);
+
 	// Define middle and right column colors
 	const middleColors = ['BLACK', 'RED', 'WHITE'];
 	const rightColors = ['YELLOW', 'GREEN'];
 	
+	// Create a map of existing colors from data
+	const colorDataMap = {};
 	if (data.colours && data.colours.length) {
-		// Sort colors by the defined order
-		const sortedColours = data.colours.sort((a, b) => {
-			const allColors = [...middleColors, ...rightColors];
-			const indexA = allColors.indexOf(a.name);
-			const indexB = allColors.indexOf(b.name);
-			return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
-		});
-		
-		sortedColours.forEach((c) => {
-			const $item = $(`
-				<div style="
-					display:flex;
-					align-items:center;
-					gap:5px;
-					padding:4px 8px;
-					border-radius:3px;
-					border:1px solid #000000;
-				">
-					<div style="
-						width:12px;
-						height:12px;
-						background:${colorMap[c.name] || '#ccc'};
-						border-radius:2px;
-						border:1px solid #ddd;
-					"></div>
-					<span style="color:#000000;font-size:0.75rem;font-weight:bold;">${c.count}</span>
-					<span style="color:#000000;font-size:0.7rem;"><strong>(${c.percentage}%)</strong></span>
-				</div>
-			`);
-			
-			if (middleColors.includes(c.name)) {
-				$legendLeft.append($item);
-			} else if (rightColors.includes(c.name)) {
-				$legendRight.append($item);
-			} else {
-				// If color not in defined lists, add to middle
-				$legendLeft.append($item);
-			}
+		data.colours.forEach((c) => {
+			colorDataMap[c.name] = c;
 		});
 	}
+	
+	// Helper function to create legend item
+	const createLegendItem = (colorName) => {
+		const colorData = colorDataMap[colorName] || { name: colorName, count: 0, percentage: 0 };
+		const isHidden = colorData.count === 0;
+		return $(`
+			<div style="
+				display:flex;
+				align-items:center;
+				gap:5px;
+				padding:4px 8px;
+				border-radius:3px;
+				min-height:24px;
+				opacity:${isHidden ? '0' : '1'};
+				pointer-events:${isHidden ? 'none' : 'auto'};
+			">
+				<div style="
+					width:12px;
+					height:12px;
+					background:${colorMap[colorName] || '#ccc'};
+					border-radius:2px;
+					border:1px solid #ddd;
+				"></div>
+				<span style="color:#000000;font-size:0.75rem;font-weight:bold;">${colorData.count}</span>
+				<span style="color:#000000;font-size:0.7rem;"><strong>(${colorData.percentage}%)</strong></span>
+			</div>
+		`);
+	};
+	
+	// Always show all left column colors (BLACK, RED, WHITE)
+	middleColors.forEach((colorName) => {
+		$legendLeft.append(createLegendItem(colorName));
+	});
+	
+	// Always show all right column colors (YELLOW, GREEN)
+	rightColors.forEach((colorName) => {
+		$legendRight.append(createLegendItem(colorName));
+	});
 
 	return $card;
 }
