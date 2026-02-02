@@ -44,6 +44,8 @@ frappe.pages['item-insight-dashboard'].on_page_load = function (wrapper) {
 			}
 			.item-insight-table {
 				position: relative;
+				border-collapse: separate;
+				border-spacing: 0;
 			}
 			.item-insight-table thead {
 				position: sticky;
@@ -53,6 +55,25 @@ frappe.pages['item-insight-dashboard'].on_page_load = function (wrapper) {
 			.item-insight-table thead th {
 				position: sticky;
 				top: 0;
+			}
+			/* Row separation - visible border lines only on last row of each item */
+			.item-insight-table tbody tr.item-last-row {
+				border-bottom: 1px solid #666666 !important;
+			}
+			.item-insight-table tbody tr.item-last-row td {
+				border-bottom: 1px solid #666666 !important;
+			}
+			/* Alternating background colors - Blue and Green */
+			.item-insight-table tbody tr.item-bg-blue {
+				background-color:rgb(243, 185, 228) !important;
+			}
+			.item-insight-table tbody tr.item-bg-green {
+				background-color:rgb(212, 243, 183) !important;
+			}
+			.item-insight-table tbody tr.item-bg-blue:hover,
+			.item-insight-table tbody tr.item-bg-green:hover {
+				opacity: 0.9;
+				transition: opacity 0.2s ease;
 			}
 		`)
 		.appendTo('head');
@@ -664,9 +685,13 @@ function renderTable(state, data) {
 	data.forEach((row, index) => {
 		const rowId = `row-${index}`;
 		
+		// Determine background color based on item index (alternating blue and green)
+		const isEvenItem = index % 2 === 0;
+		const itemBgClass = isEvenItem ? 'item-bg-blue' : 'item-bg-green';
+		
 		// Main row
 		const $mainRow = $(`
-			<tr class="item-row" data-row-id="${rowId}" style="border-bottom:1px solid #e9ecef;">
+			<tr class="item-row ${itemBgClass}" data-row-id="${rowId}" data-item-index="${index}">
 				<!-- Item Details -->
 				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;width:150px;min-width:150px;">${frappe.utils.escape_html(row.item_code || '')}</td>
 				<!-- Production -->
@@ -692,14 +717,25 @@ function renderTable(state, data) {
 			</tr>
 		`);
 
+		// Check if this item has multiple warehouses
+		const hasMultipleWarehouses = row.warehouse_stock && row.warehouse_stock.length > 1;
+		
+		// If no multiple warehouses, mark main row as last row of this item
+		if (!hasMultipleWarehouses) {
+			$mainRow.addClass('item-last-row');
+		}
+		
 		$tbody.append($mainRow);
 
 		// Additional rows for multiple warehouses
-		if (row.warehouse_stock && row.warehouse_stock.length > 1) {
+		if (hasMultipleWarehouses) {
 			for (let i = 1; i < row.warehouse_stock.length; i++) {
 				const wh = row.warehouse_stock[i];
+				const isLastWarehouse = (i === row.warehouse_stock.length - 1);
+				const rowClass = isLastWarehouse ? `warehouse-detail-row item-last-row ${itemBgClass}` : `warehouse-detail-row ${itemBgClass}`;
+				
 				const $warehouseRow = $(`
-					<tr class="warehouse-detail-row" data-parent-row="${rowId}" style="border-bottom:1px solid #e9ecef;">
+					<tr class="${rowClass}" data-parent-row="${rowId}" data-item-index="${index}">
 						<!-- Empty cells for other columns -->
 						<td style="padding:12px;border-right:1px solid #e9ecef;width:150px;min-width:150px;"></td>
 						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
