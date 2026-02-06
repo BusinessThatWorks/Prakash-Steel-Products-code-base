@@ -58,17 +58,17 @@ frappe.pages['item-insight-dashboard'].on_page_load = function (wrapper) {
 			}
 			/* Row separation - visible border lines only on last row of each item */
 			.item-insight-table tbody tr.item-last-row {
-				border-bottom: 1px solid #666666 !important;
+				border-bottom: 1px solid #000000 !important;
 			}
 			.item-insight-table tbody tr.item-last-row td {
-				border-bottom: 1px solid #666666 !important;
+				border-bottom: 1px solid #000000 !important;
 			}
-			/* Alternating background colors - Blue and Green */
+			/* Alternating background colors - Cream shades */
 			.item-insight-table tbody tr.item-bg-blue {
-				background-color:rgb(243, 185, 228) !important;
+				background-color:rgb(255, 248, 220) !important;
 			}
 			.item-insight-table tbody tr.item-bg-green {
-				background-color:rgb(212, 243, 183) !important;
+				background-color:rgb(250, 240, 230) !important;
 			}
 			.item-insight-table tbody tr.item-bg-blue:hover,
 			.item-insight-table tbody tr.item-bg-green:hover {
@@ -627,50 +627,50 @@ function renderTable(state, data) {
 
 	// Create table with grouped columns
 	const $table = $(`
-		<div class="item-insight-table-wrapper" style="background:white;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+		<div class="item-insight-table-wrapper" style="background:white;border-radius:8px;border:1px solid #000000;">
 			<table class="item-insight-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1400px;table-layout:fixed;">
 				<thead>
 				<tr>
 					<!-- Item Details Group -->
-					<th colspan="1" style="background:#e3f2fd;padding:12px;text-align:center;font-weight:600;color:#1976d2;border:1px solid #bbdefb;border-bottom:2px solid #1976d2;">
+					<th colspan="1" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
 						${__('Item Details')}
 					</th>
 						<!-- Production Group -->
-						<th colspan="2" style="background:#f3e5f5;padding:12px;text-align:center;font-weight:600;color:#7b1fa2;border:1px solid #ce93d8;border-bottom:2px solid #7b1fa2;">
+						<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
 							${__('Production')}
 						</th>
 						<!-- Sales Group -->
-						<th colspan="4" style="background:#e8f5e9;padding:12px;text-align:center;font-weight:600;color:#388e3c;border:1px solid #a5d6a7;border-bottom:2px solid #388e3c;">
+						<th colspan="4" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
 							${__('Sales')}
 						</th>
 						<!-- Purchase Group -->
-						<th colspan="4" style="background:#fff3e0;padding:12px;text-align:center;font-weight:600;color:#f57c00;border:1px solid #ffcc80;border-bottom:2px solid #f57c00;">
+						<th colspan="4" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
 							${__('Purchase')}
 						</th>
 						<!-- Warehouse Stock Group -->
-						<th colspan="2" style="background:#fce4ec;padding:12px;text-align:center;font-weight:600;color:#c2185b;border:1px solid #f8bbd0;border-bottom:2px solid #c2185b;">
+						<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
 							${__('Warehouse Stock')}
 						</th>
 					</tr>
 					<tr>
 						<!-- Item Details Columns -->
-						<th style="background:#f8f9fa;padding:10px;text-align:left;font-weight:600;color:#495057;border:1px solid #dee2e6;width:150px;min-width:150px;">${__('Item Code')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:150px;min-width:150px;">${__('Item Code')}</th>
 						<!-- Production Columns -->
-						<th style="background:#f8f9fa;padding:10px;text-align:left;font-weight:600;color:#495057;border:1px solid #dee2e6;width:140px;min-width:140px;">${__('Last Production Date')}</th>
-						<th style="background:#f8f9fa;padding:10px;text-align:right;font-weight:600;color:#495057;border:1px solid #dee2e6;width:140px;min-width:140px;">${__('Last Production Qty')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Production Date')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Production Qty')}</th>
 						<!-- Sales Columns -->
-						<th style="background:#f8f9fa;padding:10px;text-align:left;font-weight:600;color:#495057;border:1px solid #dee2e6;width:180px;min-width:180px;">${__('Last Sales Party')}</th>
-						<th style="background:#f8f9fa;padding:10px;text-align:right;font-weight:600;color:#495057;border:1px solid #dee2e6;width:130px;min-width:130px;">${__('Last Sales Qty')}</th>
-						<th style="background:#f8f9fa;padding:10px;text-align:right;font-weight:600;color:#495057;border:1px solid #dee2e6;width:130px;min-width:130px;">${__('Last Sales Rate')}</th>
-						<th style="background:#f8f9fa;padding:10px;text-align:right;font-weight:600;color:#495057;border:1px solid #dee2e6;width:130px;min-width:130px;">${__('Pending SO Qty')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">${__('Last Sales Party')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Last Sales Qty')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Last Sales Rate')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Pending SO Qty')}</th>
 						<!-- Purchase Columns -->
-						<th style="background:#f8f9fa;padding:10px;text-align:left;font-weight:600;color:#495057;border:1px solid #dee2e6;width:180px;min-width:180px;">${__('Last Purchase Party')}</th>
-						<th style="background:#f8f9fa;padding:10px;text-align:right;font-weight:600;color:#495057;border:1px solid #dee2e6;width:140px;min-width:140px;">${__('Last Purchase Qty')}</th>
-						<th style="background:#f8f9fa;padding:10px;text-align:right;font-weight:600;color:#495057;border:1px solid #dee2e6;width:140px;min-width:140px;">${__('Last Purchase Rate')}</th>
-						<th style="background:#f8f9fa;padding:10px;text-align:right;font-weight:600;color:#495057;border:1px solid #dee2e6;width:140px;min-width:140px;">${__('Pending PO Qty')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">${__('Last Purchase Party')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Qty')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Rate')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Pending PO Qty')}</th>
 						<!-- Warehouse Stock Columns -->
-						<th style="background:#f8f9fa;padding:10px;text-align:left;font-weight:600;color:#495057;border:1px solid #dee2e6;width:200px;min-width:200px;">${__('Warehouse')}</th>
-						<th style="background:#f8f9fa;padding:10px;text-align:right;font-weight:600;color:#495057;border:1px solid #dee2e6;width:120px;min-width:120px;">${__('Stock Qty')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:200px;min-width:200px;">${__('Warehouse')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:120px;min-width:120px;">${__('Stock Qty')}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -693,25 +693,25 @@ function renderTable(state, data) {
 		const $mainRow = $(`
 			<tr class="item-row ${itemBgClass}" data-row-id="${rowId}" data-item-index="${index}">
 				<!-- Item Details -->
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;width:150px;min-width:150px;">${frappe.utils.escape_html(row.item_code || '')}</td>
+				<td style="padding:12px;border-right:2px solid #000000;color:#495057;width:150px;min-width:150px;">${frappe.utils.escape_html(row.item_code || '')}</td>
 				<!-- Production -->
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;width:140px;min-width:140px;">${row.last_production_date ? frappe.format(row.last_production_date, {fieldtype: 'Date'}) : '-'}</td>
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;text-align:right;width:140px;min-width:140px;">${frappe.format(row.last_production_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:140px;min-width:140px;">${row.last_production_date ? frappe.format(row.last_production_date, {fieldtype: 'Date'}) : '-'}</td>
+				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.last_production_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
 				<!-- Sales -->
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;width:180px;min-width:180px;">${frappe.utils.escape_html(row.last_sales_party || '-')}</td>
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;text-align:right;width:130px;min-width:130px;">${frappe.format(row.last_sales_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;text-align:right;width:130px;min-width:130px;">${frappe.format(row.last_sales_rate || 0, {fieldtype: 'Currency', precision: 2})}</td>
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;text-align:right;width:130px;min-width:130px;">${frappe.format(row.pending_sales_order_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:180px;min-width:180px;">${frappe.utils.escape_html(row.last_sales_party || '-')}</td>
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:130px;min-width:130px;">${frappe.format(row.last_sales_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:130px;min-width:130px;">${frappe.format(row.last_sales_rate || 0, {fieldtype: 'Currency', precision: 2})}</td>
+				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:130px;min-width:130px;">${frappe.format(row.pending_sales_order_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
 				<!-- Purchase -->
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;width:180px;min-width:180px;">${frappe.utils.escape_html(row.last_purchase_party || '-')}</td>
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;text-align:right;width:140px;min-width:140px;">${frappe.format(row.last_purchase_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;text-align:right;width:140px;min-width:140px;">${frappe.format(row.last_purchase_rate || 0, {fieldtype: 'Currency', precision: 2})}</td>
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;text-align:right;width:140px;min-width:140px;">${frappe.format(row.pending_purchase_order_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:180px;min-width:180px;">${frappe.utils.escape_html(row.last_purchase_party || '-')}</td>
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.last_purchase_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.last_purchase_rate || 0, {fieldtype: 'Currency', precision: 2})}</td>
+				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.pending_purchase_order_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
 				<!-- Warehouse Stock -->
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;width:200px;min-width:200px;">
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:200px;min-width:200px;">
 					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.utils.escape_html(row.warehouse_stock[0].warehouse || '-') : '-'}
 				</td>
-				<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;text-align:right;width:120px;min-width:120px;">
+				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:120px;min-width:120px;">
 					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.format(row.warehouse_stock[0].stock_qty || 0, {fieldtype: 'Float', precision: 2}) : '-'}
 				</td>
 			</tr>
@@ -737,20 +737,20 @@ function renderTable(state, data) {
 				const $warehouseRow = $(`
 					<tr class="${rowClass}" data-parent-row="${rowId}" data-item-index="${index}">
 						<!-- Empty cells for other columns -->
-						<td style="padding:12px;border-right:1px solid #e9ecef;width:150px;min-width:150px;"></td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;"></td>
+						<td style="padding:12px;border-right:2px solid #000000;width:150px;min-width:150px;"></td>
+						<td style="padding:12px;border-right:1px solid #000000;"></td>
+						<td style="padding:12px;border-right:2px solid #000000;"></td>
+						<td style="padding:12px;border-right:1px solid #000000;"></td>
+						<td style="padding:12px;border-right:1px solid #000000;"></td>
+						<td style="padding:12px;border-right:1px solid #000000;"></td>
+						<td style="padding:12px;border-right:2px solid #000000;"></td>
+						<td style="padding:12px;border-right:1px solid #000000;"></td>
+						<td style="padding:12px;border-right:1px solid #000000;"></td>
+						<td style="padding:12px;border-right:1px solid #000000;"></td>
+						<td style="padding:12px;border-right:2px solid #000000;"></td>
 						<!-- Warehouse Stock Columns -->
-						<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;width:200px;min-width:200px;">${frappe.utils.escape_html(wh.warehouse || '-')}</td>
-						<td style="padding:12px;border-right:1px solid #e9ecef;color:#495057;text-align:right;width:120px;min-width:120px;">${frappe.format(wh.stock_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
+						<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:200px;min-width:200px;">${frappe.utils.escape_html(wh.warehouse || '-')}</td>
+						<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:120px;min-width:120px;">${frappe.format(wh.stock_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
 					</tr>
 				`);
 				$tbody.append($warehouseRow);
