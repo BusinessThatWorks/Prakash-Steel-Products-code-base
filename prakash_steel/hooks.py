@@ -150,6 +150,9 @@ doc_events = {
 	"Purchase Receipt": {
 		"on_submit": "prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
 	},
+	"Production Plan": {
+		"on_submit": "prakash_steel.prakash_steel.utils.production_plan.on_production_plan_submit",
+	},
 	# "Sales Invoice": {
 	# 	"validate": "prakash_steel.utils.sales_invoice.validate_sales_order_items_required",
 	# 	"on_submit": "prakash_steel.utils.sales_invoice.create_stock_entries_on_submit",
@@ -266,6 +269,7 @@ doctype_js = {
 	"Stock Entry": "public/js/stock_entry.js",
 	"Purchase Receipt": "public/js/purchase_receipt.js",
 	"Sales Invoice": "public/js/sales_invoice.js",
+	"Production Plan": "public/js/production_plan.js",
 }
 
 # Page JS
@@ -299,3 +303,6 @@ scheduler_events = {
 override_doctype_class = {
 	"Stock Entry": "prakash_steel.overrides.stock_entry.CustomStockEntry",
 }
+
+
+
