@@ -640,11 +640,11 @@ function renderTable(state, data) {
 							${__('Production')}
 						</th>
 						<!-- Sales Group -->
-						<th colspan="4" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
+						<th colspan="5" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
 							${__('Sales')}
 						</th>
 						<!-- Purchase Group -->
-						<th colspan="4" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
+						<th colspan="5" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
 							${__('Purchase')}
 						</th>
 						<!-- Warehouse Stock Group -->
@@ -660,11 +660,13 @@ function renderTable(state, data) {
 						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Production Qty')}</th>
 						<!-- Sales Columns -->
 						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">${__('Last Sales Party')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Sales Date')}</th>
 						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Last Sales Qty')}</th>
 						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Last Sales Rate')}</th>
 						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Pending SO Qty')}</th>
 						<!-- Purchase Columns -->
 						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">${__('Last Purchase Party')}</th>
+						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Date')}</th>
 						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Qty')}</th>
 						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Rate')}</th>
 						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Pending PO Qty')}</th>
@@ -699,11 +701,13 @@ function renderTable(state, data) {
 				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.last_production_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
 				<!-- Sales -->
 				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:180px;min-width:180px;">${frappe.utils.escape_html(row.last_sales_party || '-')}</td>
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${row.last_sales_date ? frappe.format(row.last_sales_date, {fieldtype: 'Date'}) : '-'}</td>
 				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:130px;min-width:130px;">${frappe.format(row.last_sales_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
 				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:130px;min-width:130px;">${frappe.format(row.last_sales_rate || 0, {fieldtype: 'Currency', precision: 2})}</td>
 				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:130px;min-width:130px;">${frappe.format(row.pending_sales_order_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
 				<!-- Purchase -->
 				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:180px;min-width:180px;">${frappe.utils.escape_html(row.last_purchase_party || '-')}</td>
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${row.last_purchase_date ? frappe.format(row.last_purchase_date, {fieldtype: 'Date'}) : '-'}</td>
 				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.last_purchase_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
 				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.last_purchase_rate || 0, {fieldtype: 'Currency', precision: 2})}</td>
 				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.pending_purchase_order_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
@@ -743,7 +747,9 @@ function renderTable(state, data) {
 						<td style="padding:12px;border-right:1px solid #000000;"></td>
 						<td style="padding:12px;border-right:1px solid #000000;"></td>
 						<td style="padding:12px;border-right:1px solid #000000;"></td>
+						<td style="padding:12px;border-right:1px solid #000000;"></td>
 						<td style="padding:12px;border-right:2px solid #000000;"></td>
+						<td style="padding:12px;border-right:1px solid #000000;"></td>
 						<td style="padding:12px;border-right:1px solid #000000;"></td>
 						<td style="padding:12px;border-right:1px solid #000000;"></td>
 						<td style="padding:12px;border-right:1px solid #000000;"></td>

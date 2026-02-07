@@ -196,11 +196,13 @@ def get_sales_data(item_code, from_date, to_date):
     last_sales_party = None
     last_sales_quantity = 0
     last_sales_rate = 0
+    last_sales_date = None
 
     if last_sales:
         last_sales_party = last_sales[0].customer_name
         last_sales_quantity = flt(last_sales[0].qty, 2)
         last_sales_rate = flt(last_sales[0].rate, 2)
+        last_sales_date = last_sales[0].posting_date
 
     # Pending Sales Order Quantity
     pending_so_qty = frappe.db.sql(
@@ -228,6 +230,7 @@ def get_sales_data(item_code, from_date, to_date):
         "last_sales_party": last_sales_party,
         "last_sales_quantity": last_sales_quantity,
         "last_sales_rate": last_sales_rate,
+        "last_sales_date": last_sales_date,
         "pending_sales_order_qty": pending_sales_order_qty,
     }
 
@@ -277,11 +280,13 @@ def get_purchase_data(item_code, from_date, to_date):
     last_purchase_party = None
     last_purchase_quantity = 0
     last_purchase_rate = 0
+    last_purchase_date = None
 
     if last_purchase:
         last_purchase_party = last_purchase[0].supplier_name
         last_purchase_quantity = flt(last_purchase[0].qty, 2)
         last_purchase_rate = flt(last_purchase[0].rate, 2)
+        last_purchase_date = last_purchase[0].posting_date
 
     # Pending Purchase Order Quantity
     pending_po_qty = frappe.db.sql(
@@ -309,6 +314,7 @@ def get_purchase_data(item_code, from_date, to_date):
         "last_purchase_party": last_purchase_party,
         "last_purchase_quantity": last_purchase_quantity,
         "last_purchase_rate": last_purchase_rate,
+        "last_purchase_date": last_purchase_date,
         "pending_purchase_order_qty": pending_purchase_order_qty,
     }
 
