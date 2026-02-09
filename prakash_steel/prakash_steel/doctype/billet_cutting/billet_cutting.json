@@ -75,8 +75,7 @@
    "fieldname": "raw_material_make",
    "fieldtype": "Link",
    "label": "Raw Material Make",
-   "options": "Supplier",
-   "reqd": 1
+   "options": "Supplier"
   },
   {
    "fieldname": "billet_pcs_full",
@@ -115,8 +114,7 @@
    "fieldname": "ruffing_mill_status",
    "fieldtype": "Select",
    "label": "Roughing Mill Status",
-   "options": "\nOn\nOff",
-   "reqd": 1
+   "options": "\nOn\nOff"
   },
   {
    "collapsible": 1,
@@ -145,8 +143,7 @@
   {
    "fieldname": "description_of_cutting_billet",
    "fieldtype": "Small Text",
-   "label": "Description of Cutting Billet",
-   "reqd": 1
+   "label": "Description of Cutting Billet"
   },
   {
    "fieldname": "column_break_ssbg",
@@ -183,8 +180,7 @@
    "fieldname": "rm_source_warehouse",
    "fieldtype": "Link",
    "label": "RM Source Warehouse",
-   "options": "Warehouse",
-   "reqd": 1
+   "options": "Warehouse"
   },
   {
    "fieldname": "finish_size",
@@ -198,8 +194,8 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-12 16:10:34.747465",
- "modified_by": "Administrator",
+ "modified": "2026-02-05 17:12:55.193393",
+ "modified_by": "ritika@clapgrow.com",
  "module": "Prakash Steel",
  "name": "Billet Cutting",
  "naming_rule": "Expression",
