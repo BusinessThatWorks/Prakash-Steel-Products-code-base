@@ -261,6 +261,17 @@ function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $gradeWrap, 
 			fieldname: 'category_name',
 			options: 'Item Category',
 			reqd: 0,
+			get_query: () => {
+				const grade = state.controls.item_grade
+					? state.controls.item_grade.get_value()
+					: null;
+				return {
+					query: 'prakash_steel.api.get_item_insight_data.search_item_categories',
+					filters: {
+						item_grade: grade || '',
+					},
+				};
+			},
 		},
 		render_input: true,
 	});
@@ -675,9 +686,20 @@ function bindEventHandlers(state) {
 	if (state.controls.item_grade && state.controls.item_grade.$input) {
 		const $gradeInput = $(state.controls.item_grade.$input);
 		// When user types or clears value
-		$gradeInput.on('change', debouncedRefresh);
+		$gradeInput.on('change', function () {
+			// Clear category filter when grade changes so that dependent suggestions stay valid
+			if (state.controls.category_name) {
+				state.controls.category_name.set_value('');
+			}
+			debouncedRefresh();
+		});
 		// When user selects from the Link suggestion dropdown
-		$gradeInput.on('awesomplete-selectcomplete', debouncedRefresh);
+		$gradeInput.on('awesomplete-selectcomplete', function () {
+			if (state.controls.category_name) {
+				state.controls.category_name.set_value('');
+			}
+			debouncedRefresh();
+		});
 	}
 	if (state.controls.category_name && state.controls.category_name.$input) {
 		const $categoryInput = $(state.controls.category_name.$input);

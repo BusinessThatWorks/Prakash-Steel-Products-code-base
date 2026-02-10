@@ -464,6 +464,68 @@ def search_items(query, limit=20):
 
 
 @frappe.whitelist()
+def search_item_categories(
+    doctype: str,
+    txt: str,
+    searchfield: str,
+    start: int,
+    page_len: int,
+    filters: dict[str, Any] | None = None,
+):
+    """
+    Link field query: return Item Categories restricted to Items having the given grade.
+
+    This is used to populate the Category Name suggestions based on the selected Item Grade.
+    """
+    filters = filters or {}
+    item_grade = filters.get("item_grade")
+
+    if not item_grade:
+        # If no grade selected, fall back to standard Item Category search
+        return frappe.db.sql(
+            """
+			SELECT 
+				name,
+				category_name
+			FROM `tabItem Category`
+			WHERE
+				(name LIKE %(txt)s OR category_name LIKE %(txt)s)
+			ORDER BY name
+			LIMIT %(page_len)s OFFSET %(start)s
+		""",
+            {
+                "txt": f"%{txt}%",
+                "page_len": page_len,
+                "start": start,
+            },
+        )
+
+    return frappe.db.sql(
+        """
+		SELECT DISTINCT
+			ic.name,
+			ic.category_name
+		FROM `tabItem Category` ic
+		INNER JOIN `tabItem` i ON i.custom_category_name = ic.name
+		WHERE
+			i.custom_grade = %(item_grade)s
+			AND (
+				ic.name LIKE %(txt)s
+				OR ic.category_name LIKE %(txt)s
+			)
+		ORDER BY ic.name
+		LIMIT %(page_len)s OFFSET %(start)s
+	""",
+        {
+            "item_grade": item_grade,
+            "txt": f"%{txt}%",
+            "page_len": page_len,
+            "start": start,
+        },
+    )
+
+
+@frappe.whitelist()
 def export_item_insight_excel(filters: str | None = None) -> dict[str, Any]:
     """Export item insight data to Excel and return file URL."""
 
