@@ -1,9 +1,22 @@
+import json
+from typing import Any
+
 import frappe
 from frappe.utils import flt
+from frappe.utils.file_manager import save_file
+from frappe.utils.pdf import get_pdf
+from frappe.utils.xlsxutils import make_xlsx
 
 
 @frappe.whitelist()
-def get_item_insight_data(from_date=None, to_date=None, item_code=None, limit=50):
+def get_item_insight_data(
+    from_date=None,
+    to_date=None,
+    item_code=None,
+    item_grade=None,
+    category_name=None,
+    limit=50,
+):
     """
     Fetch comprehensive item insight data including:
     - Item details
@@ -16,16 +29,35 @@ def get_item_insight_data(from_date=None, to_date=None, item_code=None, limit=50
     """
 
     # Build item filter
-    item_filter = {"is_stock_item": 1}
+    # Note: use AND conditions between all filters
+    item_filter: dict[str, object] = {"is_stock_item": 1}
+
     if item_code:
+        # When specific item code is provided, prioritize it
         item_filter["name"] = item_code
         limit = None  # No limit when specific item is requested
+
+    # Item Grade filter (custom field on Item)
+    if item_grade:
+        # Item.custom_grade is a Link to "Item Grade"
+        item_filter["custom_grade"] = item_grade
+
+    # Category Name filter (custom field on Item)
+    if category_name:
+        # Item.custom_category_name is a Link to "Item Category"
+        item_filter["custom_category_name"] = category_name
 
     # Get items - limited for performance on initial load
     items = frappe.get_all(
         "Item",
         filters=item_filter,
-        fields=["name", "item_name", "item_code"],
+        fields=[
+            "name",
+            "item_name",
+            "item_code",
+            "custom_grade as item_grade",
+            "custom_category_name as category_name",
+        ],
         order_by="item_code",
         limit_page_length=int(limit) if limit else None,
     )
@@ -44,6 +76,12 @@ def get_item_insight_data(from_date=None, to_date=None, item_code=None, limit=50
             "item_name": item.item_name or item.item_code,
         }
 
+        # Include static attributes used for filtering (optional, helpful for debugging/UI)
+        if getattr(item, "item_grade", None):
+            item_data["item_grade"] = item.item_grade
+        if getattr(item, "category_name", None):
+            item_data["category_name"] = item.category_name
+
         # Production Data - Get last production from Hourly Production or Bright Bar Production
         production_data = get_last_production_data(item_code, from_date, to_date)
         item_data.update(production_data)
@@ -59,6 +97,20 @@ def get_item_insight_data(from_date=None, to_date=None, item_code=None, limit=50
         # Inventory Data - Warehouse-wise stock
         inventory_data = get_inventory_data(item_code)
         item_data["warehouse_stock"] = inventory_data
+
+        # Calculate total stock on hand (sum of all warehouse stocks)
+        total_stock_on_hand = sum(
+            flt(wh.get("stock_qty", 0), 2) for wh in inventory_data
+        )
+        item_data["total_stock_on_hand"] = flt(total_stock_on_hand, 2)
+
+        # Get committed stock from Stock Projected Qty
+        committed_stock = get_committed_stock(item_code)
+        item_data["committed_stock"] = committed_stock
+
+        # Calculate projected qty = total stock on hand - committed stock
+        projected_qty = flt(total_stock_on_hand - committed_stock, 2)
+        item_data["projected_qty"] = projected_qty
 
         result.append(item_data)
 
@@ -348,6 +400,35 @@ def get_inventory_data(item_code):
     return result
 
 
+def get_committed_stock(item_code):
+    """Get committed stock (reserved_qty) from Bin table"""
+    try:
+        # Exclude rejected warehouses (same as stock on hand)
+        excluded_warehouses = ["Rejected Warehouse"]
+
+        committed_stock = frappe.db.sql(
+            """
+			SELECT 
+				SUM(IFNULL(reserved_qty, 0)) as committed_qty
+			FROM `tabBin`
+			WHERE item_code = %s
+				AND warehouse NOT IN %s
+		""",
+            (item_code, tuple(excluded_warehouses)),
+            as_dict=True,
+        )
+
+        return (
+            flt(committed_stock[0].committed_qty, 2)
+            if committed_stock and committed_stock[0].committed_qty
+            else 0
+        )
+    except Exception:
+        # If error occurs, return 0
+        frappe.log_error(frappe.get_traceback(), "get_committed_stock_error")
+        return 0
+
+
 @frappe.whitelist()
 def search_items(query, limit=20):
     """
@@ -400,3 +481,144 @@ def search_items(query, limit=20):
         )
 
     return items
+
+
+@frappe.whitelist()
+def export_item_insight_excel(filters: str | None = None) -> dict[str, Any]:
+    """Export item insight data to Excel and return file URL."""
+
+    filters_dict: dict[str, Any] = {}
+    if filters:
+        try:
+            filters_dict = json.loads(filters)
+        except Exception:
+            frappe.throw("Invalid filters JSON")
+
+    data = get_item_insight_data(**filters_dict)
+
+    if not data:
+        frappe.throw("No data to export")
+
+    # Prepare tabular rows: keys as columns
+    columns = [
+        "item_code",
+        "item_name",
+        "item_grade",
+        "category_name",
+        "last_production_date",
+        "last_production_quantity",
+        "last_sales_party",
+        "last_sales_date",
+        "last_sales_quantity",
+        "last_sales_rate",
+        "pending_sales_order_qty",
+        "last_purchase_party",
+        "last_purchase_date",
+        "last_purchase_quantity",
+        "last_purchase_rate",
+        "pending_purchase_order_qty",
+        "committed_stock",
+        "projected_qty",
+        "total_stock_on_hand",
+    ]
+
+    rows = []
+    for row in data:
+        rows.append([row.get(col) for col in columns])
+
+    xlsx_file = make_xlsx(
+        {
+            "columns": [
+                {"label": frappe._(col.replace("_", " ").title()), "fieldname": col}
+                for col in columns
+            ],
+            "data": rows,
+        },
+        "Item Insight",
+    )
+
+    file_name = "Item Insight Dashboard.xlsx"
+    saved_file = save_file(
+        fname=file_name,
+        content=xlsx_file.getvalue(),
+        dt=None,
+        dn=None,
+        is_private=1,
+    )
+
+    return {"file_url": saved_file.file_url}
+
+
+@frappe.whitelist()
+def export_item_insight_pdf(filters: str | None = None) -> dict[str, Any]:
+    """Export item insight data to PDF and return file URL."""
+
+    filters_dict: dict[str, Any] = {}
+    if filters:
+        try:
+            filters_dict = json.loads(filters)
+        except Exception:
+            frappe.throw("Invalid filters JSON")
+
+    data = get_item_insight_data(**filters_dict)
+
+    if not data:
+        frappe.throw("No data to export")
+
+    # Build simple HTML table for PDF
+    columns = [
+        ("item_code", "Item Code"),
+        ("item_name", "Item Name"),
+        ("item_grade", "Item Grade"),
+        ("category_name", "Category Name"),
+        ("last_production_date", "Last Production Date"),
+        ("last_production_quantity", "Last Production Qty"),
+        ("last_sales_party", "Last Sales Party"),
+        ("last_sales_date", "Last Sales Date"),
+        ("last_sales_quantity", "Last Sales Qty"),
+        ("last_sales_rate", "Last Sales Rate"),
+        ("pending_sales_order_qty", "Pending SO Qty"),
+        ("last_purchase_party", "Last Purchase Party"),
+        ("last_purchase_date", "Last Purchase Date"),
+        ("last_purchase_quantity", "Last Purchase Qty"),
+        ("last_purchase_rate", "Last Purchase Rate"),
+        ("pending_purchase_order_qty", "Pending PO Qty"),
+        ("committed_stock", "Committed Stock"),
+        ("projected_qty", "Projected Qty"),
+        ("total_stock_on_hand", "Total Stock On Hand"),
+    ]
+
+    header_html = "".join(f"<th>{frappe._(label)}</th>" for _field, label in columns)
+
+    body_rows = []
+    for row in data:
+        cells = []
+        for field, _label in columns:
+            value = row.get(field)
+            cells.append(f"<td>{frappe.format(value)}</td>")
+        body_rows.append(f"<tr>{''.join(cells)}</tr>")
+
+    html = f"""
+        <h3 style="text-align:center;">Item Insight Dashboard</h3>
+        <table class="table table-bordered" style="width:100%;border-collapse:collapse;font-size:9pt;">
+            <thead>
+                <tr>{header_html}</tr>
+            </thead>
+            <tbody>
+                {''.join(body_rows)}
+            </tbody>
+        </table>
+    """
+
+    pdf_content = get_pdf(html)
+
+    file_name = "Item Insight Dashboard.pdf"
+    saved_file = save_file(
+        fname=file_name,
+        content=pdf_content,
+        dt=None,
+        dn=None,
+        is_private=1,
+    )
+
+    return {"file_url": saved_file.file_url}
