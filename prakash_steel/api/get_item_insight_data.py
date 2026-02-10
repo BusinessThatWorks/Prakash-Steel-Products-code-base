@@ -3,7 +3,14 @@ from frappe.utils import flt
 
 
 @frappe.whitelist()
-def get_item_insight_data(from_date=None, to_date=None, item_code=None, limit=50):
+def get_item_insight_data(
+    from_date=None,
+    to_date=None,
+    item_code=None,
+    item_grade=None,
+    category_name=None,
+    limit=50,
+):
     """
     Fetch comprehensive item insight data including:
     - Item details
@@ -16,16 +23,35 @@ def get_item_insight_data(from_date=None, to_date=None, item_code=None, limit=50
     """
 
     # Build item filter
-    item_filter = {"is_stock_item": 1}
+    # Note: use AND conditions between all filters
+    item_filter: dict[str, object] = {"is_stock_item": 1}
+
     if item_code:
+        # When specific item code is provided, prioritize it
         item_filter["name"] = item_code
         limit = None  # No limit when specific item is requested
+
+    # Item Grade filter (custom field on Item)
+    if item_grade:
+        # Item.custom_grade is a Link to "Item Grade"
+        item_filter["custom_grade"] = item_grade
+
+    # Category Name filter (custom field on Item)
+    if category_name:
+        # Item.custom_category_name is a Link to "Item Category"
+        item_filter["custom_category_name"] = category_name
 
     # Get items - limited for performance on initial load
     items = frappe.get_all(
         "Item",
         filters=item_filter,
-        fields=["name", "item_name", "item_code"],
+        fields=[
+            "name",
+            "item_name",
+            "item_code",
+            "custom_grade as item_grade",
+            "custom_category_name as category_name",
+        ],
         order_by="item_code",
         limit_page_length=int(limit) if limit else None,
     )
@@ -43,6 +69,12 @@ def get_item_insight_data(from_date=None, to_date=None, item_code=None, limit=50
             "item_code": item.item_code,
             "item_name": item.item_name or item.item_code,
         }
+
+        # Include static attributes used for filtering (optional, helpful for debugging/UI)
+        if getattr(item, "item_grade", None):
+            item_data["item_grade"] = item.item_grade
+        if getattr(item, "category_name", None):
+            item_data["category_name"] = item.category_name
 
         # Production Data - Get last production from Hourly Production or Bright Bar Production
         production_data = get_last_production_data(item_code, from_date, to_date)

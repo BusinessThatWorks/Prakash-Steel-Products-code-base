@@ -75,6 +75,17 @@ frappe.pages['item-insight-dashboard'].on_page_load = function (wrapper) {
 				opacity: 0.9;
 				transition: opacity 0.2s ease;
 			}
+			/* Ensure link autocomplete dropdowns for Item Grade / Category appear cleanly above the table */
+			.item-insight-filters .awesomplete {
+				width: 100%;
+			}
+			.item-insight-filters .awesomplete ul {
+				z-index: 2000;
+				max-height: 260px;
+				overflow-y: auto;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+				border-radius: 4px;
+			}
 		`)
 		.appendTo('head');
 
@@ -117,24 +128,31 @@ function createFilterBar(state) {
 	const $filterBar = $('<div class="item-insight-filters" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:16px;justify-content:space-between;background:#f8f9fa;padding:16px;border-radius:8px;"></div>');
 
 	// Filter controls container
-	const $filterControls = $('<div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;"></div>');
+	const $filterControls = $('<div style="display:flex;gap:12px;align-items:end;flex-wrap:nowrap;flex:1 1 auto;"></div>');
 
 	// Individual filter wrappers
-	const $fromWrap = $('<div style="min-width:200px;"></div>');
-	const $toWrap = $('<div style="min-width:200px;"></div>');
-	const $itemWrap = $('<div style="min-width:220px;"></div>');
-	const $btnWrap = $('<div style="display:flex;align-items:end;gap:8px;"></div>');
+	const $fromWrap = $('<div style="min-width:160px;flex:1 1 0;"></div>');
+	const $toWrap = $('<div style="min-width:160px;flex:1 1 0;"></div>');
+	const $itemWrap = $('<div style="min-width:180px;flex:1 1 0;"></div>');
+	const $gradeWrap = $('<div style="min-width:180px;flex:1 1 0;"></div>');
+	const $categoryWrap = $('<div style="min-width:200px;flex:1 1 0;"></div>');
+	const $btnWrap = $('<div style="display:flex;align-items:end;gap:8px;margin-left:auto;"></div>');
 
 	// Assemble filter controls
-	$filterControls.append($fromWrap).append($toWrap).append($itemWrap);
+	$filterControls
+		.append($fromWrap)
+		.append($toWrap)
+		.append($itemWrap)
+		.append($gradeWrap)
+		.append($categoryWrap);
 	$filterBar.append($filterControls).append($btnWrap);
 	$(state.page.main).append($filterBar);
 
 	// Create filter controls
-	createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $btnWrap);
+	createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $gradeWrap, $categoryWrap, $btnWrap);
 }
 
-function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $btnWrap) {
+function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $gradeWrap, $categoryWrap, $btnWrap) {
 	// Date controls - Not required, can be empty
 	state.controls.from_date = frappe.ui.form.make_control({
 		parent: $fromWrap.get(0),
@@ -175,6 +193,32 @@ function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $btnWrap) {
 		setupItemCodeAutocomplete(state.controls.item_code);
 	}, 300);
 
+	// Item Grade filter (Link to Item Grade)
+	state.controls.item_grade = frappe.ui.form.make_control({
+		parent: $gradeWrap.get(0),
+		df: {
+			fieldtype: 'Link',
+			label: __('Item Grade'),
+			fieldname: 'item_grade',
+			options: 'Item Grade',
+			reqd: 0,
+		},
+		render_input: true,
+	});
+
+	// Category Name filter (Link to Item Category)
+	state.controls.category_name = frappe.ui.form.make_control({
+		parent: $categoryWrap.get(0),
+		df: {
+			fieldtype: 'Link',
+			label: __('Category Name'),
+			fieldname: 'category_name',
+			options: 'Item Category',
+			reqd: 0,
+		},
+		render_input: true,
+	});
+
 	// Refresh button
 	const $refreshBtn = $('<button class="btn btn-primary">' + __('Refresh') + '</button>');
 	$btnWrap.append($refreshBtn);
@@ -200,6 +244,33 @@ function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $btnWrap) {
 			'border': '1px solid #000000',
 			'border-radius': '4px',
 			'padding': '8px 12px',
+			'height': '36px',
+			'line-height': '1.4'
+		});
+
+		// For Link fields, style the wrapper instead of the inner input
+		const $gradeWrapper = $(state.controls.item_grade.$input).closest('.control-input');
+		$gradeWrapper.css({
+			'border': '1px solid #000000',
+			'border-radius': '4px',
+			'padding': '0'
+		});
+		$(state.controls.item_grade.$input).css({
+			'border': 'none',
+			'box-shadow': 'none',
+			'height': '36px',
+			'line-height': '1.4'
+		});
+
+		const $categoryWrapper = $(state.controls.category_name.$input).closest('.control-input');
+		$categoryWrapper.css({
+			'border': '1px solid #000000',
+			'border-radius': '4px',
+			'padding': '0'
+		});
+		$(state.controls.category_name.$input).css({
+			'border': 'none',
+			'box-shadow': 'none',
 			'height': '36px',
 			'line-height': '1.4'
 		});
@@ -528,6 +599,20 @@ function bindEventHandlers(state) {
 	// Item Code field - trigger on change
 	$(state.controls.item_code.$input).on('change', debouncedRefresh);
 
+	// Item Grade and Category Name fields - trigger on change
+	if (state.controls.item_grade && state.controls.item_grade.$input) {
+		const $gradeInput = $(state.controls.item_grade.$input);
+		// When user types or clears value
+		$gradeInput.on('change', debouncedRefresh);
+		// When user selects from the Link suggestion dropdown
+		$gradeInput.on('awesomplete-selectcomplete', debouncedRefresh);
+	}
+	if (state.controls.category_name && state.controls.category_name.$input) {
+		const $categoryInput = $(state.controls.category_name.$input);
+		$categoryInput.on('change', debouncedRefresh);
+		$categoryInput.on('awesomplete-selectcomplete', debouncedRefresh);
+	}
+
 	// Button events - direct refresh
 	state.controls.refreshBtn.on('click', () => refreshDashboard(state));
 }
@@ -539,16 +624,20 @@ function refreshDashboard(state, showSpinner = true) {
 	// Check if any filter is set
 	const hasDateFilter = filters.from_date && filters.to_date;
 	const hasItemFilter = filters.item_code;
+	const hasGradeFilter = filters.item_grade;
+	const hasCategoryFilter = filters.category_name;
 	
 	// If no filters are set, load all data (revert to initial state)
-	if (!hasDateFilter && !hasItemFilter) {
+	if (!hasDateFilter && !hasItemFilter && !hasGradeFilter && !hasCategoryFilter) {
 		// Don't show spinner when clearing filters - just reload all data
 		frappe.call({
 			method: 'prakash_steel.api.get_item_insight_data.get_item_insight_data',
 			args: {
 				from_date: null,
 				to_date: null,
-				item_code: null
+				item_code: null,
+				item_grade: null,
+				category_name: null,
 			},
 			callback: function(r) {
 				if (r && r.message && r.message.length > 0) {
@@ -576,7 +665,9 @@ function refreshDashboard(state, showSpinner = true) {
 		args: {
 			from_date: filters.from_date || null,
 			to_date: filters.to_date || null,
-			item_code: filters.item_code || null
+			item_code: filters.item_code || null,
+			item_grade: filters.item_grade || null,
+			category_name: filters.category_name || null,
 		},
 		callback: function(r) {
 			if (r && r.message && r.message.length > 0) {
@@ -606,7 +697,9 @@ function getFilters(state) {
 	return {
 		from_date: state.controls.from_date.get_value(),
 		to_date: state.controls.to_date.get_value(),
-		item_code: state.controls.item_code.get_value()
+		item_code: state.controls.item_code.get_value(),
+		item_grade: state.controls.item_grade ? state.controls.item_grade.get_value() : null,
+		category_name: state.controls.category_name ? state.controls.category_name.get_value() : null,
 	};
 }
 
