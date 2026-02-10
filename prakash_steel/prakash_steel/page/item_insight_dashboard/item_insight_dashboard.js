@@ -75,6 +75,52 @@ frappe.pages['item-insight-dashboard'].on_page_load = function (wrapper) {
 				opacity: 0.9;
 				transition: opacity 0.2s ease;
 			}
+			/* Export dropdown styling */
+			.item-insight-filters .btn-group .btn-default {
+				border: 1px solid #000000;
+				border-radius: 4px;
+				background-color: #ffffff;
+				padding: 6px 14px;
+				font-weight: 500;
+			}
+			.item-insight-filters .btn-group .btn-default:hover,
+			.item-insight-filters .btn-group.open .btn-default {
+				background-color: #f0f0f0;
+			}
+			.item-insight-filters .btn-group .dropdown-menu {
+				min-width: 130px;
+				font-size: 12px;
+				z-index: 2000;
+				right: 0;
+				left: auto;
+			}
+			.item-insight-filters .btn-group .dropdown-menu > li > a {
+				padding: 6px 10px;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				border-radius: 6px;
+				margin: 2px 6px;
+			}
+			.item-insight-filters .btn-group .dropdown-menu > li > a:hover {
+				background-color: #f5f5f5;
+			}
+			.item-insight-filters .export-option-icon {
+				width: 22px;
+				height: 22px;
+				border: 1px solid #d1d8dd;
+				border-radius: 6px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 11px;
+				color: #6c757d;
+				background-color: #ffffff;
+			}
+			.item-insight-filters .export-option-label {
+				font-size: 12px;
+				color: #343a40;
+			}
 			/* Ensure link autocomplete dropdowns for Item Grade / Category appear cleanly above the table */
 			.item-insight-filters .awesomplete {
 				width: 100%;
@@ -223,6 +269,32 @@ function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $gradeWrap, 
 	const $refreshBtn = $('<button class="btn btn-primary">' + __('Refresh') + '</button>');
 	$btnWrap.append($refreshBtn);
 	state.controls.refreshBtn = $refreshBtn;
+
+	// Export dropdown (single button with Excel / PDF options)
+	const $exportGroup = $(`
+		<div class="btn-group">
+			<button class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				<i class="fa fa-download" style="margin-right:4px;"></i>${__('Export')} <span class="caret"></span>
+			</button>
+			<ul class="dropdown-menu dropdown-menu-right">
+				<li>
+					<a href="javascript:void(0)" class="export-excel-option">
+						<span class="export-option-icon"><i class="fa fa-file-o"></i></span>
+						<span class="export-option-label">${__('Excel')}</span>
+					</a>
+				</li>
+				<li>
+					<a href="javascript:void(0)" class="export-pdf-option">
+						<span class="export-option-icon"><i class="fa fa-file-o"></i></span>
+						<span class="export-option-label">${__('PDF')}</span>
+					</a>
+				</li>
+			</ul>
+		</div>
+	`);
+	$btnWrap.append($exportGroup);
+	state.controls.exportExcelBtn = $exportGroup.find('.export-excel-option');
+	state.controls.exportPdfBtn = $exportGroup.find('.export-pdf-option');
 
 	// Apply black outline borders to filter fields
 	setTimeout(() => {
@@ -615,6 +687,49 @@ function bindEventHandlers(state) {
 
 	// Button events - direct refresh
 	state.controls.refreshBtn.on('click', () => refreshDashboard(state));
+
+	// Export buttons
+	if (state.controls.exportExcelBtn) {
+		state.controls.exportExcelBtn.on('click', () => exportTable(state, 'excel'));
+	}
+	if (state.controls.exportPdfBtn) {
+		state.controls.exportPdfBtn.on('click', () => exportTable(state, 'pdf'));
+	}
+}
+
+function exportTable(state, format) {
+	const filters = getFilters(state);
+
+	const payload = {
+		from_date: filters.from_date || null,
+		to_date: filters.to_date || null,
+		item_code: filters.item_code || null,
+		item_grade: filters.item_grade || null,
+		category_name: filters.category_name || null,
+	};
+
+	const method =
+		format === 'excel'
+			? 'prakash_steel.api.get_item_insight_data.export_item_insight_excel'
+			: 'prakash_steel.api.get_item_insight_data.export_item_insight_pdf';
+
+	frappe.call({
+		method,
+		args: {
+			filters: JSON.stringify(payload),
+		},
+		callback: function (r) {
+			if (r && r.message && r.message.file_url) {
+				window.open(r.message.file_url);
+			} else {
+				frappe.msgprint(__('No file generated to download'));
+			}
+		},
+		error: function (err) {
+			console.error('Export error:', err);
+			frappe.msgprint(__('Failed to export data'));
+		},
+	});
 }
 
 function refreshDashboard(state, showSpinner = true) {
