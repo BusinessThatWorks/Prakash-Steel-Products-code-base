@@ -94,23 +94,21 @@ def get_item_insight_data(
         purchase_data = get_purchase_data(item_code, from_date, to_date)
         item_data.update(purchase_data)
 
-        # Inventory Data - Warehouse-wise stock
+        # Inventory Data - Warehouse-wise stock and committed stock
         inventory_data = get_inventory_data(item_code)
         item_data["warehouse_stock"] = inventory_data
 
-        # Calculate total stock on hand (sum of all warehouse stocks)
+        # Calculate total stock on hand and total committed stock
         total_stock_on_hand = sum(
             flt(wh.get("stock_qty", 0), 2) for wh in inventory_data
         )
+        total_committed_stock = sum(
+            flt(wh.get("committed_stock", 0), 2) for wh in inventory_data
+        )
+
         item_data["total_stock_on_hand"] = flt(total_stock_on_hand, 2)
-
-        # Get committed stock from Stock Projected Qty
-        committed_stock = get_committed_stock(item_code)
-        item_data["committed_stock"] = committed_stock
-
-        # Calculate projected qty = total stock on hand - committed stock
-        projected_qty = flt(total_stock_on_hand - committed_stock, 2)
-        item_data["projected_qty"] = projected_qty
+        item_data["committed_stock"] = flt(total_committed_stock, 2)
+        item_data["projected_qty"] = flt(total_stock_on_hand - total_committed_stock, 2)
 
         result.append(item_data)
 
@@ -372,7 +370,7 @@ def get_purchase_data(item_code, from_date, to_date):
 
 
 def get_inventory_data(item_code):
-    """Get warehouse-wise stock on hand"""
+    """Get warehouse-wise stock on hand and committed stock"""
 
     # Exclude rejected warehouses
     excluded_warehouses = ["Rejected Warehouse"]
@@ -381,11 +379,12 @@ def get_inventory_data(item_code):
         """
 		SELECT 
 			warehouse,
-			SUM(actual_qty) as stock_qty
+			SUM(actual_qty) as stock_qty,
+			SUM(IFNULL(reserved_qty, 0)) as committed_stock
 		FROM `tabBin`
 		WHERE item_code = %s
 			AND warehouse NOT IN %s
-			AND actual_qty != 0
+			AND (actual_qty != 0 OR IFNULL(reserved_qty, 0) != 0)
 		GROUP BY warehouse
 		ORDER BY warehouse
 	""",
@@ -395,38 +394,19 @@ def get_inventory_data(item_code):
 
     result = []
     for wh in warehouse_stock:
-        result.append({"warehouse": wh.warehouse, "stock_qty": flt(wh.stock_qty, 2)})
+        stock_qty = flt(wh.stock_qty, 2)
+        committed_stock = flt(wh.committed_stock, 2)
+        projected_qty = flt(stock_qty - committed_stock, 2)
+        result.append(
+            {
+                "warehouse": wh.warehouse,
+                "stock_qty": stock_qty,
+                "committed_stock": committed_stock,
+                "projected_qty": projected_qty,
+            }
+        )
 
     return result
-
-
-def get_committed_stock(item_code):
-    """Get committed stock (reserved_qty) from Bin table"""
-    try:
-        # Exclude rejected warehouses (same as stock on hand)
-        excluded_warehouses = ["Rejected Warehouse"]
-
-        committed_stock = frappe.db.sql(
-            """
-			SELECT 
-				SUM(IFNULL(reserved_qty, 0)) as committed_qty
-			FROM `tabBin`
-			WHERE item_code = %s
-				AND warehouse NOT IN %s
-		""",
-            (item_code, tuple(excluded_warehouses)),
-            as_dict=True,
-        )
-
-        return (
-            flt(committed_stock[0].committed_qty, 2)
-            if committed_stock and committed_stock[0].committed_qty
-            else 0
-        )
-    except Exception:
-        # If error occurs, return 0
-        frappe.log_error(frappe.get_traceback(), "get_committed_stock_error")
-        return 0
 
 
 @frappe.whitelist()

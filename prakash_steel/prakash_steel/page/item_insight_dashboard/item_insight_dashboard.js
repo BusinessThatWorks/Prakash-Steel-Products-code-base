@@ -855,13 +855,9 @@ function renderTable(state, data) {
 						<th colspan="5" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
 							${__('Purchase')}
 						</th>
-					<!-- Warehouse Stock Group -->
-					<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
+					<!-- Warehouse Stock Group (includes committed & projected) -->
+					<th colspan="4" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
 						${__('Warehouse Stock')}
-					</th>
-					<!-- Projected Stock Group -->
-					<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
-						${__('Projected Stock')}
 					</th>
 				</tr>
 				<tr>
@@ -882,10 +878,9 @@ function renderTable(state, data) {
 					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Qty')}</th>
 					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Rate')}</th>
 					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Pending PO Qty')}</th>
-					<!-- Warehouse Stock Columns -->
+					<!-- Warehouse Stock Columns (per warehouse) -->
 					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:200px;min-width:200px;">${__('Warehouse')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:120px;min-width:120px;">${__('Stock Qty')}</th>
-					<!-- Projected Stock Sub-columns -->
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:120px;min-width:120px;">${__('Stock Qty')}</th>
 					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Committed Stock')}</th>
 					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Projected Qty')}</th>
 				</tr>
@@ -930,15 +925,14 @@ function renderTable(state, data) {
 				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:200px;min-width:200px;">
 					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.utils.escape_html(row.warehouse_stock[0].warehouse || '-') : '-'}
 				</td>
-				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:120px;min-width:120px;">
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:120px;min-width:120px;">
 					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.format(row.warehouse_stock[0].stock_qty || 0, {fieldtype: 'Float', precision: 2}) : '-'}
 				</td>
-				<!-- Projected Stock -->
 				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">
-					${frappe.format(row.committed_stock || 0, {fieldtype: 'Float', precision: 2})}
+					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.format(row.warehouse_stock[0].committed_stock || 0, {fieldtype: 'Float', precision: 2}) : '-'}
 				</td>
 				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">
-					${frappe.format(row.projected_qty || 0, {fieldtype: 'Float', precision: 2})}
+					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.format(row.warehouse_stock[0].projected_qty || 0, {fieldtype: 'Float', precision: 2}) : '-'}
 				</td>
 			</tr>
 		`);
@@ -978,10 +972,9 @@ function renderTable(state, data) {
 						<td style="padding:12px;border-right:2px solid #000000;"></td>
 						<!-- Warehouse Stock Columns -->
 						<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:200px;min-width:200px;">${frappe.utils.escape_html(wh.warehouse || '-')}</td>
-						<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:120px;min-width:120px;">${frappe.format(wh.stock_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
-						<!-- Projected Stock (empty for warehouse rows) -->
-						<td style="padding:12px;border-right:1px solid #000000;"></td>
-						<td style="padding:12px;border-right:2px solid #000000;"></td>
+						<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:120px;min-width:120px;">${frappe.format(wh.stock_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
+						<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(wh.committed_stock || 0, {fieldtype: 'Float', precision: 2})}</td>
+						<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(wh.projected_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
 					</tr>
 				`);
 				$tbody.append($warehouseRow);
