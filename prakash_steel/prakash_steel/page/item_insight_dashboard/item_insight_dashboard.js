@@ -75,6 +75,63 @@ frappe.pages['item-insight-dashboard'].on_page_load = function (wrapper) {
 				opacity: 0.9;
 				transition: opacity 0.2s ease;
 			}
+			/* Export dropdown styling */
+			.item-insight-filters .btn-group .btn-default {
+				border: 1px solid #000000;
+				border-radius: 4px;
+				background-color: #ffffff;
+				padding: 6px 14px;
+				font-weight: 500;
+			}
+			.item-insight-filters .btn-group .btn-default:hover,
+			.item-insight-filters .btn-group.open .btn-default {
+				background-color: #f0f0f0;
+			}
+			.item-insight-filters .btn-group .dropdown-menu {
+				min-width: 130px;
+				font-size: 12px;
+				z-index: 2000;
+				right: 0;
+				left: auto;
+			}
+			.item-insight-filters .btn-group .dropdown-menu > li > a {
+				padding: 6px 10px;
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				border-radius: 6px;
+				margin: 2px 6px;
+			}
+			.item-insight-filters .btn-group .dropdown-menu > li > a:hover {
+				background-color: #f5f5f5;
+			}
+			.item-insight-filters .export-option-icon {
+				width: 22px;
+				height: 22px;
+				border: 1px solid #d1d8dd;
+				border-radius: 6px;
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				font-size: 11px;
+				color: #6c757d;
+				background-color: #ffffff;
+			}
+			.item-insight-filters .export-option-label {
+				font-size: 12px;
+				color: #343a40;
+			}
+			/* Ensure link autocomplete dropdowns for Item Grade / Category appear cleanly above the table */
+			.item-insight-filters .awesomplete {
+				width: 100%;
+			}
+			.item-insight-filters .awesomplete ul {
+				z-index: 2000;
+				max-height: 260px;
+				overflow-y: auto;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+				border-radius: 4px;
+			}
 		`)
 		.appendTo('head');
 
@@ -117,24 +174,31 @@ function createFilterBar(state) {
 	const $filterBar = $('<div class="item-insight-filters" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;margin-bottom:16px;justify-content:space-between;background:#f8f9fa;padding:16px;border-radius:8px;"></div>');
 
 	// Filter controls container
-	const $filterControls = $('<div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;"></div>');
+	const $filterControls = $('<div style="display:flex;gap:12px;align-items:end;flex-wrap:nowrap;flex:1 1 auto;"></div>');
 
 	// Individual filter wrappers
-	const $fromWrap = $('<div style="min-width:200px;"></div>');
-	const $toWrap = $('<div style="min-width:200px;"></div>');
-	const $itemWrap = $('<div style="min-width:220px;"></div>');
-	const $btnWrap = $('<div style="display:flex;align-items:end;gap:8px;"></div>');
+	const $fromWrap = $('<div style="min-width:160px;flex:1 1 0;"></div>');
+	const $toWrap = $('<div style="min-width:160px;flex:1 1 0;"></div>');
+	const $itemWrap = $('<div style="min-width:180px;flex:1 1 0;"></div>');
+	const $gradeWrap = $('<div style="min-width:180px;flex:1 1 0;"></div>');
+	const $categoryWrap = $('<div style="min-width:200px;flex:1 1 0;"></div>');
+	const $btnWrap = $('<div style="display:flex;align-items:end;gap:8px;margin-left:auto;"></div>');
 
 	// Assemble filter controls
-	$filterControls.append($fromWrap).append($toWrap).append($itemWrap);
+	$filterControls
+		.append($fromWrap)
+		.append($toWrap)
+		.append($itemWrap)
+		.append($gradeWrap)
+		.append($categoryWrap);
 	$filterBar.append($filterControls).append($btnWrap);
 	$(state.page.main).append($filterBar);
 
 	// Create filter controls
-	createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $btnWrap);
+	createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $gradeWrap, $categoryWrap, $btnWrap);
 }
 
-function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $btnWrap) {
+function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $gradeWrap, $categoryWrap, $btnWrap) {
 	// Date controls - Not required, can be empty
 	state.controls.from_date = frappe.ui.form.make_control({
 		parent: $fromWrap.get(0),
@@ -175,10 +239,62 @@ function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $btnWrap) {
 		setupItemCodeAutocomplete(state.controls.item_code);
 	}, 300);
 
+	// Item Grade filter (Link to Item Grade)
+	state.controls.item_grade = frappe.ui.form.make_control({
+		parent: $gradeWrap.get(0),
+		df: {
+			fieldtype: 'Link',
+			label: __('Item Grade'),
+			fieldname: 'item_grade',
+			options: 'Item Grade',
+			reqd: 0,
+		},
+		render_input: true,
+	});
+
+	// Category Name filter (Link to Item Category)
+	state.controls.category_name = frappe.ui.form.make_control({
+		parent: $categoryWrap.get(0),
+		df: {
+			fieldtype: 'Link',
+			label: __('Category Name'),
+			fieldname: 'category_name',
+			options: 'Item Category',
+			reqd: 0,
+		},
+		render_input: true,
+	});
+
 	// Refresh button
 	const $refreshBtn = $('<button class="btn btn-primary">' + __('Refresh') + '</button>');
 	$btnWrap.append($refreshBtn);
 	state.controls.refreshBtn = $refreshBtn;
+
+	// Export dropdown (single button with Excel / PDF options)
+	const $exportGroup = $(`
+		<div class="btn-group">
+			<button class="btn btn-default dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				<i class="fa fa-download" style="margin-right:4px;"></i>${__('Export')} <span class="caret"></span>
+			</button>
+			<ul class="dropdown-menu dropdown-menu-right">
+				<li>
+					<a href="javascript:void(0)" class="export-excel-option">
+						<span class="export-option-icon"><i class="fa fa-file-o"></i></span>
+						<span class="export-option-label">${__('Excel')}</span>
+					</a>
+				</li>
+				<li>
+					<a href="javascript:void(0)" class="export-pdf-option">
+						<span class="export-option-icon"><i class="fa fa-file-o"></i></span>
+						<span class="export-option-label">${__('PDF')}</span>
+					</a>
+				</li>
+			</ul>
+		</div>
+	`);
+	$btnWrap.append($exportGroup);
+	state.controls.exportExcelBtn = $exportGroup.find('.export-excel-option');
+	state.controls.exportPdfBtn = $exportGroup.find('.export-pdf-option');
 
 	// Apply black outline borders to filter fields
 	setTimeout(() => {
@@ -200,6 +316,33 @@ function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $btnWrap) {
 			'border': '1px solid #000000',
 			'border-radius': '4px',
 			'padding': '8px 12px',
+			'height': '36px',
+			'line-height': '1.4'
+		});
+
+		// For Link fields, style the wrapper instead of the inner input
+		const $gradeWrapper = $(state.controls.item_grade.$input).closest('.control-input');
+		$gradeWrapper.css({
+			'border': '1px solid #000000',
+			'border-radius': '4px',
+			'padding': '0'
+		});
+		$(state.controls.item_grade.$input).css({
+			'border': 'none',
+			'box-shadow': 'none',
+			'height': '36px',
+			'line-height': '1.4'
+		});
+
+		const $categoryWrapper = $(state.controls.category_name.$input).closest('.control-input');
+		$categoryWrapper.css({
+			'border': '1px solid #000000',
+			'border-radius': '4px',
+			'padding': '0'
+		});
+		$(state.controls.category_name.$input).css({
+			'border': 'none',
+			'box-shadow': 'none',
 			'height': '36px',
 			'line-height': '1.4'
 		});
@@ -528,8 +671,65 @@ function bindEventHandlers(state) {
 	// Item Code field - trigger on change
 	$(state.controls.item_code.$input).on('change', debouncedRefresh);
 
+	// Item Grade and Category Name fields - trigger on change
+	if (state.controls.item_grade && state.controls.item_grade.$input) {
+		const $gradeInput = $(state.controls.item_grade.$input);
+		// When user types or clears value
+		$gradeInput.on('change', debouncedRefresh);
+		// When user selects from the Link suggestion dropdown
+		$gradeInput.on('awesomplete-selectcomplete', debouncedRefresh);
+	}
+	if (state.controls.category_name && state.controls.category_name.$input) {
+		const $categoryInput = $(state.controls.category_name.$input);
+		$categoryInput.on('change', debouncedRefresh);
+		$categoryInput.on('awesomplete-selectcomplete', debouncedRefresh);
+	}
+
 	// Button events - direct refresh
 	state.controls.refreshBtn.on('click', () => refreshDashboard(state));
+
+	// Export buttons
+	if (state.controls.exportExcelBtn) {
+		state.controls.exportExcelBtn.on('click', () => exportTable(state, 'excel'));
+	}
+	if (state.controls.exportPdfBtn) {
+		state.controls.exportPdfBtn.on('click', () => exportTable(state, 'pdf'));
+	}
+}
+
+function exportTable(state, format) {
+	const filters = getFilters(state);
+
+	const payload = {
+		from_date: filters.from_date || null,
+		to_date: filters.to_date || null,
+		item_code: filters.item_code || null,
+		item_grade: filters.item_grade || null,
+		category_name: filters.category_name || null,
+	};
+
+	const method =
+		format === 'excel'
+			? 'prakash_steel.api.get_item_insight_data.export_item_insight_excel'
+			: 'prakash_steel.api.get_item_insight_data.export_item_insight_pdf';
+
+	frappe.call({
+		method,
+		args: {
+			filters: JSON.stringify(payload),
+		},
+		callback: function (r) {
+			if (r && r.message && r.message.file_url) {
+				window.open(r.message.file_url);
+			} else {
+				frappe.msgprint(__('No file generated to download'));
+			}
+		},
+		error: function (err) {
+			console.error('Export error:', err);
+			frappe.msgprint(__('Failed to export data'));
+		},
+	});
 }
 
 function refreshDashboard(state, showSpinner = true) {
@@ -539,16 +739,20 @@ function refreshDashboard(state, showSpinner = true) {
 	// Check if any filter is set
 	const hasDateFilter = filters.from_date && filters.to_date;
 	const hasItemFilter = filters.item_code;
+	const hasGradeFilter = filters.item_grade;
+	const hasCategoryFilter = filters.category_name;
 	
 	// If no filters are set, load all data (revert to initial state)
-	if (!hasDateFilter && !hasItemFilter) {
+	if (!hasDateFilter && !hasItemFilter && !hasGradeFilter && !hasCategoryFilter) {
 		// Don't show spinner when clearing filters - just reload all data
 		frappe.call({
 			method: 'prakash_steel.api.get_item_insight_data.get_item_insight_data',
 			args: {
 				from_date: null,
 				to_date: null,
-				item_code: null
+				item_code: null,
+				item_grade: null,
+				category_name: null,
 			},
 			callback: function(r) {
 				if (r && r.message && r.message.length > 0) {
@@ -576,7 +780,9 @@ function refreshDashboard(state, showSpinner = true) {
 		args: {
 			from_date: filters.from_date || null,
 			to_date: filters.to_date || null,
-			item_code: filters.item_code || null
+			item_code: filters.item_code || null,
+			item_grade: filters.item_grade || null,
+			category_name: filters.category_name || null,
 		},
 		callback: function(r) {
 			if (r && r.message && r.message.length > 0) {
@@ -606,7 +812,9 @@ function getFilters(state) {
 	return {
 		from_date: state.controls.from_date.get_value(),
 		to_date: state.controls.to_date.get_value(),
-		item_code: state.controls.item_code.get_value()
+		item_code: state.controls.item_code.get_value(),
+		item_grade: state.controls.item_grade ? state.controls.item_grade.get_value() : null,
+		category_name: state.controls.category_name ? state.controls.category_name.get_value() : null,
 	};
 }
 
@@ -628,7 +836,7 @@ function renderTable(state, data) {
 	// Create table with grouped columns
 	const $table = $(`
 		<div class="item-insight-table-wrapper" style="background:white;border-radius:8px;border:1px solid #000000;">
-			<table class="item-insight-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1400px;table-layout:fixed;">
+			<table class="item-insight-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1680px;table-layout:fixed;">
 				<thead>
 				<tr>
 					<!-- Item Details Group -->
@@ -647,33 +855,40 @@ function renderTable(state, data) {
 						<th colspan="5" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
 							${__('Purchase')}
 						</th>
-						<!-- Warehouse Stock Group -->
-						<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
-							${__('Warehouse Stock')}
-						</th>
-					</tr>
-					<tr>
-						<!-- Item Details Columns -->
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:150px;min-width:150px;">${__('Item Code')}</th>
-						<!-- Production Columns -->
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Production Date')}</th>
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Production Qty')}</th>
-						<!-- Sales Columns -->
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">${__('Last Sales Party')}</th>
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Sales Date')}</th>
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Last Sales Qty')}</th>
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Last Sales Rate')}</th>
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Pending SO Qty')}</th>
-						<!-- Purchase Columns -->
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">${__('Last Purchase Party')}</th>
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Date')}</th>
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Qty')}</th>
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Rate')}</th>
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Pending PO Qty')}</th>
-						<!-- Warehouse Stock Columns -->
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:200px;min-width:200px;">${__('Warehouse')}</th>
-						<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:120px;min-width:120px;">${__('Stock Qty')}</th>
-					</tr>
+					<!-- Warehouse Stock Group -->
+					<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
+						${__('Warehouse Stock')}
+					</th>
+					<!-- Projected Stock Group -->
+					<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
+						${__('Projected Stock')}
+					</th>
+				</tr>
+				<tr>
+					<!-- Item Details Columns -->
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:150px;min-width:150px;">${__('Item Code')}</th>
+					<!-- Production Columns -->
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Production Date')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Production Qty')}</th>
+					<!-- Sales Columns -->
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">${__('Last Sales Party')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Sales Date')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Last Sales Qty')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Last Sales Rate')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Pending SO Qty')}</th>
+					<!-- Purchase Columns -->
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">${__('Last Purchase Party')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Date')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Qty')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Rate')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Pending PO Qty')}</th>
+					<!-- Warehouse Stock Columns -->
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:200px;min-width:200px;">${__('Warehouse')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:120px;min-width:120px;">${__('Stock Qty')}</th>
+					<!-- Projected Stock Sub-columns -->
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Committed Stock')}</th>
+					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Projected Qty')}</th>
+				</tr>
 				</thead>
 				<tbody>
 				</tbody>
@@ -718,6 +933,13 @@ function renderTable(state, data) {
 				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:120px;min-width:120px;">
 					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.format(row.warehouse_stock[0].stock_qty || 0, {fieldtype: 'Float', precision: 2}) : '-'}
 				</td>
+				<!-- Projected Stock -->
+				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">
+					${frappe.format(row.committed_stock || 0, {fieldtype: 'Float', precision: 2})}
+				</td>
+				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">
+					${frappe.format(row.projected_qty || 0, {fieldtype: 'Float', precision: 2})}
+				</td>
 			</tr>
 		`);
 
@@ -757,6 +979,9 @@ function renderTable(state, data) {
 						<!-- Warehouse Stock Columns -->
 						<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:200px;min-width:200px;">${frappe.utils.escape_html(wh.warehouse || '-')}</td>
 						<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:120px;min-width:120px;">${frappe.format(wh.stock_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
+						<!-- Projected Stock (empty for warehouse rows) -->
+						<td style="padding:12px;border-right:1px solid #000000;"></td>
+						<td style="padding:12px;border-right:2px solid #000000;"></td>
 					</tr>
 				`);
 				$tbody.append($warehouseRow);
