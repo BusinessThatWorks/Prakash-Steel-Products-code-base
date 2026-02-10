@@ -60,6 +60,20 @@ def get_item_insight_data(from_date=None, to_date=None, item_code=None, limit=50
         inventory_data = get_inventory_data(item_code)
         item_data["warehouse_stock"] = inventory_data
 
+        # Calculate total stock on hand (sum of all warehouse stocks)
+        total_stock_on_hand = sum(
+            flt(wh.get("stock_qty", 0), 2) for wh in inventory_data
+        )
+        item_data["total_stock_on_hand"] = flt(total_stock_on_hand, 2)
+
+        # Get committed stock from Stock Projected Qty
+        committed_stock = get_committed_stock(item_code)
+        item_data["committed_stock"] = committed_stock
+
+        # Calculate projected qty = total stock on hand - committed stock
+        projected_qty = flt(total_stock_on_hand - committed_stock, 2)
+        item_data["projected_qty"] = projected_qty
+
         result.append(item_data)
 
     return result
@@ -346,6 +360,35 @@ def get_inventory_data(item_code):
         result.append({"warehouse": wh.warehouse, "stock_qty": flt(wh.stock_qty, 2)})
 
     return result
+
+
+def get_committed_stock(item_code):
+    """Get committed stock (reserved_qty) from Bin table"""
+    try:
+        # Exclude rejected warehouses (same as stock on hand)
+        excluded_warehouses = ["Rejected Warehouse"]
+
+        committed_stock = frappe.db.sql(
+            """
+			SELECT 
+				SUM(IFNULL(reserved_qty, 0)) as committed_qty
+			FROM `tabBin`
+			WHERE item_code = %s
+				AND warehouse NOT IN %s
+		""",
+            (item_code, tuple(excluded_warehouses)),
+            as_dict=True,
+        )
+
+        return (
+            flt(committed_stock[0].committed_qty, 2)
+            if committed_stock and committed_stock[0].committed_qty
+            else 0
+        )
+    except Exception:
+        # If error occurs, return 0
+        frappe.log_error(frappe.get_traceback(), "get_committed_stock_error")
+        return 0
 
 
 @frappe.whitelist()
