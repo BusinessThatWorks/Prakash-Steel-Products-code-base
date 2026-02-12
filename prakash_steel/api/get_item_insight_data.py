@@ -17,6 +17,7 @@ def get_item_insight_data(
     item_code=None,
     item_grade=None,
     category_name=None,
+    description_code=None,
     limit=50,
 ):
     """
@@ -48,6 +49,11 @@ def get_item_insight_data(
     if category_name:
         # Item.custom_category_name is a Link to "Item Category"
         item_filter["custom_category_name"] = category_name
+
+    # Description Code filter (custom field on Item)
+    if description_code:
+        # Item.custom_desc_code is a Select field storing description code
+        item_filter["custom_desc_code"] = description_code
 
     # Get items - limited for performance on initial load
     items = frappe.get_all(
