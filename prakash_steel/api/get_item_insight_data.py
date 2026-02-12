@@ -1,11 +1,13 @@
 import json
+from io import BytesIO
 from typing import Any
+
+import xlsxwriter
 
 import frappe
 from frappe.utils import flt
 from frappe.utils.file_manager import save_file
 from frappe.utils.pdf import get_pdf
-from frappe.utils.xlsxutils import make_xlsx
 
 
 @frappe.whitelist()
@@ -15,6 +17,7 @@ def get_item_insight_data(
     item_code=None,
     item_grade=None,
     category_name=None,
+    description_code=None,
     limit=50,
 ):
     """
@@ -46,6 +49,11 @@ def get_item_insight_data(
     if category_name:
         # Item.custom_category_name is a Link to "Item Category"
         item_filter["custom_category_name"] = category_name
+
+    # Description Code filter (custom field on Item)
+    if description_code:
+        # Item.custom_desc_code is a Select field storing description code
+        item_filter["custom_desc_code"] = description_code
 
     # Get items - limited for performance on initial load
     items = frappe.get_all(
@@ -541,48 +549,148 @@ def export_item_insight_excel(filters: str | None = None) -> dict[str, Any]:
     if not data:
         frappe.throw("No data to export")
 
-    # Prepare tabular rows: keys as columns
-    columns = [
-        "item_code",
-        "item_name",
-        "item_grade",
-        "category_name",
-        "last_production_date",
-        "last_production_quantity",
-        "last_sales_party",
-        "last_sales_date",
-        "last_sales_quantity",
-        "last_sales_rate",
-        "pending_sales_order_qty",
-        "last_purchase_party",
-        "last_purchase_date",
-        "last_purchase_quantity",
-        "last_purchase_rate",
-        "pending_purchase_order_qty",
-        "committed_stock",
-        "projected_qty",
-        "total_stock_on_hand",
+    # Define column headers
+    column_labels = [
+        "Item Code",
+        "Item Name",
+        "Item Grade",
+        "Category Name",
+        "Last Production Date",
+        "Last Production Qty",
+        "Last Sales Party",
+        "Last Sales Date",
+        "Last Sales Qty",
+        "Last Sales Rate",
+        "Pending SO Qty",
+        "Last Purchase Party",
+        "Last Purchase Date",
+        "Last Purchase Qty",
+        "Last Purchase Rate",
+        "Pending PO Qty",
+        "Warehouse",
+        "Stock Qty",
+        "Committed Stock",
+        "Projected Qty",
+        "Total Stock On Hand",
     ]
 
+    # Flatten data to include warehouse rows
     rows = []
-    for row in data:
-        rows.append([row.get(col) for col in columns])
+    for item in data:
+        warehouse_stock = item.get("warehouse_stock", [])
 
-    xlsx_file = make_xlsx(
-        {
-            "columns": [
-                {"label": frappe._(col.replace("_", " ").title()), "fieldname": col}
-                for col in columns
-            ],
-            "data": rows,
-        },
-        "Item Insight",
+        if warehouse_stock:
+            # Create a row for each warehouse
+            for wh in warehouse_stock:
+                row = [
+                    item.get("item_code", ""),
+                    item.get("item_name", ""),
+                    item.get("item_grade", ""),
+                    item.get("category_name", ""),
+                    (
+                        frappe.format(
+                            item.get("last_production_date"), {"fieldtype": "Date"}
+                        )
+                        if item.get("last_production_date")
+                        else ""
+                    ),
+                    flt(item.get("last_production_quantity", 0), 2),
+                    item.get("last_sales_party", ""),
+                    (
+                        frappe.format(
+                            item.get("last_sales_date"), {"fieldtype": "Date"}
+                        )
+                        if item.get("last_sales_date")
+                        else ""
+                    ),
+                    flt(item.get("last_sales_quantity", 0), 2),
+                    flt(item.get("last_sales_rate", 0), 2),
+                    flt(item.get("pending_sales_order_qty", 0), 2),
+                    item.get("last_purchase_party", ""),
+                    (
+                        frappe.format(
+                            item.get("last_purchase_date"), {"fieldtype": "Date"}
+                        )
+                        if item.get("last_purchase_date")
+                        else ""
+                    ),
+                    flt(item.get("last_purchase_quantity", 0), 2),
+                    flt(item.get("last_purchase_rate", 0), 2),
+                    flt(item.get("pending_purchase_order_qty", 0), 2),
+                    wh.get("warehouse", ""),
+                    flt(wh.get("stock_qty", 0), 2),
+                    flt(wh.get("committed_stock", 0), 2),
+                    flt(wh.get("projected_qty", 0), 2),
+                    flt(item.get("total_stock_on_hand", 0), 2),
+                ]
+                rows.append(row)
+        else:
+            # No warehouses, create single row with empty warehouse fields
+            row = [
+                item.get("item_code", ""),
+                item.get("item_name", ""),
+                item.get("item_grade", ""),
+                item.get("category_name", ""),
+                (
+                    frappe.format(
+                        item.get("last_production_date"), {"fieldtype": "Date"}
+                    )
+                    if item.get("last_production_date")
+                    else ""
+                ),
+                flt(item.get("last_production_quantity", 0), 2),
+                item.get("last_sales_party", ""),
+                (
+                    frappe.format(item.get("last_sales_date"), {"fieldtype": "Date"})
+                    if item.get("last_sales_date")
+                    else ""
+                ),
+                flt(item.get("last_sales_quantity", 0), 2),
+                flt(item.get("last_sales_rate", 0), 2),
+                flt(item.get("pending_sales_order_qty", 0), 2),
+                item.get("last_purchase_party", ""),
+                (
+                    frappe.format(item.get("last_purchase_date"), {"fieldtype": "Date"})
+                    if item.get("last_purchase_date")
+                    else ""
+                ),
+                flt(item.get("last_purchase_quantity", 0), 2),
+                flt(item.get("last_purchase_rate", 0), 2),
+                flt(item.get("pending_purchase_order_qty", 0), 2),
+                "",  # warehouse
+                "",  # stock_qty
+                "",  # committed_stock
+                "",  # projected_qty
+                flt(item.get("total_stock_on_hand", 0), 2),
+            ]
+            rows.append(row)
+
+    # Build the xlsx file with header row + data rows
+    xlsx_buffer = BytesIO()
+    workbook = xlsxwriter.Workbook(xlsx_buffer, {"in_memory": True})
+    worksheet = workbook.add_worksheet("Item Insight")
+
+    # Add header format
+    header_format = workbook.add_format(
+        {"bold": True, "bg_color": "#D7E4BC", "border": 1}
     )
+
+    # Write headers
+    for col_num, header in enumerate(column_labels):
+        worksheet.write(0, col_num, header, header_format)
+
+    # Write data rows
+    for row_num, row_data in enumerate(rows, start=1):
+        for col_num, cell_value in enumerate(row_data):
+            worksheet.write(row_num, col_num, cell_value)
+
+    workbook.close()
+    xlsx_buffer.seek(0)
 
     file_name = "Item Insight Dashboard.xlsx"
     saved_file = save_file(
         fname=file_name,
-        content=xlsx_file.getvalue(),
+        content=xlsx_buffer.getvalue(),
         dt=None,
         dn=None,
         is_private=1,

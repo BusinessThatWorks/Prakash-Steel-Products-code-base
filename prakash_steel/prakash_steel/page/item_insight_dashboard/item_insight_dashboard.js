@@ -182,6 +182,7 @@ function createFilterBar(state) {
 	const $itemWrap = $('<div style="min-width:180px;flex:1 1 0;"></div>');
 	const $gradeWrap = $('<div style="min-width:180px;flex:1 1 0;"></div>');
 	const $categoryWrap = $('<div style="min-width:200px;flex:1 1 0;"></div>');
+	const $descCodeWrap = $('<div style="min-width:200px;flex:1 1 0;"></div>');
 	const $btnWrap = $('<div style="display:flex;align-items:end;gap:8px;margin-left:auto;"></div>');
 
 	// Assemble filter controls
@@ -190,15 +191,34 @@ function createFilterBar(state) {
 		.append($toWrap)
 		.append($itemWrap)
 		.append($gradeWrap)
-		.append($categoryWrap);
+		.append($categoryWrap)
+		.append($descCodeWrap);
 	$filterBar.append($filterControls).append($btnWrap);
 	$(state.page.main).append($filterBar);
 
 	// Create filter controls
-	createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $gradeWrap, $categoryWrap, $btnWrap);
+	createFilterControls(
+		state,
+		$fromWrap,
+		$toWrap,
+		$itemWrap,
+		$gradeWrap,
+		$categoryWrap,
+		$descCodeWrap,
+		$btnWrap
+	);
 }
 
-function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $gradeWrap, $categoryWrap, $btnWrap) {
+function createFilterControls(
+	state,
+	$fromWrap,
+	$toWrap,
+	$itemWrap,
+	$gradeWrap,
+	$categoryWrap,
+	$descCodeWrap,
+	$btnWrap
+) {
 	// Date controls - Not required, can be empty
 	state.controls.from_date = frappe.ui.form.make_control({
 		parent: $fromWrap.get(0),
@@ -276,6 +296,28 @@ function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $gradeWrap, 
 		render_input: true,
 	});
 
+	// Description Code filter (Select based on Item.custom_desc_code)
+	state.controls.description_code = frappe.ui.form.make_control({
+		parent: $descCodeWrap.get(0),
+		df: {
+			fieldtype: 'Select',
+			label: __('Description Code'),
+			fieldname: 'description_code',
+			reqd: 0,
+			options: [
+				'',
+				'Alloy Steel Bright Bar',
+				'Non Alloy Steel Bright Bar',
+				'Alloy Steel Bars and Rods',
+				'Non Alloy Steel Bars and Rods',
+				'Steel Ingot and Billets',
+				'Alloy Steel Ingot and Billets',
+				'Melting / Scrap',
+			].join('\n'),
+		},
+		render_input: true,
+	});
+
 	// Refresh button
 	const $refreshBtn = $('<button class="btn btn-primary">' + __('Refresh') + '</button>');
 	$btnWrap.append($refreshBtn);
@@ -330,6 +372,17 @@ function createFilterControls(state, $fromWrap, $toWrap, $itemWrap, $gradeWrap, 
 			'height': '36px',
 			'line-height': '1.4'
 		});
+
+		// Description Code (Select) - style input similar to other fields
+		if (state.controls.description_code && state.controls.description_code.$input) {
+			$(state.controls.description_code.$input).css({
+				'border': '1px solid #000000',
+				'border-radius': '4px',
+				'padding': '8px 12px',
+				'height': '36px',
+				'line-height': '1.4'
+			});
+		}
 
 		// For Link fields, style the wrapper instead of the inner input
 		const $gradeWrapper = $(state.controls.item_grade.$input).closest('.control-input');
@@ -647,7 +700,10 @@ function loadInitialData(state) {
 		args: {
 			from_date: null,
 			to_date: null,
-			item_code: null
+			item_code: null,
+			item_grade: null,
+			category_name: null,
+			description_code: null,
 		},
 		async: true,
 		callback: function(r) {
@@ -707,6 +763,12 @@ function bindEventHandlers(state) {
 		$categoryInput.on('awesomplete-selectcomplete', debouncedRefresh);
 	}
 
+	// Description Code field - trigger on change
+	if (state.controls.description_code && state.controls.description_code.$input) {
+		const $descCodeInput = $(state.controls.description_code.$input);
+		$descCodeInput.on('change', debouncedRefresh);
+	}
+
 	// Button events - direct refresh
 	state.controls.refreshBtn.on('click', () => refreshDashboard(state));
 
@@ -728,6 +790,7 @@ function exportTable(state, format) {
 		item_code: filters.item_code || null,
 		item_grade: filters.item_grade || null,
 		category_name: filters.category_name || null,
+		description_code: filters.description_code || null,
 	};
 
 	const method =
@@ -763,9 +826,16 @@ function refreshDashboard(state, showSpinner = true) {
 	const hasItemFilter = filters.item_code;
 	const hasGradeFilter = filters.item_grade;
 	const hasCategoryFilter = filters.category_name;
+	const hasDescriptionCodeFilter = filters.description_code;
 	
 	// If no filters are set, load all data (revert to initial state)
-	if (!hasDateFilter && !hasItemFilter && !hasGradeFilter && !hasCategoryFilter) {
+	if (
+		!hasDateFilter &&
+		!hasItemFilter &&
+		!hasGradeFilter &&
+		!hasCategoryFilter &&
+		!hasDescriptionCodeFilter
+	) {
 		// Don't show spinner when clearing filters - just reload all data
 		frappe.call({
 			method: 'prakash_steel.api.get_item_insight_data.get_item_insight_data',
@@ -775,6 +845,7 @@ function refreshDashboard(state, showSpinner = true) {
 				item_code: null,
 				item_grade: null,
 				category_name: null,
+				description_code: null,
 			},
 			callback: function(r) {
 				if (r && r.message && r.message.length > 0) {
@@ -805,6 +876,7 @@ function refreshDashboard(state, showSpinner = true) {
 			item_code: filters.item_code || null,
 			item_grade: filters.item_grade || null,
 			category_name: filters.category_name || null,
+			description_code: filters.description_code || null,
 		},
 		callback: function(r) {
 			if (r && r.message && r.message.length > 0) {
@@ -837,6 +909,7 @@ function getFilters(state) {
 		item_code: state.controls.item_code.get_value(),
 		item_grade: state.controls.item_grade ? state.controls.item_grade.get_value() : null,
 		category_name: state.controls.category_name ? state.controls.category_name.get_value() : null,
+		description_code: state.controls.description_code ? state.controls.description_code.get_value() : null,
 	};
 }
 
