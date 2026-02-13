@@ -270,6 +270,7 @@ doctype_js = {
 	"Purchase Receipt": "public/js/purchase_receipt.js",
 	"Sales Invoice": "public/js/sales_invoice.js",
 	"Production Plan": "public/js/production_plan.js",
+	"Payment Reconciliation": "public/js/payment_reconciliation.js",
 }
 
 # Page JS
@@ -302,6 +303,7 @@ scheduler_events = {
 
 override_doctype_class = {
 	"Stock Entry": "prakash_steel.overrides.stock_entry.CustomStockEntry",
+	"Payment Reconciliation": "prakash_steel.overrides.payment_reconciliation.CustomPaymentReconciliation",
 }
 
 
