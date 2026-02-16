@@ -2,8 +2,6 @@ import json
 from io import BytesIO
 from typing import Any
 
-import xlsxwriter
-
 import frappe
 from frappe.utils import flt
 from frappe.utils.file_manager import save_file
@@ -665,26 +663,40 @@ def export_item_insight_excel(filters: str | None = None) -> dict[str, Any]:
             ]
             rows.append(row)
 
-    # Build the xlsx file with header row + data rows
-    xlsx_buffer = BytesIO()
-    workbook = xlsxwriter.Workbook(xlsx_buffer, {"in_memory": True})
-    worksheet = workbook.add_worksheet("Item Insight")
+    # Build the xlsx file with header row + data rows using openpyxl (built-in Frappe dep)
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Border, Side
 
-    # Add header format
-    header_format = workbook.add_format(
-        {"bold": True, "bg_color": "#D7E4BC", "border": 1}
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Item Insight"
+
+    # Header style
+    header_font = Font(bold=True)
+    header_fill = PatternFill(
+        start_color="D7E4BC", end_color="D7E4BC", fill_type="solid"
+    )
+    thin_border = Border(
+        left=Side(style="thin"),
+        right=Side(style="thin"),
+        top=Side(style="thin"),
+        bottom=Side(style="thin"),
     )
 
     # Write headers
-    for col_num, header in enumerate(column_labels):
-        worksheet.write(0, col_num, header, header_format)
+    for col_num, header in enumerate(column_labels, start=1):
+        cell = worksheet.cell(row=1, column=col_num, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = thin_border
 
     # Write data rows
-    for row_num, row_data in enumerate(rows, start=1):
-        for col_num, cell_value in enumerate(row_data):
-            worksheet.write(row_num, col_num, cell_value)
+    for row_num, row_data in enumerate(rows, start=2):
+        for col_num, cell_value in enumerate(row_data, start=1):
+            worksheet.cell(row=row_num, column=col_num, value=cell_value)
 
-    workbook.close()
+    xlsx_buffer = BytesIO()
+    workbook.save(xlsx_buffer)
     xlsx_buffer.seek(0)
 
     file_name = "Item Insight Dashboard.xlsx"
