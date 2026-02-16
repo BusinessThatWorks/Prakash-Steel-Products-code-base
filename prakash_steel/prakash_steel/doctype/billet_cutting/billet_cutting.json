@@ -164,6 +164,7 @@
    "fieldname": "production_plan",
    "fieldtype": "Link",
    "label": "Production Plan",
+   "link_filters": "[[\"Production Plan\",\"name\",\"like\",\"%Rolled%\"]]",
    "options": "Production Plan"
   },
   {
@@ -194,8 +195,8 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-02-05 17:12:55.193393",
- "modified_by": "ritika@clapgrow.com",
+ "modified": "2026-02-12 11:15:43.370645",
+ "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Billet Cutting",
  "naming_rule": "Expression",
