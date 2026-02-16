@@ -2,8 +2,6 @@ import json
 from io import BytesIO
 from typing import Any
 
-import xlsxwriter
-
 import frappe
 from frappe.utils import flt
 from frappe.utils.file_manager import save_file
@@ -666,6 +664,8 @@ def export_item_insight_excel(filters: str | None = None) -> dict[str, Any]:
             rows.append(row)
 
     # Build the xlsx file with header row + data rows
+    import xlsxwriter
+
     xlsx_buffer = BytesIO()
     workbook = xlsxwriter.Workbook(xlsx_buffer, {"in_memory": True})
     worksheet = workbook.add_worksheet("Item Insight")
