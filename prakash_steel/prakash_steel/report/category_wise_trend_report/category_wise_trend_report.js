@@ -38,6 +38,17 @@ frappe.query_reports["Category wise Trend Report"] = {
 			let bg = "";
 			let textColor = "#000000";
 
+			// Handle Availability row - uppercase and center aligned
+			if (category === "AVAILABILITY") {
+				return `<div style="
+					padding:4px;
+					text-align:center;
+					font-weight:bold;
+				">
+					${category}
+				</div>`;
+			}
+
 			if (category === "BLACK") {
 				bg = "#000000";
 				textColor = "#FFFFFF";
