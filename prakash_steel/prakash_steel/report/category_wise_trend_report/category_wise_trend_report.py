@@ -73,7 +73,7 @@ def get_columns(from_date, to_date, sku_type):
 	# Add a column for each date in the range
 	current_date = from_date
 	while current_date <= to_date:
-		date_str = current_date.strftime("%d %b %Y")
+		date_str = current_date.strftime("%d/%m/%Y")
 		fieldname = f"date_{current_date.strftime('%Y_%m_%d')}"
 		
 		columns.append({
@@ -208,6 +208,31 @@ def get_data(from_date, to_date, sku_type):
 		
 		data.append(row)
 	
+	# Add Availability row above BLACK (at the beginning)
+	# Availability = (100 - black% - red%)%
+	availability_row = {
+		"category": "Availability"
+	}
+	
+	for date in date_list:
+		fieldname = f"date_{date.strftime('%Y_%m_%d')}"
+		# Get black and red percentages
+		black_count = category_counts["Black"][date]
+		red_count = category_counts["Red"][date]
+		total = date_totals[date]
+		
+		if total > 0:
+			black_percentage = (black_count / total) * 100
+			red_percentage = (red_count / total) * 100
+			availability_percentage = 100 - black_percentage - red_percentage
+			availability_rounded = round(availability_percentage)
+			availability_row[fieldname] = f"{availability_rounded}%"
+		else:
+			availability_row[fieldname] = "0%"
+	
+	# Insert availability row at the beginning
+	data.insert(0, availability_row)
+	
 	return data
 
 
@@ -328,6 +353,31 @@ def get_pending_so_data(from_date, to_date):
 		
 		data.append(row)
 	
+	# Add Availability row above BLACK (at the beginning)
+	# Availability = (100 - black% - red%)%
+	availability_row = {
+		"category": "Availability"
+	}
+	
+	for date in date_list:
+		fieldname = f"date_{date.strftime('%Y_%m_%d')}"
+		# Get black and red percentages
+		black_count = category_counts["Black"][date]
+		red_count = category_counts["Red"][date]
+		total = date_totals[date]
+		
+		if total > 0:
+			black_percentage = (black_count / total) * 100
+			red_percentage = (red_count / total) * 100
+			availability_percentage = 100 - black_percentage - red_percentage
+			availability_rounded = round(availability_percentage)
+			availability_row[fieldname] = f"{availability_rounded}%"
+		else:
+			availability_row[fieldname] = "0%"
+	
+	# Insert availability row at the beginning
+	data.insert(0, availability_row)
+	
 	return data
 
 
@@ -353,6 +403,21 @@ def get_open_po_data(from_date, to_date):
 			row[fieldname] = "0%"
 		
 		data.append(row)
+	
+	# Add Availability row above BLACK (at the beginning)
+	# Availability = (100 - black% - red%)%
+	# Since all categories are 0%, availability will be 100%
+	availability_row = {
+		"category": "Availability"
+	}
+	
+	for date in date_list:
+		fieldname = f"date_{date.strftime('%Y_%m_%d')}"
+		# Black and red are both 0%, so availability = 100 - 0 - 0 = 100%
+		availability_row[fieldname] = "100%"
+	
+	# Insert availability row at the beginning
+	data.insert(0, availability_row)
 	
 	return data
 
