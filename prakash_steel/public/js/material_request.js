@@ -91,13 +91,17 @@ frappe.ui.form.on("Material Request Item", {
             return;
         }
 
-        console.log("[Step 2] Calling server method to get last rate...");
+        // Fetch the latest purchase invoice rate for the selected item.
+        // Passes company from the parent Material Request to ensure
+        // company-aware filtering on the server side.
         frappe.call({
             method: "prakash_steel.api.get_last_purchase_invoice_rate.get_last_purchase_invoice_rate",
-            args: { item_code: row.item_code },
+            args: {
+                item_code: row.item_code,
+                company: frm.doc.company || ""
+            },
             callback: function (r) {
-                console.log("[Step 3] Server response for last rate:", r.message);
-                frappe.model.set_value(cdt, cdn, "custom_last_rate", r.message);
+                frappe.model.set_value(cdt, cdn, "custom_last_rate", r.message || 0);
             }
         });
 

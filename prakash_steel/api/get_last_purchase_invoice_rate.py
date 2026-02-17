@@ -2,22 +2,37 @@ import frappe
 
 
 @frappe.whitelist()
-def get_last_purchase_invoice_rate(item_code):
-	result = frappe.db.sql(
-		"""
-        SELECT pii.rate
-        FROM `tabPurchase Invoice Item` pii
-        JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
-        WHERE pii.item_code = %s
-          AND pi.docstatus = 1
-        ORDER BY pi.posting_date DESC, pi.posting_time DESC
-        LIMIT 1
-    """,
-		(item_code),
-		as_dict=True,
-	)
+def get_last_purchase_invoice_rate(item_code, company=None):
+    """
+    Fetch the latest purchase rate for an item.
 
-	if result:
-		return result[0].rate
-	else:
-		return 0
+    How the rate is determined:
+      Uses the 'last_purchase_rate' field from the Item master, which is
+      automatically maintained by ERPNext whenever a Purchase Order,
+      Purchase Receipt, or Purchase Invoice is submitted. This ensures
+      the rate is always up-to-date regardless of which purchase document
+      type was used for the most recent purchase.
+
+      Previous implementation only queried Purchase Invoice Items, which
+      returned 0 for items that were purchased via Purchase Orders or
+      Purchase Receipts but had no corresponding Purchase Invoice yet.
+
+    Args:
+        item_code (str): The Item code to look up.
+        company  (str, optional): Accepted for backward compatibility
+            but not used — Item.last_purchase_rate is a global field
+            maintained by ERPNext at the item level.
+
+    Returns:
+        float: The last purchase rate from the Item master, or 0 if not set.
+    """
+    if not item_code:
+        return 0
+
+    # Fetch last_purchase_rate directly from the Item master.
+    # This field is updated by ERPNext core on submission of
+    # Purchase Order, Purchase Receipt, or Purchase Invoice —
+    # whichever was submitted most recently.
+    rate = frappe.db.get_value("Item", item_code, "last_purchase_rate")
+
+    return rate or 0
