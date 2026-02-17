@@ -1,0 +1,74 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format: {item_type}",
+ "creation": "2026-02-17 11:47:15.827473",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "item_type",
+  "column_break_sabs",
+  "demand_horizon",
+  "spike_threshold",
+  "column_break_ccvq"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_type",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item Type",
+   "options": "Item Type",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_sabs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "demand_horizon",
+   "fieldtype": "Int",
+   "label": "Demand Horizon",
+   "reqd": 1
+  },
+  {
+   "fieldname": "spike_threshold",
+   "fieldtype": "Percent",
+   "label": "Spike Threshold",
+   "precision": "0",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_ccvq",
+   "fieldtype": "Column Break"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-02-17 11:49:53.081698",
+ "modified_by": "Administrator",
+ "module": "Prakash Steel",
+ "name": "Spike Master",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
