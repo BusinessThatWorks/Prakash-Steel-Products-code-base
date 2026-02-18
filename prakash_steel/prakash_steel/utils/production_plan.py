@@ -14,21 +14,21 @@ def on_production_plan_submit(doc, method):
 	print("=" * 80)
 
 	# Call the creation function
-	# result = create_billet_cutting_for_rolled_plan(doc.name)
+	result = create_billet_cutting_for_rolled_plan(doc.name)
 
 	# Show message to user
-	# if result.get("created"):
-	# 	created_count = len(result.get("created", []))
-	# 	message = f"✅ Created {created_count} Billet Cutting document(s) automatically."
-	# 	frappe.msgprint(
-	# 		message,
-	# 		indicator="green",
-	# 		alert=True,
-	# 	)
-	# 	print(f"✅ User notified: {message}")
-	# else:
-	# 	msg = result.get("message", "No Billet Cutting documents were created.")
-	# 	print(f"ℹ️ {msg}")
+	if result.get("created"):
+		created_count = len(result.get("created", []))
+		message = f"✅ Created {created_count} Billet Cutting document(s) automatically."
+		frappe.msgprint(
+			message,
+			indicator="green",
+			alert=True,
+		)
+		print(f"✅ User notified: {message}")
+	else:
+		msg = result.get("message", "No Billet Cutting documents were created.")
+		print(f"ℹ️ {msg}")
 
 
 @frappe.whitelist()
