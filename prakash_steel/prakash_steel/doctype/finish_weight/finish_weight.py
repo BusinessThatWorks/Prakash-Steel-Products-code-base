@@ -9,17 +9,6 @@ from frappe.model.document import Document
 class FinishWeight(Document):
 	def on_submit(self):
 		"""Create Stock Entry on submit"""
-		# Stock Entry creation is temporarily commented out
-		print("=" * 50)
-		print("Finish Weight on_submit called")
-		print(f"Finish Weight Document: {self.name}")
-		print(f"Item Code: {self.item_code}")
-		print(f"Finish Weight (qty): {self.finish_weight}")
-		print(f"FG Target Warehouse: {self.fg_target_warehouse}")
-		print("Stock Entry creation is currently disabled")
-		print("=" * 50)
-
-		# STOCK ENTRY CREATION COMMENTED OUT - WILL BE ENABLED LATER
 		try:
 			# Validate required fields
 			if not self.item_code:
@@ -31,19 +20,19 @@ class FinishWeight(Document):
 			if not self.fg_target_warehouse:
 				frappe.throw(_("FG Target Warehouse is required to create Stock Entry"))
 
-			print("All validations passed, creating Stock Entry...")
-
 			# Get company from warehouse
 			warehouse_doc = frappe.get_doc("Warehouse", self.fg_target_warehouse)
 			company = warehouse_doc.company
-
-			print(f"Company from warehouse: {company}")
 
 			# Get item details for UOM
 			item_doc = frappe.get_doc("Item", self.item_code)
 			stock_uom = item_doc.stock_uom or "Nos"
 
-			print(f"Item Stock UOM: {stock_uom}")
+			# Get posting_date from Production Plan
+			posting_date = self.posting_date or frappe.utils.today()
+			if self.production_plan:
+				production_plan_doc = frappe.get_doc("Production Plan", self.production_plan)
+				posting_date = production_plan_doc.posting_date or self.posting_date or frappe.utils.today()
 
 			# Create Stock Entry
 			stock_entry = frappe.get_doc(
@@ -51,7 +40,8 @@ class FinishWeight(Document):
 					"doctype": "Stock Entry",
 					"stock_entry_type": "Material Receipt",
 					"company": company,
-					"posting_date": self.posting_date or frappe.utils.today(),
+					"set_posting_time": 1,  # Enable custom posting date/time
+					"posting_date": posting_date,
 					"posting_time": frappe.utils.nowtime(),
 					"items": [
 						{
@@ -66,15 +56,25 @@ class FinishWeight(Document):
 				}
 			)
 
-			print("Stock Entry document created, inserting...")
+			# Explicitly set set_posting_time and posting_date to ensure they're not overridden
+			stock_entry.set_posting_time = 1
+			stock_entry.posting_date = posting_date
 			stock_entry.insert()
-			print(f"Stock Entry inserted: {stock_entry.name}")
 
 			# Submit the stock entry
+			# Ensure set_posting_time and posting_date are set before submit
+			stock_entry.set_posting_time = 1
+			stock_entry.posting_date = posting_date
 			stock_entry.submit()
-			print(f"Stock Entry submitted: {stock_entry.name}")
-
-			print(f"Stock Entry {stock_entry.name} created from Finish Weight {self.name}")
+			
+			# Final check - if posting_date was changed, force set it via SQL
+			if stock_entry.posting_date != posting_date:
+				frappe.db.sql(
+					"UPDATE `tabStock Entry` SET posting_date = %s WHERE name = %s",
+					(posting_date, stock_entry.name)
+				)
+				frappe.db.commit()
+				stock_entry.reload()
 
 			frappe.msgprint(
 				_("Stock Entry {0} created and submitted successfully").format(frappe.bold(stock_entry.name)),
@@ -82,23 +82,9 @@ class FinishWeight(Document):
 				alert=True,
 			)
 
-			print("=" * 50)
-			print("Stock Entry creation completed successfully")
-			print("=" * 50)
-
 		except Exception as e:
-			print("=" * 50)
-			print(f"ERROR in Finish Weight on_submit: {str(e)}")
-			print(f"Error type: {type(e).__name__}")
-			import traceback
-
-			print(traceback.format_exc())
-			print("=" * 50)
 			frappe.log_error(
 				f"Error creating Stock Entry from Finish Weight {self.name}: {str(e)}",
 				"Finish Weight Stock Entry Creation Error",
 			)
 			frappe.throw(_("Error creating Stock Entry: {0}").format(str(e)))
-
-		print("Stock Entry creation is currently commented out")
-		print("=" * 50)
