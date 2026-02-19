@@ -326,10 +326,11 @@ function render_cards(state, totals) {
 
     totals = totals || {};
 
-    // Use teal and light pink for Rolled Production, red and green for Bright Production
+    // Use teal and light pink for Rolled Production,
+    // and light yellow + green combo for Bright Production
     const gradientClasses = tabId === 'rolled_production'
         ? ['card-teal', 'card-pink']
-        : ['card-red', 'card-green'];
+        : ['card-yellow', 'card-green'];
 
     const cards = [
         {
@@ -355,7 +356,7 @@ function buildCardHtml(card) {
     const raw = card.value;
     const display = (raw === undefined || raw === null || raw === '')
         ? '--'
-        : format_number(raw, null, 2);
+        : format_number(raw, null, 0);
 
     const gradientClass = card.gradientClass || 'card-blue';
     const gradient = getGradientStyle(gradientClass);
@@ -391,6 +392,7 @@ function getGradientStyle(gradientClass) {
         'card-teal':   'linear-gradient(135deg, #7dd3c0, #a3e4d4)',
         'card-red':    'linear-gradient(135deg, #f5a5a0, #f8b8b3)',
         'card-pink':   'linear-gradient(135deg, #f8c8d8, #fce0e8)',
+        'card-yellow': 'linear-gradient(135deg, #d4a574, #e8d5b7)',
     };
     return gradients[gradientClass] || gradients['card-blue'];
 }
@@ -406,8 +408,8 @@ function render_table(state, rows) {
     const columns = getTableColumns(tabId);
 
     // ── Header ──
-    const thStyle = 'background:#e4d5b9;padding:12px;font-weight:600;color:#000000;'
-        + 'border-bottom:2px solid #d4c5a9;white-space:nowrap;text-align:center !important;';
+    const thStyle = 'background:#495057;padding:12px;font-weight:600;color:#ffffff;'
+        + 'border-bottom:2px solid #343a40;white-space:nowrap;text-align:center !important;';
 
     const headerHtml = columns.map(c =>
         `<th style="${thStyle}">${c.label}</th>`
@@ -456,10 +458,10 @@ function buildTableRow(tabId, row) {
         : '';
 
     // Numeric fields – use format_number to get plain text (no wrapper HTML)
-    const fgPlannedQty = format_number(row.fg_planned_qty || 0, null, 2);
-    const actualQty    = format_number(row.actual_qty || 0, null, 2);
-    const fgLength     = format_number(row.fg_length || 0, null, 2);
-    const rmConsumption = format_number(row.rm_consumption || 0, null, 2);
+    const fgPlannedQty = format_number(row.fg_planned_qty || 0, null, 0);
+    const actualQty    = format_number(row.actual_qty || 0, null, 0);
+    const fgLength     = format_number(row.fg_length || 0, null, 0);
+    const rmConsumption = format_number(row.rm_consumption || 0, null, 0);
 
     // RM
     const rm = row.rm ? frappe.utils.escape_html(row.rm) : '';
@@ -467,9 +469,9 @@ function buildTableRow(tabId, row) {
     // Last column differs per tab
     let lastColValue = '';
     if (tabId === 'rolled_production') {
-        lastColValue = format_number(row.burning_loss || 0, null, 2);
+        lastColValue = format_number(row.burning_loss || 0, null, 0);
     } else {
-        lastColValue = format_number(row.wastage || 0, null, 2);
+        lastColValue = format_number(row.wastage || 0, null, 0);
     }
 
     return `<tr style="border-bottom:1px solid #e9ecef;">
@@ -495,7 +497,7 @@ function getTableColumns(tabId) {
             { label: __('Actual Qty'), align: 'left' },
             { label: __('FG Length'), align: 'left' },
             { label: __('RM'), align: 'left' },
-            { label: __('RM Consumption'), align: 'left' },
+            { label: __('Actual RM Consumption'), align: 'left' },
             { label: __('Burning Loss %'), align: 'left' },
         ];
     }
@@ -508,7 +510,7 @@ function getTableColumns(tabId) {
         { label: __('Actual Qty'), align: 'left' },
         { label: __('FG Length'), align: 'left' },
         { label: __('RM'), align: 'left' },
-        { label: __('RM Consumption'), align: 'left' },
+        { label: __('Actual RM Consumption'), align: 'left' },
         { label: __('Wastage %'), align: 'left' },
     ];
 }
