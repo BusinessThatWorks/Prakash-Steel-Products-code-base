@@ -4,6 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils import flt
 
 
 class FinishWeight(Document):
@@ -34,6 +35,69 @@ class FinishWeight(Document):
 				production_plan_doc = frappe.get_doc("Production Plan", self.production_plan)
 				posting_date = production_plan_doc.posting_date or self.posting_date or frappe.utils.today()
 
+			# Build items list
+			items = [
+				{
+					"item_code": self.item_code,
+					"qty": self.finish_weight,
+					"t_warehouse": self.fg_target_warehouse,
+					"stock_uom": stock_uom,
+					"uom": stock_uom,
+					"conversion_factor": 1.0,
+				}
+			]
+
+			# Add melting item if melting_item and miss_roll_item are provided
+			if getattr(self, "melting_item", None) and getattr(self, "miss_roll_item", None):
+				# Validate that melting_item equals miss_roll_item
+				if self.melting_item != self.miss_roll_item:
+					frappe.throw(
+						_("Melting Item ({0}) must be equal to Miss Roll Item ({1})").format(
+							self.melting_item, self.miss_roll_item
+						)
+					)
+
+				# Calculate quantity: total_miss_roll_weight + melting_weight
+				total_miss_roll_weight = flt(getattr(self, "total_miss_roll_weight", 0) or 0)
+				melting_weight = flt(getattr(self, "melting_weight", 0) or 0)
+				melting_qty = total_miss_roll_weight + melting_weight
+
+				if melting_qty > 0:
+					# Get UOM from melting_item
+					melting_item_doc = frappe.get_doc("Item", self.melting_item)
+					melting_stock_uom = melting_item_doc.stock_uom or "Kg"
+
+					items.append(
+						{
+							"item_code": self.melting_item,
+							"qty": melting_qty,
+							"t_warehouse": self.fg_target_warehouse,
+							"stock_uom": melting_stock_uom,
+							"uom": melting_stock_uom,
+							"conversion_factor": 1.0,
+						}
+					)
+
+			# Add miss billet item if miss_billet_item and total_miss_ingot_weight are provided
+			if getattr(self, "miss_billet_item", None):
+				total_miss_ingot_weight = flt(getattr(self, "total_miss_ingot_weight", 0) or 0)
+
+				if total_miss_ingot_weight > 0:
+					# Get UOM from miss_billet_item
+					miss_billet_item_doc = frappe.get_doc("Item", self.miss_billet_item)
+					miss_billet_stock_uom = miss_billet_item_doc.stock_uom or "Kg"
+
+					items.append(
+						{
+							"item_code": self.miss_billet_item,
+							"qty": total_miss_ingot_weight,
+							"t_warehouse": self.fg_target_warehouse,
+							"stock_uom": miss_billet_stock_uom,
+							"uom": miss_billet_stock_uom,
+							"conversion_factor": 1.0,
+						}
+					)
+
 			# Create Stock Entry
 			stock_entry = frappe.get_doc(
 				{
@@ -43,16 +107,7 @@ class FinishWeight(Document):
 					"set_posting_time": 1,  # Enable custom posting date/time
 					"posting_date": posting_date,
 					"posting_time": frappe.utils.nowtime(),
-					"items": [
-						{
-							"item_code": self.item_code,
-							"qty": self.finish_weight,
-							"t_warehouse": self.fg_target_warehouse,
-							"stock_uom": stock_uom,
-							"uom": stock_uom,
-							"conversion_factor": 1.0,
-						}
-					],
+					"items": items,
 				}
 			)
 

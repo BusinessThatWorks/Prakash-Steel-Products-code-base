@@ -24,7 +24,10 @@ frappe.pages['procurement-tracker-dashboard'].on_page_load = function (wrapper) 
         $cards: null,
         $tabs: null,
         controls: {},
-        currentTab: 'overview'
+        currentTab: 'overview',
+        // Debounce / stale-response infrastructure
+        _refreshTimer: null,   // setTimeout handle for debounce
+        _refreshGen: 0         // monotonic counter – stale responses are discarded
     };
 
     // Initialize dashboard components
@@ -412,13 +415,63 @@ function createSectionFilterControls(state, tabId) {
             });
         }, 100);
 
-        // ID filter
+        // ID filter - use Link fieldtype for autocomplete suggestions
         const idField = getIdFieldName(tabId);
-        state.controls[`${tabId}_id`] = frappe.ui.form.make_control({
-            parent: $(`#${tabId}-id-filter`).get(0),
-            df: { fieldtype: 'Data', label: __('ID'), fieldname: `${tabId}_id`, reqd: 0 },
-            render_input: true,
-        });
+        const idDoctype = getIdFieldDoctype(tabId);
+        
+        if (idDoctype) {
+            // Create Link field with get_query to filter by docstatus and date range
+            const df = {
+                fieldtype: 'Link',
+                options: idDoctype,
+                label: __('ID'),
+                fieldname: `${tabId}_id`,
+                reqd: 0,
+                get_query: function() {
+                    // Get current main filter values from state
+                    const fromDate = state.controls.from_date ? state.controls.from_date.get_value() : null;
+                    const toDate = state.controls.to_date ? state.controls.to_date.get_value() : null;
+                    const supplier = state.controls.supplier ? state.controls.supplier.get_value() : null;
+                    
+                    // Determine date field based on doctype
+                    let dateField = 'transaction_date';
+                    if (idDoctype === 'Purchase Receipt' || idDoctype === 'Purchase Invoice') {
+                        dateField = 'posting_date';
+                    }
+                    
+                    const filters = {
+                        'docstatus': 1  // Only submitted documents
+                    };
+                    
+                    // Add date range filter if dates are available
+                    if (fromDate && toDate) {
+                        filters[dateField] = ['between', [fromDate, toDate]];
+                    }
+                    
+                    // Add supplier filter if applicable (PO, PR, PI have supplier field)
+                    if (supplier && (idDoctype === 'Purchase Order' || idDoctype === 'Purchase Receipt' || idDoctype === 'Purchase Invoice')) {
+                        filters['supplier'] = supplier;
+                    }
+                    
+                    return {
+                        filters: filters
+                    };
+                }
+            };
+            
+            state.controls[`${tabId}_id`] = frappe.ui.form.make_control({
+                parent: $(`#${tabId}-id-filter`).get(0),
+                df: df,
+                render_input: true,
+            });
+        } else {
+            // Fallback to Data field for unknown tab types
+            state.controls[`${tabId}_id`] = frappe.ui.form.make_control({
+                parent: $(`#${tabId}-id-filter`).get(0),
+                df: { fieldtype: 'Data', label: __('ID'), fieldname: `${tabId}_id`, reqd: 0 },
+                render_input: true,
+            });
+        }
 
         // Item name filter
         state.controls[`${tabId}_item_name`] = frappe.ui.form.make_control({
@@ -447,6 +500,16 @@ function getIdFieldName(tabId) {
         'purchase_invoice': 'pi_id'
     };
     return idFields[tabId] || 'id';
+}
+
+function getIdFieldDoctype(tabId) {
+    const doctypeMap = {
+        'material_request': 'Material Request',
+        'purchase_order': 'Purchase Order',
+        'purchase_receipt': 'Purchase Receipt',
+        'purchase_invoice': 'Purchase Invoice'
+    };
+    return doctypeMap[tabId] || null;
 }
 
 function getItemFieldName(tabId) {
@@ -559,34 +622,85 @@ function setDefaultFilters(state) {
     state.controls.to_date.set_value(frappe.datetime.month_end());
 }
 
-function bindEventHandlers(state) {
-    // Main filter change events
-    $(state.controls.from_date.$input).on('change', () => refreshDashboard(state));
-    $(state.controls.to_date.$input).on('change', () => refreshDashboard(state));
-    $(state.controls.supplier.$input).on('change', () => refreshDashboard(state));
+/**
+ * Schedule a dashboard refresh after a short debounce window.
+ * Rapid consecutive filter changes collapse into a single API round-trip,
+ * preventing duplicate / overlapping requests.
+ */
+function debouncedRefresh(state, delay) {
+    delay = delay || 300;
+    if (state._refreshTimer) {
+        clearTimeout(state._refreshTimer);
+    }
+    state._refreshTimer = setTimeout(() => {
+        state._refreshTimer = null;
+        refreshDashboard(state);
+    }, delay);
+}
 
-    // Section filter change events
-    Object.keys(state.$tabs).forEach(tabId => {
-        if (tabId !== 'overview') {
-            if (tabId === 'item_wise') {
-                $(state.controls[`${tabId}_po_no`].$input).on('change', () => refreshDashboard(state));
-                $(state.controls[`${tabId}_item_code`].$input).on('change', () => refreshDashboard(state));
-                // Bind refresh button event for item-wise tab
-                $(state.controls[`${tabId}_refresh`].$input).on('click', () => refreshDashboard(state));
-            } else {
-                $(state.controls[`${tabId}_status`].$input).on('change', () => refreshDashboard(state));
-                $(state.controls[`${tabId}_id`].$input).on('change', () => refreshDashboard(state));
-                $(state.controls[`${tabId}_item_name`].$input).on('change', () => refreshDashboard(state));
-                // Bind refresh button event for other tabs
-                $(state.controls[`${tabId}_refresh`].$input).on('click', () => refreshDashboard(state));
-            }
+/**
+ * Bind a Frappe control so that ANY value change – whether triggered by
+ * typing, datepicker click, Link autocomplete select, or the ✕ clear
+ * button – routes through the debounced refresh pipeline.
+ *
+ * Strategy (belt-and-suspenders):
+ *   1. Set df.change / df.onchange  → Frappe calls this after set_value()
+ *   2. jQuery 'change' on $input    → native DOM fallback
+ *   3. 'awesomplete-selectcomplete' → Link autocomplete select
+ *   4. 'click' on .btn-clear        → Link field clear button
+ */
+function bindControlAutoRefresh(control, state) {
+    const handler = () => debouncedRefresh(state);
+
+    // Frappe internal callbacks (most reliable for programmatic set_value)
+    control.df.change = handler;
+    control.df.onchange = handler;
+
+    // Native DOM change (user typing + tab-out / datepicker pick)
+    if (control.$input) {
+        $(control.$input).on('change', handler);
+    }
+
+    // Link-specific: autocomplete selection fires this custom event
+    if (control.df.fieldtype === 'Link' && control.$input) {
+        $(control.$input).on('awesomplete-selectcomplete', handler);
+        // Clear button (✕) inside the Link wrapper
+        if (control.$wrapper) {
+            $(control.$wrapper).on('click', '.btn-clear', handler);
         }
+    }
+}
+
+function bindEventHandlers(state) {
+    // ── Main filters (From Date, To Date, Supplier) ──────────────
+    bindControlAutoRefresh(state.controls.from_date, state);
+    bindControlAutoRefresh(state.controls.to_date, state);
+    bindControlAutoRefresh(state.controls.supplier, state);
+
+    // ── Section filters (per-tab) ────────────────────────────────
+    Object.keys(state.$tabs).forEach(tabId => {
+        if (tabId === 'overview') return;
+
+        if (tabId === 'item_wise') {
+            bindControlAutoRefresh(state.controls[`${tabId}_po_no`], state);
+            bindControlAutoRefresh(state.controls[`${tabId}_item_code`], state);
+        } else {
+            bindControlAutoRefresh(state.controls[`${tabId}_status`], state);
+            bindControlAutoRefresh(state.controls[`${tabId}_id`], state);
+            bindControlAutoRefresh(state.controls[`${tabId}_item_name`], state);
+        }
+
+        // Per-tab Refresh button – use delegated click on the wrapper
+        // so it works regardless of whether Frappe renders <button> or <input>
+        $(`#${tabId}-refresh-btn`).on('click', 'button, .btn, .form-control, input', () => {
+            refreshDashboard(state);
+        });
     });
 
-    // Button events
+    // ── Main Refresh button (always works as a manual override) ──
     state.controls.refreshBtn.on('click', () => refreshDashboard(state));
 
-    // Tab change events
+    // ── Tab change events ────────────────────────────────────────
     Object.keys(state.$tabs).forEach(tabId => {
         state.$tabs[tabId].$item.find('button').on('click', () => {
             state.currentTab = tabId;
@@ -641,22 +755,31 @@ function refreshDashboard(state) {
         return;
     }
 
+    // ── Stale-response guard ─────────────────────────────────────
+    // Increment the generation counter.  When the Promise.all resolves
+    // we compare the counter – if another refresh was triggered in the
+    // meantime, this response is stale and we silently discard it.
+    state._refreshGen = (state._refreshGen || 0) + 1;
+    const thisGen = state._refreshGen;
+
     // Show loading state
     state.page.set_indicator(__('Loading dashboard data...'), 'blue');
 
-    // Fetch data for all sections
+    // Fetch data for all sections – overview uses a dedicated API for
+    // accurate counts instead of aggregating from the tab data.
     Promise.all([
+        fetchOverviewData(filters),
         fetchProcurementData(filters),
         fetchMaterialRequestData(filters, state),
         fetchPurchaseOrderData(filters, state),
         fetchPurchaseReceiptData(filters, state),
         fetchPurchaseInvoiceData(filters, state),
         fetchItemWiseTrackerData(filters)
-    ]).then(([procurementData, mrData, poData, prData, piData, itemWiseData]) => {
-        state.page.clear_indicator();
+    ]).then(([overviewData, procurementData, mrData, poData, prData, piData, itemWiseData]) => {
+        // Discard stale response – a newer refresh is already in flight
+        if (state._refreshGen !== thisGen) return;
 
-        // Create overview data
-        const overviewData = createProcurementOverviewData(procurementData, mrData, poData, prData, piData);
+        state.page.clear_indicator();
 
         // Render all sections
         renderDashboardData(state, {
@@ -668,6 +791,9 @@ function refreshDashboard(state) {
             item_wise: itemWiseData
         });
     }).catch((error) => {
+        // Discard stale error – a newer refresh is already in flight
+        if (state._refreshGen !== thisGen) return;
+
         state.page.clear_indicator();
         console.error('Dashboard refresh error:', error);
         showError(state, __('An error occurred while loading data'));
@@ -742,9 +868,9 @@ function fetchMaterialRequestData(filters, state) {
                     }
 
 
-                    // Apply ID filter
+                    // Apply ID filter (exact match since Link field returns exact name)
                     if (filters.mr_id) {
-                        filteredData = filteredData.filter(mr => mr.name.toLowerCase().includes(filters.mr_id.toLowerCase()));
+                        filteredData = filteredData.filter(mr => mr.name === filters.mr_id);
                     }
 
                     // Apply item filter if specified - filter the original procurement data first
@@ -1019,9 +1145,9 @@ function fetchPurchaseOrderData(filters, state) {
                     }
 
 
-                    // Apply ID filter
+                    // Apply ID filter (exact match since Link field returns exact name)
                     if (filters.po_id) {
-                        filteredData = filteredData.filter(po => po.name.toLowerCase().includes(filters.po_id.toLowerCase()));
+                        filteredData = filteredData.filter(po => po.name === filters.po_id);
                     }
 
                     // Apply supplier filter if specified
@@ -1062,9 +1188,9 @@ function fetchPurchaseOrderData(filters, state) {
                         filteredData = filteredData.filter(po => po.workflow_state === filters.po_status);
                     }
 
-                    // Apply ID filter
+                    // Apply ID filter (exact match since Link field returns exact name)
                     if (filters.po_id) {
-                        filteredData = filteredData.filter(po => po.name.toLowerCase().includes(filters.po_id.toLowerCase()));
+                        filteredData = filteredData.filter(po => po.name === filters.po_id);
                     }
 
                     // Apply supplier filter
@@ -1148,9 +1274,9 @@ function fetchPurchaseReceiptData(filters, state) {
                     }
 
 
-                    // Apply ID filter
+                    // Apply ID filter (exact match since Link field returns exact name)
                     if (filters.pr_id) {
-                        filteredData = filteredData.filter(pr => pr.name.toLowerCase().includes(filters.pr_id.toLowerCase()));
+                        filteredData = filteredData.filter(pr => pr.name === filters.pr_id);
                     }
 
                     // Apply supplier filter if specified
@@ -1191,9 +1317,9 @@ function fetchPurchaseReceiptData(filters, state) {
                         filteredData = filteredData.filter(pr => pr.workflow_state === filters.pr_status);
                     }
 
-                    // Apply ID filter
+                    // Apply ID filter (exact match since Link field returns exact name)
                     if (filters.pr_id) {
-                        filteredData = filteredData.filter(pr => pr.name.toLowerCase().includes(filters.pr_id.toLowerCase()));
+                        filteredData = filteredData.filter(pr => pr.name === filters.pr_id);
                     }
 
                     // Apply supplier filter
@@ -1336,9 +1462,9 @@ function fetchPurchaseInvoiceData(filters, state) {
                         // Apply additional filters
                         let filteredData = purchaseInvoices;
 
-                        // Apply ID filter
+                        // Apply ID filter (exact match since Link field returns exact name)
                         if (filters.pi_id) {
-                            filteredData = filteredData.filter(pi => pi.name.toLowerCase().includes(filters.pi_id.toLowerCase()));
+                            filteredData = filteredData.filter(pi => pi.name === filters.pi_id);
                         }
 
                         // Apply supplier filter if specified
@@ -1379,9 +1505,9 @@ function fetchPurchaseInvoiceData(filters, state) {
                             filteredData = filteredData.filter(pi => pi.workflow_state === filters.pi_status);
                         }
 
-                        // Apply ID filter
+                        // Apply ID filter (exact match since Link field returns exact name)
                         if (filters.pi_id) {
-                            filteredData = filteredData.filter(pi => pi.name.toLowerCase().includes(filters.pi_id.toLowerCase()));
+                            filteredData = filteredData.filter(pi => pi.name === filters.pi_id);
                         }
 
                         // Apply supplier filter
@@ -1434,50 +1560,61 @@ function fetchPurchaseInvoiceData(filters, state) {
     });
 }
 
-function createProcurementOverviewData(procurementData, mrData, poData, prData, piData) {
-    // Calculate totals - only count cards, exclude currency cards
-    const totalMr = mrData.summary.reduce((sum, card) => sum + (card.value || 0), 0);
-    const totalPo = poData.summary.reduce((sum, card) => sum + (card.value || 0), 0);
-    const totalPr = prData.summary
-        .filter(card => card.datatype === 'Int') // Only count cards, exclude currency cards
-        .reduce((sum, card) => sum + (card.value || 0), 0);
-    const totalPi = piData.summary
-        .filter(card => card.datatype === 'Int') // Only count cards, exclude currency cards
-        .reduce((sum, card) => sum + (card.value || 0), 0);
-
-    return {
-        summary: [
-            {
-                value: totalMr,
-                label: __('Total Material Requests'),
-                datatype: 'Int',
-                indicator: 'Blue',
-                description: __('Total material requests in the period')
+function fetchOverviewData(filters) {
+    // Calls a dedicated backend API that runs simple COUNT queries
+    // against each doctype directly.  This avoids the MR → PO → PR → PI
+    // join chain and guarantees accurate, independent counts.
+    return new Promise((resolve, reject) => {
+        frappe.call({
+            method: 'prakash_steel.api.procurement_dashboard.get_overview_data',
+            args: {
+                from_date: filters.from_date,
+                to_date: filters.to_date,
+                supplier: filters.supplier || ''
             },
-            {
-                value: totalPo,
-                label: __('Total Purchase Orders'),
-                datatype: 'Int',
-                indicator: 'Green',
-                description: __('Total purchase orders created')
+            callback: (r) => {
+                if (r.message) {
+                    const d = r.message;
+                    resolve({
+                        summary: [
+                            {
+                                value: d.total_material_requests || 0,
+                                label: __('Total Material Requests'),
+                                datatype: 'Int',
+                                indicator: 'Blue',
+                                description: __('Submitted material requests in the period')
+                            },
+                            {
+                                value: d.total_purchase_orders || 0,
+                                label: __('Total Purchase Orders'),
+                                datatype: 'Int',
+                                indicator: 'Green',
+                                description: __('Submitted purchase orders in the period')
+                            },
+                            {
+                                value: d.total_purchase_receipts || 0,
+                                label: __('Total Purchase Receipts'),
+                                datatype: 'Int',
+                                indicator: 'Orange',
+                                description: __('Submitted purchase receipts in the period')
+                            },
+                            {
+                                value: d.total_purchase_invoices || 0,
+                                label: __('Total Purchase Invoices'),
+                                datatype: 'Int',
+                                indicator: 'Purple',
+                                description: __('Submitted purchase invoices in the period')
+                            }
+                        ],
+                        raw_data: []
+                    });
+                } else {
+                    resolve({ summary: [], raw_data: [] });
+                }
             },
-            {
-                value: totalPr,
-                label: __('Total Purchase Receipts'),
-                datatype: 'Int',
-                indicator: 'Orange',
-                description: __('Total purchase receipts received')
-            },
-            {
-                value: totalPi,
-                label: __('Total Purchase Invoices'),
-                datatype: 'Int',
-                indicator: 'Purple',
-                description: __('Total purchase invoices processed')
-            }
-        ],
-        raw_data: procurementData
-    };
+            error: reject
+        });
+    });
 }
 
 function getStatusOptions(tabId) {

@@ -278,6 +278,7 @@ page_js = {
 	"procurement-tracker-dashboard": "prakash_steel/page/procurement_tracker_dashboard/procurement_tracker_dashboard.js",
 	"sales-summary-dashboard": "prakash_steel/page/sales_summary_dashboard/sales_summary_dashboard.js",
 	"item-insight-dashboard": "prakash_steel/page/item_insight_dashboard/item_insight_dashboard.js",
+	"production-dashboard": "prakash_steel/page/production_dashboard/production_dashboard.js",
 }
 app_include_js = ["/assets/prakash_steel/js/number_cards_uom.js"]
 
