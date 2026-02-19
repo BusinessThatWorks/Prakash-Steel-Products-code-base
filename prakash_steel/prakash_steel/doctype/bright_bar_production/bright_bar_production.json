@@ -33,6 +33,7 @@
   "column_break_pefo",
   "fg_weight",
   "end_cutting_weight",
+  "end_cutting_item",
   "column_break_wzyu",
   "finish_length",
   "tolerance",
@@ -114,7 +115,7 @@
   },
   {
    "fieldname": "die_number",
-   "fieldtype": "Int",
+   "fieldtype": "Data",
    "label": "Die Number",
    "reqd": 1
   },
@@ -242,13 +243,21 @@
    "fieldtype": "Float",
    "label": "Wastage %",
    "precision": "2"
+  },
+  {
+   "default": "WASTAGE SCRAP OF STEEL BARS & RODS SCRAP",
+   "fieldname": "end_cutting_item",
+   "fieldtype": "Link",
+   "label": "End Cutting Item",
+   "options": "Item",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-02-12 11:13:48.299299",
+ "modified": "2026-02-19 16:38:22.124471",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Bright Bar Production",
