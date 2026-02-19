@@ -411,9 +411,11 @@ function render_table(state, rows) {
     const thStyle = 'background:#495057;padding:12px;font-weight:600;color:#ffffff;'
         + 'border-bottom:2px solid #343a40;white-space:nowrap;text-align:center !important;';
 
-    const headerHtml = columns.map(c =>
-        `<th style="${thStyle}">${c.label}</th>`
-    ).join('');
+    const headerHtml = columns.map((c, idx) => {
+        // Add vertical border after Production Date (index 1) and Actual Qty (index 5)
+        const borderRight = (idx === 1 || idx === 5) ? ' border-right:2px solid #dee2e6;' : '';
+        return `<th style="${thStyle}${borderRight}">${c.label}</th>`;
+    }).join('');
 
     // ── Body ──
     let bodyHtml = '';
@@ -476,11 +478,11 @@ function buildTableRow(tabId, row) {
 
     return `<tr style="border-bottom:1px solid #e9ecef;">
         <td style="${tdStyle}">${ppLink}</td>
-        <td style="${tdStyle}">${prodDate}</td>
+        <td style="${tdStyle} border-right:2px solid #dee2e6;">${prodDate}</td>
         <td style="${tdStyle}">${finishedItem}</td>
         <td style="${tdStyle}">${fgPlannedQty}</td>
-        <td style="${tdStyle}">${actualQty}</td>
         <td style="${tdStyle}">${fgLength}</td>
+        <td style="${tdStyle} border-right:2px solid #dee2e6;">${actualQty}</td>
         <td style="${tdStyle}">${rm}</td>
         <td style="${tdStyle}">${rmConsumption}</td>
         <td style="${tdStyle}">${lastColValue}</td>
@@ -494,8 +496,8 @@ function getTableColumns(tabId) {
             { label: __('Production Date'), align: 'left' },
             { label: __('Finished Item'), align: 'left' },
             { label: __('FG Planned Qty'), align: 'left' },
-            { label: __('Actual Qty'), align: 'left' },
             { label: __('FG Length'), align: 'left' },
+            { label: __('Actual Qty'), align: 'left' },
             { label: __('RM'), align: 'left' },
             { label: __('Actual RM Consumption'), align: 'left' },
             { label: __('Burning Loss %'), align: 'left' },
@@ -507,8 +509,8 @@ function getTableColumns(tabId) {
         { label: __('Production Date'), align: 'left' },
         { label: __('Finished Item'), align: 'left' },
         { label: __('FG Planned Qty'), align: 'left' },
-        { label: __('Actual Qty'), align: 'left' },
         { label: __('FG Length'), align: 'left' },
+        { label: __('Actual Qty'), align: 'left' },
         { label: __('RM'), align: 'left' },
         { label: __('Actual RM Consumption'), align: 'left' },
         { label: __('Wastage %'), align: 'left' },
