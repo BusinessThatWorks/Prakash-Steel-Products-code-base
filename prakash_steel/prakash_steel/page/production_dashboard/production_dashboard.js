@@ -43,6 +43,9 @@ function initializeDashboard(state) {
     createContentContainers(state);
     bindEventHandlers(state);
 
+    // Apply active tab styling on first load
+    updateTabStyles(state);
+
     // Initial data load - fetch data till date (filters remain empty in UI)
     refreshDashboard(state);
 }
@@ -58,12 +61,12 @@ function render_filters(state) {
                     border-radius:8px;">
         </div>`);
 
-    const $filterControls = $('<div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;"></div>');
+    const $filterControls = $('<div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;width:100%;"></div>');
 
-    const $fromDateWrap = $('<div style="min-width:160px;"></div>');
-    const $toDateWrap   = $('<div style="min-width:160px;"></div>');
-    const $itemWrap     = $('<div style="min-width:220px;"></div>');
-    const $ppWrap       = $('<div style="min-width:220px;"></div>');
+    const $fromDateWrap = $('<div style="flex:1;min-width:200px;"></div>');
+    const $toDateWrap   = $('<div style="flex:1;min-width:200px;"></div>');
+    const $itemWrap     = $('<div style="flex:1;min-width:250px;"></div>');
+    const $ppWrap       = $('<div style="flex:1;min-width:250px;"></div>');
 
     $filterControls
         .append($fromDateWrap)
@@ -404,10 +407,10 @@ function render_table(state, rows) {
 
     // ── Header ──
     const thStyle = 'background:#e4d5b9;padding:12px;font-weight:600;color:#000000;'
-        + 'border-bottom:2px solid #d4c5a9;white-space:nowrap;';
+        + 'border-bottom:2px solid #d4c5a9;white-space:nowrap;text-align:center !important;';
 
     const headerHtml = columns.map(c =>
-        `<th style="${thStyle}text-align:${c.align || 'left'};">${c.label}</th>`
+        `<th style="${thStyle}">${c.label}</th>`
     ).join('');
 
     // ── Body ──
@@ -434,7 +437,7 @@ function render_table(state, rows) {
 }
 
 function buildTableRow(tabId, row) {
-    const tdStyle = 'padding:12px;border-bottom:1px solid #e9ecef;color:#495057;';
+    const tdStyle = 'padding:12px;border-bottom:1px solid #e9ecef;color:#495057;text-align:center !important;';
 
     // Production Plan (link)
     const ppLink = row.production_plan
@@ -452,11 +455,11 @@ function buildTableRow(tabId, row) {
         ? frappe.utils.escape_html(row.finished_item)
         : '';
 
-    // Numeric fields
-    const fgPlannedQty = frappe.format(row.fg_planned_qty || 0, { fieldtype: 'Float', precision: 2 });
-    const actualQty    = frappe.format(row.actual_qty || 0, { fieldtype: 'Float', precision: 2 });
-    const fgLength     = frappe.format(row.fg_length || 0, { fieldtype: 'Float', precision: 2 });
-    const rmConsumption = frappe.format(row.rm_consumption || 0, { fieldtype: 'Float', precision: 2 });
+    // Numeric fields – use format_number to get plain text (no wrapper HTML)
+    const fgPlannedQty = format_number(row.fg_planned_qty || 0, null, 2);
+    const actualQty    = format_number(row.actual_qty || 0, null, 2);
+    const fgLength     = format_number(row.fg_length || 0, null, 2);
+    const rmConsumption = format_number(row.rm_consumption || 0, null, 2);
 
     // RM
     const rm = row.rm ? frappe.utils.escape_html(row.rm) : '';
@@ -464,21 +467,21 @@ function buildTableRow(tabId, row) {
     // Last column differs per tab
     let lastColValue = '';
     if (tabId === 'rolled_production') {
-        lastColValue = frappe.format(row.burning_loss || 0, { fieldtype: 'Float', precision: 2 });
+        lastColValue = format_number(row.burning_loss || 0, null, 2);
     } else {
-        lastColValue = frappe.format(row.wastage || 0, { fieldtype: 'Float', precision: 2 });
+        lastColValue = format_number(row.wastage || 0, null, 2);
     }
 
     return `<tr style="border-bottom:1px solid #e9ecef;">
-        <td style="${tdStyle}text-align:left;">${ppLink}</td>
-        <td style="${tdStyle}text-align:left;">${prodDate}</td>
-        <td style="${tdStyle}text-align:left;">${finishedItem}</td>
-        <td style="${tdStyle}text-align:right;">${fgPlannedQty}</td>
-        <td style="${tdStyle}text-align:right;">${actualQty}</td>
-        <td style="${tdStyle}text-align:right;">${fgLength}</td>
-        <td style="${tdStyle}text-align:left;">${rm}</td>
-        <td style="${tdStyle}text-align:right;">${rmConsumption}</td>
-        <td style="${tdStyle}text-align:right;">${lastColValue}</td>
+        <td style="${tdStyle}">${ppLink}</td>
+        <td style="${tdStyle}">${prodDate}</td>
+        <td style="${tdStyle}">${finishedItem}</td>
+        <td style="${tdStyle}">${fgPlannedQty}</td>
+        <td style="${tdStyle}">${actualQty}</td>
+        <td style="${tdStyle}">${fgLength}</td>
+        <td style="${tdStyle}">${rm}</td>
+        <td style="${tdStyle}">${rmConsumption}</td>
+        <td style="${tdStyle}">${lastColValue}</td>
     </tr>`;
 }
 
@@ -488,12 +491,12 @@ function getTableColumns(tabId) {
             { label: __('Production Plan'), align: 'left' },
             { label: __('Production Date'), align: 'left' },
             { label: __('Finished Item'), align: 'left' },
-            { label: __('FG Planned Qty'), align: 'right' },
-            { label: __('Actual Qty'), align: 'right' },
-            { label: __('FG Length'), align: 'right' },
+            { label: __('FG Planned Qty'), align: 'left' },
+            { label: __('Actual Qty'), align: 'left' },
+            { label: __('FG Length'), align: 'left' },
             { label: __('RM'), align: 'left' },
-            { label: __('RM Consumption'), align: 'right' },
-            { label: __('Burning Loss %'), align: 'right' },
+            { label: __('RM Consumption'), align: 'left' },
+            { label: __('Burning Loss %'), align: 'left' },
         ];
     }
     // bright_production
@@ -501,11 +504,11 @@ function getTableColumns(tabId) {
         { label: __('Production Plan'), align: 'left' },
         { label: __('Production Date'), align: 'left' },
         { label: __('Finished Item'), align: 'left' },
-        { label: __('FG Planned Qty'), align: 'right' },
-        { label: __('Actual Qty'), align: 'right' },
-        { label: __('FG Length'), align: 'right' },
+        { label: __('FG Planned Qty'), align: 'left' },
+        { label: __('Actual Qty'), align: 'left' },
+        { label: __('FG Length'), align: 'left' },
         { label: __('RM'), align: 'left' },
-        { label: __('RM Consumption'), align: 'right' },
-        { label: __('Wastage %'), align: 'right' },
+        { label: __('RM Consumption'), align: 'left' },
+        { label: __('Wastage %'), align: 'left' },
     ];
 }
