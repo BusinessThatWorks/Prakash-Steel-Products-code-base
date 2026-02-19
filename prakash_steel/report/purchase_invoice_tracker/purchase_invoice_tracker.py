@@ -64,7 +64,8 @@ def get_data(filters):
 		filters["to_date"] = "2030-12-31"
 
 	conditions = """
-		pi.posting_date BETWEEN %(from_date)s AND %(to_date)s
+		pi.docstatus = 1
+		AND pi.posting_date BETWEEN %(from_date)s AND %(to_date)s
 	"""
 
 	if filters.get("supplier"):

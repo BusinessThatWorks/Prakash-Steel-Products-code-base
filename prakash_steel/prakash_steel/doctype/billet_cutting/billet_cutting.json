@@ -27,6 +27,8 @@
   "miss_billet_pcs",
   "column_break_temu",
   "miss_billet_weight",
+  "column_break_rnty",
+  "miss_billet_item",
   "section_break_noec",
   "total_billet_cutting_pcs",
   "cutting_weight_per_pcs",
@@ -189,13 +191,25 @@
    "label": "Finish Size",
    "options": "Item",
    "reqd": 1
+  },
+  {
+   "fieldname": "column_break_rnty",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "WASTAGE SCRAP OF STEEL BARS & RODS SCRAP",
+   "fieldname": "miss_billet_item",
+   "fieldtype": "Link",
+   "label": "Miss Billet Item",
+   "options": "Item",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-02-12 11:15:43.370645",
+ "modified": "2026-02-19 15:41:03.874141",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Billet Cutting",

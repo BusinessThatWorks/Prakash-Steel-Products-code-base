@@ -34,6 +34,8 @@
   "bend_material_weight",
   "colour_code",
   "cooling_pit",
+  "column_break_suzn",
+  "melting_item",
   "section_break_llkn",
   "billet_weight",
   "column_break_eahe",
@@ -42,9 +44,11 @@
   "section_break_dnvj",
   "total_miss_roll_pcs",
   "total_miss_roll_weight",
+  "miss_roll_item",
   "column_break_xhym",
   "total_miss_ingot_pcs",
   "total_miss_ingot_weight",
+  "miss_billet_item",
   "section_break_mikf",
   "quality_issue",
   "column_break_xnll",
@@ -299,13 +303,40 @@
    "fieldtype": "Float",
    "label": "Burning Loss %",
    "precision": "2"
+  },
+  {
+   "default": "WASTAGE SCRAP OF STEEL BARS & RODS SCRAP",
+   "fieldname": "miss_roll_item",
+   "fieldtype": "Link",
+   "label": "Miss Roll Item ",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "miss_billet_item",
+   "fieldtype": "Link",
+   "label": "Miss Billet Item",
+   "options": "Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_suzn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "WASTAGE SCRAP OF STEEL BARS & RODS SCRAP",
+   "fieldname": "melting_item",
+   "fieldtype": "Link",
+   "label": "Melting Item",
+   "options": "Item",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-16 12:25:50.477881",
+ "modified": "2026-02-19 15:43:16.454673",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight",

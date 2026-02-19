@@ -47,6 +47,44 @@ class BrightBarProduction(Document):
 			posting_date = production_plan_doc.posting_date or self.production_date
 
 			# Create Stock Entry with Manufacture type
+			items = [
+				{
+					"item_code": self.raw_material,
+					"qty": self.actual_rm_consumption,
+					"s_warehouse": self.rm_source_warehouse,
+					"t_warehouse": "",
+					"stock_uom": rm_stock_uom,
+					"uom": rm_stock_uom,
+					"conversion_factor": 1.0,
+					"is_finished_item": 0,
+				},
+				{
+					"item_code": self.finished_good,
+					"qty": self.fg_weight,
+					"s_warehouse": "",
+					"t_warehouse": self.fg_target_warehouse,
+					"stock_uom": fg_stock_uom,
+					"uom": fg_stock_uom,
+					"conversion_factor": 1.0,
+					"is_finished_item": 1,
+				},
+			]
+
+			# Add End Cutting item (scrap/by-product) back to RM Source Warehouse, if provided
+			if getattr(self, "end_cutting_item", None) and flt(getattr(self, "end_cutting_weight", 0)) > 0:
+				items.append(
+					{
+						"item_code": self.end_cutting_item,
+						"qty": flt(self.end_cutting_weight),
+						"s_warehouse": "",
+						"t_warehouse": self.fg_target_warehouse,
+						"stock_uom": rm_stock_uom,
+						"uom": rm_stock_uom,
+						"conversion_factor": 1.0,
+						"is_finished_item": 0,
+					}
+				)
+
 			stock_entry_data = {
 				"doctype": "Stock Entry",
 				"stock_entry_type": "Manufacture",
@@ -54,28 +92,7 @@ class BrightBarProduction(Document):
 				"set_posting_time": 1,  # Enable custom posting date/time
 				"posting_date": posting_date,
 				"posting_time": frappe.utils.nowtime(),
-				"items": [
-					{
-						"item_code": self.raw_material,
-						"qty": self.actual_rm_consumption,
-						"s_warehouse": self.rm_source_warehouse,
-						"t_warehouse": "",
-						"stock_uom": rm_stock_uom,
-						"uom": rm_stock_uom,
-						"conversion_factor": 1.0,
-						"is_finished_item": 0,
-					},
-					{
-						"item_code": self.finished_good,
-						"qty": self.fg_weight,
-						"s_warehouse": "",
-						"t_warehouse": self.fg_target_warehouse,
-						"stock_uom": fg_stock_uom,
-						"uom": fg_stock_uom,
-						"conversion_factor": 1.0,
-						"is_finished_item": 1,
-					},
-				],
+				"items": items,
 			}
 
 			stock_entry = frappe.get_doc(stock_entry_data)
@@ -89,12 +106,12 @@ class BrightBarProduction(Document):
 			stock_entry.set_posting_time = 1
 			stock_entry.posting_date = posting_date
 			stock_entry.submit()
-			
+
 			# Final check - if posting_date was changed, force set it via SQL
 			if stock_entry.posting_date != posting_date:
 				frappe.db.sql(
 					"UPDATE `tabStock Entry` SET posting_date = %s WHERE name = %s",
-					(posting_date, stock_entry.name)
+					(posting_date, stock_entry.name),
 				)
 				frappe.db.commit()
 				stock_entry.reload()

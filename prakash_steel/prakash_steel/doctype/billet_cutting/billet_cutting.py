@@ -74,6 +74,36 @@ class BilletCutting(Document):
 				production_plan_doc = frappe.get_doc("Production Plan", self.production_plan)
 				posting_date = production_plan_doc.posting_date or self.posting_date or frappe.utils.today()
 
+			# Create items list for Stock Entry
+			items = [
+				{
+					"item_code": self.billet_size,
+					"qty": self.billet_weight,
+					"s_warehouse": self.rm_source_warehouse,
+					"stock_uom": stock_uom,
+					"uom": stock_uom,
+					"conversion_factor": 1.0,
+				}
+			]
+
+			# Add Miss Billet Item issue from RM Source Warehouse, if provided
+			miss_billet_weight = flt(getattr(self, "miss_billet_weight", 0) or 0)
+			if getattr(self, "miss_billet_item", None) and miss_billet_weight > 0:
+				# Get UOM from Miss Billet Item
+				miss_billet_item_doc = frappe.get_doc("Item", self.miss_billet_item)
+				miss_billet_stock_uom = miss_billet_item_doc.stock_uom or "Kg"
+
+				items.append(
+					{
+						"item_code": self.miss_billet_item,
+						"qty": miss_billet_weight,
+						"s_warehouse": self.rm_source_warehouse,
+						"stock_uom": miss_billet_stock_uom,
+						"uom": miss_billet_stock_uom,
+						"conversion_factor": 1.0,
+					}
+				)
+
 			# Create Stock Entry
 			stock_entry_data = {
 				"doctype": "Stock Entry",
@@ -82,16 +112,7 @@ class BilletCutting(Document):
 				"set_posting_time": 1,  # Enable custom posting date/time
 				"posting_date": posting_date,
 				"posting_time": frappe.utils.nowtime(),
-				"items": [
-					{
-						"item_code": self.billet_size,
-						"qty": self.billet_weight,
-						"s_warehouse": self.rm_source_warehouse,
-						"stock_uom": stock_uom,
-						"uom": stock_uom,
-						"conversion_factor": 1.0,
-					}
-				],
+				"items": items,
 			}
 
 			stock_entry = frappe.get_doc(stock_entry_data)
@@ -105,12 +126,12 @@ class BilletCutting(Document):
 			stock_entry.set_posting_time = 1
 			stock_entry.posting_date = posting_date
 			stock_entry.submit()
-			
+
 			# Final check - if posting_date was changed, force set it via SQL
 			if stock_entry.posting_date != posting_date:
 				frappe.db.sql(
 					"UPDATE `tabStock Entry` SET posting_date = %s WHERE name = %s",
-					(posting_date, stock_entry.name)
+					(posting_date, stock_entry.name),
 				)
 				frappe.db.commit()
 				stock_entry.reload()
