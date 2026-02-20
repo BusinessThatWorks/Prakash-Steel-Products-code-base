@@ -62,7 +62,8 @@ class FinishWeight(Document):
 				melting_weight = flt(getattr(self, "melting_weight", 0) or 0)
 				melting_qty = total_miss_roll_weight + melting_weight
 
-				if melting_qty > 0:
+				# Only add item if total_miss_roll_weight > 0
+				if total_miss_roll_weight > 0:
 					# Get UOM from melting_item
 					melting_item_doc = frappe.get_doc("Item", self.melting_item)
 					melting_stock_uom = melting_item_doc.stock_uom or "Kg"
