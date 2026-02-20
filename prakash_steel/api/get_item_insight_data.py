@@ -63,6 +63,7 @@ def get_item_insight_data(
             "item_code",
             "custom_grade as item_grade",
             "custom_category_name as category_name",
+            "custom_desc_code",
         ],
         order_by="item_code",
         limit_page_length=int(limit) if limit else None,
@@ -88,8 +89,12 @@ def get_item_insight_data(
         if getattr(item, "category_name", None):
             item_data["category_name"] = item.category_name
 
-        # Production Data - Get last production from Hourly Production or Bright Bar Production
-        production_data = get_last_production_data(item_code, from_date, to_date)
+        # Production Data - Get last production based on item type
+        # Rolled bars: from Finish Weight, Bright bars: from Bright Bar Production
+        desc_code = getattr(item, "custom_desc_code", None) or ""
+        production_data = get_last_production_data(
+            item_code, desc_code, from_date, to_date
+        )
         item_data.update(production_data)
 
         # Sales Data
@@ -121,90 +126,188 @@ def get_item_insight_data(
     return result
 
 
-def get_last_production_data(item_code, from_date, to_date):
-    """Get last production date and quantity from Hourly Production or Bright Bar Production"""
+def get_last_production_data(item_code, desc_code, from_date, to_date):
+    """
+    Get last production date and quantity based on item type:
+    - Last production date:
+      - Rolled bars: from Finish Weight (posting_date)
+      - Bright bars: from Bright Bar Production (production_date)
+    - Last production qty: from Production Plan Item (planned_qty) - latest for that item
+    """
 
-    # Try Hourly Production first
-    if from_date and to_date:
-        hourly_prod = frappe.db.sql(
-            """
-			SELECT 
-				production_date,
-				finish_item_pcs as quantity
-			FROM `tabHourly Production`
-			WHERE finish_item = %s
-				AND docstatus = 1
-				AND production_date BETWEEN %s AND %s
-			ORDER BY production_date DESC, creation DESC
-			LIMIT 1
-		""",
-            (item_code, from_date, to_date),
-            as_dict=True,
-        )
+    last_production_date = None
+    last_production_quantity = 0
+
+    # Determine if item is a Bright Bar based on custom_desc_code
+    is_bright_bar = desc_code and "Bright Bar" in desc_code
+
+    # Fetch last production date based on item type
+    if is_bright_bar:
+        # Fetch date from Bright Bar Production
+        if from_date and to_date:
+            date_data = frappe.db.sql(
+                """
+				SELECT 
+					production_date
+				FROM `tabBright Bar Production`
+				WHERE finished_good = %s
+					AND docstatus = 1
+					AND production_date BETWEEN %s AND %s
+				ORDER BY production_date DESC, creation DESC
+				LIMIT 1
+			""",
+                (item_code, from_date, to_date),
+                as_dict=True,
+            )
+        else:
+            date_data = frappe.db.sql(
+                """
+				SELECT 
+					production_date
+				FROM `tabBright Bar Production`
+				WHERE finished_good = %s
+					AND docstatus = 1
+				ORDER BY production_date DESC, creation DESC
+				LIMIT 1
+			""",
+                (item_code,),
+                as_dict=True,
+            )
+
+        if date_data:
+            last_production_date = date_data[0].production_date
     else:
-        hourly_prod = frappe.db.sql(
+        # Fetch date from Finish Weight (for Rolled bars)
+        if from_date and to_date:
+            date_data = frappe.db.sql(
+                """
+				SELECT 
+					posting_date
+				FROM `tabFinish Weight`
+				WHERE item_code = %s
+					AND docstatus = 1
+					AND posting_date BETWEEN %s AND %s
+				ORDER BY posting_date DESC, creation DESC
+				LIMIT 1
+			""",
+                (item_code, from_date, to_date),
+                as_dict=True,
+            )
+        else:
+            date_data = frappe.db.sql(
+                """
+				SELECT 
+					posting_date
+				FROM `tabFinish Weight`
+				WHERE item_code = %s
+					AND docstatus = 1
+				ORDER BY posting_date DESC, creation DESC
+				LIMIT 1
+			""",
+                (item_code,),
+                as_dict=True,
+            )
+
+        if date_data:
+            last_production_date = date_data[0].posting_date
+
+    # Fetch last production quantity from Production Plan Item (planned_qty)
+    # Strategy: First try to find Production Plan linked through production records,
+    # then fall back to direct Production Plan Item lookup with type filter
+
+    pp_filter_pattern = "%Rolled%" if not is_bright_bar else "%Bright%"
+    qty_data = None
+
+    # Method 1: Try to find Production Plan through production records (more reliable)
+    if is_bright_bar:
+        # For bright bars, find Production Plan from Bright Bar Production
+        linked_pp = frappe.db.sql(
             """
-			SELECT 
-				production_date,
-				finish_item_pcs as quantity
-			FROM `tabHourly Production`
-			WHERE finish_item = %s
+			SELECT DISTINCT production_plan
+			FROM `tabBright Bar Production`
+			WHERE finished_good = %s
 				AND docstatus = 1
+				AND production_plan IS NOT NULL
 			ORDER BY production_date DESC, creation DESC
 			LIMIT 1
 		""",
             (item_code,),
             as_dict=True,
         )
-
-    if hourly_prod:
-        return {
-            "last_production_date": hourly_prod[0].production_date,
-            "last_production_quantity": flt(hourly_prod[0].quantity, 2),
-        }
-
-    # Try Bright Bar Production (fields are on main table, not child table)
-    if from_date and to_date:
-        bright_bar_prod = frappe.db.sql(
-            """
-			SELECT 
-				production_date,
-				SUM(fg_weight) as quantity
-			FROM `tabBright Bar Production`
-			WHERE finished_good = %s
-				AND docstatus = 1
-				AND production_date BETWEEN %s AND %s
-			GROUP BY production_date
-			ORDER BY production_date DESC
-			LIMIT 1
-		""",
-            (item_code, from_date, to_date),
-            as_dict=True,
-        )
     else:
-        bright_bar_prod = frappe.db.sql(
+        # For rolled bars, find Production Plan from Finish Weight
+        linked_pp = frappe.db.sql(
             """
-			SELECT 
-				production_date,
-				SUM(fg_weight) as quantity
-			FROM `tabBright Bar Production`
-			WHERE finished_good = %s
+			SELECT DISTINCT production_plan
+			FROM `tabFinish Weight`
+			WHERE item_code = %s
 				AND docstatus = 1
-			GROUP BY production_date
-			ORDER BY production_date DESC
+				AND production_plan IS NOT NULL
+			ORDER BY posting_date DESC, creation DESC
 			LIMIT 1
 		""",
             (item_code,),
             as_dict=True,
         )
 
-    if bright_bar_prod:
-        return {
-            "last_production_date": bright_bar_prod[0].production_date,
-            "last_production_quantity": flt(bright_bar_prod[0].quantity, 2),
-        }
+    # If we found a linked Production Plan, get planned_qty from it
+    if linked_pp and linked_pp[0].get("production_plan"):
+        production_plan_name = linked_pp[0].production_plan
+        qty_data = frappe.db.sql(
+            """
+			SELECT 
+				ppi.planned_qty
+			FROM `tabProduction Plan Item` ppi
+			WHERE ppi.parent = %s
+				AND ppi.item_code = %s
+			LIMIT 1
+		""",
+            (production_plan_name, item_code),
+            as_dict=True,
+        )
 
-    return {"last_production_date": None, "last_production_quantity": 0}
+    # Method 2: Fall back to direct Production Plan Item lookup with type filter
+    if not qty_data or not qty_data[0].get("planned_qty"):
+        qty_data = frappe.db.sql(
+            """
+			SELECT 
+				ppi.planned_qty
+			FROM `tabProduction Plan` pp
+			INNER JOIN `tabProduction Plan Item` ppi ON ppi.parent = pp.name
+			WHERE ppi.item_code = %s
+				AND pp.docstatus = 1
+				AND (pp.name LIKE %s OR pp.naming_series LIKE %s)
+			ORDER BY pp.creation DESC, pp.modified DESC
+			LIMIT 1
+		""",
+            (item_code, pp_filter_pattern, pp_filter_pattern),
+            as_dict=True,
+        )
+
+    # Method 3: Last resort - get any Production Plan Item for this item (no type filter)
+    if not qty_data or not qty_data[0].get("planned_qty"):
+        qty_data = frappe.db.sql(
+            """
+			SELECT 
+				ppi.planned_qty
+			FROM `tabProduction Plan` pp
+			INNER JOIN `tabProduction Plan Item` ppi ON ppi.parent = pp.name
+			WHERE ppi.item_code = %s
+				AND pp.docstatus = 1
+			ORDER BY pp.creation DESC, pp.modified DESC
+			LIMIT 1
+		""",
+            (item_code,),
+            as_dict=True,
+        )
+
+    if qty_data and len(qty_data) > 0 and qty_data[0].get("planned_qty") is not None:
+        last_production_quantity = flt(qty_data[0].planned_qty, 2)
+
+    return {
+        "last_production_date": last_production_date,
+        "last_production_quantity": last_production_quantity,
+    }
 
 
 def get_sales_data(item_code, from_date, to_date):
