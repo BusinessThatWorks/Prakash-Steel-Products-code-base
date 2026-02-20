@@ -352,11 +352,24 @@ function render_cards(state, totals) {
     });
 }
 
+// Helper function to format numbers: truncate (don't round) and show without decimals
+function format_number_truncate(value) {
+    if (value === undefined || value === null || value === '') {
+        return '--';
+    }
+    const num = parseFloat(value);
+    if (isNaN(num)) {
+        return '--';
+    }
+    // Truncate (not round) towards zero to integer
+    const truncated = Math.trunc(num);
+    // Format without decimals
+    return format_number(truncated, null, 0);
+}
+
 function buildCardHtml(card) {
     const raw = card.value;
-    const display = (raw === undefined || raw === null || raw === '')
-        ? '--'
-        : format_number(raw, null, 0);
+    const display = format_number_truncate(raw);
 
     const gradientClass = card.gradientClass || 'card-blue';
     const gradient = getGradientStyle(gradientClass);
@@ -459,11 +472,11 @@ function buildTableRow(tabId, row) {
         ? frappe.utils.escape_html(row.finished_item)
         : '';
 
-    // Numeric fields – use format_number to get plain text (no wrapper HTML)
-    const fgPlannedQty = format_number(row.fg_planned_qty || 0, null, 0);
-    const actualQty    = format_number(row.actual_qty || 0, null, 0);
-    const fgLength     = format_number(row.fg_length || 0, null, 0);
-    const rmConsumption = format_number(row.rm_consumption || 0, null, 0);
+    // Numeric fields – truncate (don't round) and format without decimals
+    const fgPlannedQty = format_number_truncate(row.fg_planned_qty);
+    const actualQty    = format_number_truncate(row.actual_qty);
+    const fgLength     = format_number_truncate(row.fg_length);
+    const rmConsumption = format_number_truncate(row.rm_consumption);
 
     // RM
     const rm = row.rm ? frappe.utils.escape_html(row.rm) : '';
@@ -471,9 +484,9 @@ function buildTableRow(tabId, row) {
     // Last column differs per tab
     let lastColValue = '';
     if (tabId === 'rolled_production') {
-        lastColValue = format_number(row.burning_loss || 0, null, 0);
+        lastColValue = format_number_truncate(row.burning_loss);
     } else {
-        lastColValue = format_number(row.wastage || 0, null, 0);
+        lastColValue = format_number_truncate(row.wastage);
     }
 
     return `<tr style="border-bottom:1px solid #e9ecef;">

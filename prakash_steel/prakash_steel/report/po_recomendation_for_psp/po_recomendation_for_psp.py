@@ -54,6 +54,8 @@ def build_calculation_breakdown_po_report(
 	final_order_rec,
 	net_order_rec,
 	parent_demand_details_list,
+	till_today=None,
+	spike=None,
 ):
 	"""Build detailed calculation breakdown for an item in PO Recommendation report"""
 	lines = []
@@ -64,22 +66,57 @@ def build_calculation_breakdown_po_report(
 
 	if is_buffer:
 		lines.append(f"  TOG: {tog}")
-		lines.append(f"  Qualified Demand: {qualified_demand}")
+		# Show till_today and spike separately if provided
+		if till_today is not None and spike is not None:
+			lines.append(f"  Till Today: {till_today}")
+			lines.append(f"  Spike: {spike}")
+			lines.append(f"  Qualified Demand (Till Today + Spike): {qualified_demand}")
+		else:
+			lines.append(f"  Qualified Demand: {qualified_demand}")
+		lines.append(f"  Total Parent Demand: {total_parent_demand}")
+
+		# Show parent demand breakdown if available
+		if total_parent_demand > 0 and parent_demand_details_list:
+			lines.append("  Parent Demands Breakdown:")
+			for pd in parent_demand_details_list:
+				if pd.get("applied", True):
+					lines.append(
+						f"    - From {pd['parent_item']} (BOM: {pd['bom_name']}): {pd['demand_qty']} {pd.get('reason', '')}"
+					)
+				else:
+					lines.append(
+						f"    - From {pd['parent_item']} (BOM: {pd['bom_name']}): {pd['demand_qty']} [IGNORED - {pd.get('reason', '')}]"
+					)
+
+		# Calculate total demand (Qualified Demand + Parent Demand)
+		total_demand = qualified_demand + total_parent_demand
+		lines.append(
+			f"  Total Demand (Qualified Demand + Parent Demand): {qualified_demand} + {total_parent_demand} = {total_demand}"
+		)
+
 		lines.append(f"  Stock: {stock}")
 		lines.append(f"  WIP: {wip}")
 		lines.append(f"  Open PO: {open_po}")
 		lines.append(f"  MRQ: {mrq}")
 
 		if sku_type in ["BOTA", "PTA"]:
-			base_calc = tog + qualified_demand - stock - wip - open_po
-			lines.append("  Base Calculation: TOG + Qualified Demand - Stock - WIP - Open PO")
-			lines.append(f"                    = {tog} + {qualified_demand} - {stock} - {wip} - {open_po}")
+			base_calc = tog + total_demand - stock - wip - open_po
+			lines.append(
+				"  Base Calculation: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - Open PO"
+			)
+			lines.append(
+				f"                    = {tog} + ({qualified_demand} + {total_parent_demand}) - {stock} - {wip} - {open_po}"
+			)
+			lines.append(f"                    = {tog} + {total_demand} - {stock} - {wip} - {open_po}")
 			lines.append(f"                    = {base_calc}")
 			lines.append(f"  After MRQ: Base - MRQ = {base_calc} - {mrq} = {final_order_rec}")
 		else:
-			base_calc = tog + qualified_demand - stock - wip
-			lines.append("  Base Calculation: TOG + Qualified Demand - Stock - WIP")
-			lines.append(f"                    = {tog} + {qualified_demand} - {stock} - {wip}")
+			base_calc = tog + total_demand - stock - wip
+			lines.append("  Base Calculation: TOG + (Qualified Demand + Parent Demand) - Stock - WIP")
+			lines.append(
+				f"                    = {tog} + ({qualified_demand} + {total_parent_demand}) - {stock} - {wip}"
+			)
+			lines.append(f"                    = {tog} + {total_demand} - {stock} - {wip}")
 			lines.append(f"                    = {base_calc}")
 			lines.append(f"  After MRQ: Base - MRQ = {base_calc} - {mrq} = {final_order_rec}")
 
@@ -110,13 +147,15 @@ def build_calculation_breakdown_po_report(
 		else:
 			lines.append("  No MOQ or Batch Size")
 			lines.append(f"  Net Order Recommendation: {final_order_rec}")
-
-		lines.append("  Note: Parent demand ignored for buffer items")
 	else:
 		# For non-buffer items, Open SO in breakdown should be qualified_demand (Open SO with delivery_date <= today)
 		# This matches the buffer items' logic where Open SO = Qualified Demand
 		open_so_for_breakdown = qualified_demand  # Use qualified demand instead of all-time open_so
 		lines.append(f"  Open SO: {open_so_for_breakdown}")
+		# Show till_today and spike separately if provided (spike should always be 0 for non-buffer)
+		if till_today is not None and spike is not None:
+			lines.append(f"    - Till Today: {till_today}")
+			lines.append(f"    - Spike: {spike} (always 0 for non-buffer items)")
 		lines.append(f"  Stock: {stock}")
 		lines.append(f"  WIP: {wip}")
 		lines.append(f"  Open PO: {open_po}")
@@ -182,6 +221,97 @@ def build_calculation_breakdown_po_report(
 		else:
 			lines.append("  No MOQ or Batch Size")
 			lines.append(f"  Net Order Recommendation: {final_order_rec}")
+
+	return "\n".join(lines)
+
+
+def generate_detailed_log_po_report(data, net_order_recommendations):
+	"""Generate detailed log with full breakdown for each item (like MRP generation)"""
+	lines = []
+	lines.append("\n" + "=" * 100)
+	lines.append("PO RECOMMENDATION FOR PSP - DETAILED BREAKDOWN (NET ORDER RECOMMENDATIONS)")
+	lines.append("=" * 100)
+
+	# Build a map of item_code -> row for quick lookup
+	item_row_map = {}
+	for row in data:
+		item_code = row.get("item_code")
+		if item_code:
+			if item_code not in item_row_map:
+				item_row_map[item_code] = []
+			item_row_map[item_code].append(row)
+
+	# Get all unique item codes from data
+	all_item_codes = set(item_row_map.keys())
+
+	# Show total count of items
+	total_items = len(all_item_codes)
+	lines.append(f"\nTotal Items Processed: {total_items}")
+
+	# Get items with net_order_rec > 0
+	items_with_net_rec = [
+		item_code for item_code in all_item_codes if flt(net_order_recommendations.get(item_code, 0)) > 0
+	]
+
+	# First, show summary - include ALL items with net_order_rec > 0
+	lines.append("\n" + "-" * 100)
+	lines.append("SUMMARY (Items with Net Order Recommendation > 0)")
+	lines.append("-" * 100)
+
+	for item_code in sorted(items_with_net_rec):
+		net_rec = flt(net_order_recommendations.get(item_code, 0))
+		rows = item_row_map.get(item_code, [])
+		if rows:
+			first_row = rows[0]
+			buffer_flag = first_row.get("buffer_flag", "Unknown")
+			order_rec = first_row.get("order_recommendation", 0)
+			lines.append(f"  {item_code} ({buffer_flag}): Net Order Rec = {net_rec} (Base: {order_rec})")
+
+	# Then show detailed breakdown for ALL items
+	lines.append("\n" + "=" * 100)
+	lines.append("DETAILED BREAKDOWN FOR ALL ITEMS")
+	lines.append("=" * 100)
+
+	# Sort items by net_order_rec (descending), then by item_code
+	sorted_item_codes = sorted(
+		all_item_codes,
+		key=lambda x: (flt(net_order_recommendations.get(x, 0)), x),
+		reverse=True,
+	)
+
+	for item_code in sorted_item_codes:
+		rows = item_row_map.get(item_code, [])
+		if rows:
+			# Get the first row (parent item row)
+			first_row = rows[0]
+			breakdown = first_row.get("calculation_breakdown", "")
+			if breakdown and breakdown.strip():
+				lines.append(breakdown)
+			else:
+				# Create a basic breakdown if not available
+				buffer_flag = first_row.get("buffer_flag", "Unknown")
+				order_rec = first_row.get("order_recommendation", 0)
+				net_rec = flt(net_order_recommendations.get(item_code, 0))
+				moq = first_row.get("moq", 0)
+				batch_size = first_row.get("batch_size", 0)
+				lines.append(f"\n  Item: {item_code}")
+				lines.append(f"  Type: {buffer_flag}")
+				lines.append(f"  Base Order Recommendation: {order_rec}")
+				lines.append(f"  Net Order Recommendation: {net_rec}")
+				if moq > 0:
+					lines.append(f"  MOQ: {moq}")
+				if batch_size > 0:
+					lines.append(f"  Batch Size: {batch_size}")
+				lines.append("  Note: Detailed breakdown not available")
+		else:
+			# Item not in data - create a minimal breakdown
+			net_rec = flt(net_order_recommendations.get(item_code, 0))
+			lines.append(f"\n  Item: {item_code}")
+			lines.append(f"  Net Order Recommendation: {net_rec}")
+			lines.append("  Note: Item not in data")
+		lines.append("-" * 100)
+
+	lines.append("\n" + "=" * 100)
 
 	return "\n".join(lines)
 
@@ -301,10 +431,9 @@ def calculate_final_order_recommendation(
 ):
 	"""
 	Calculate final order recommendation for a single item (after BOM traversal).
-	Same as mrp_genaration.py.
-	- Buffer: TOG + Qualified Demand - Stock - WIP/Open PO - MRQ (parent demand ignored)
-	  - For BOTA/PTA: TOG + Qualified Demand - Stock - WIP - Open PO - MRQ
-	  - For others: TOG + Qualified Demand - Stock - WIP - MRQ
+	- Buffer: TOG + (Qualified Demand + Parent Demand) - Stock - WIP/Open PO - MRQ
+	  - For BOTA/PTA: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
+	  - For others: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - MRQ
 	- Non-buffer: max(0, (Open SO + Parent Demand) - Stock - WIP - MRQ)
 	  - For PTO/BOTO: max(0, (Open SO + Parent Demand) - Stock - WIP - Open PO - MRQ)
 	"""
@@ -316,18 +445,21 @@ def calculate_final_order_recommendation(
 	mrq = flt(mrq_map.get(item_code, 0))
 
 	if is_buffer:
-		# Buffer item: Order recommendation = TOG + Qualified Demand - Stock - WIP/Open PO - MRQ (parent demand ignored)
+		# Buffer item: Order recommendation = TOG + (Qualified Demand + Parent Demand) - Stock - WIP/Open PO - MRQ
 		tog = flt(item_tog_map.get(item_code, 0))
 		qualified_demand = flt(qualified_demand_map.get(item_code, 0))
+		parent_demand = flt(parent_demand_map.get(item_code, 0))
+		# Add parent demand to qualified demand for buffer items
+		total_demand = qualified_demand + parent_demand
 		sku_type = item_sku_type_map.get(item_code)
 		open_po = flt(open_po_map.get(item_code, 0))
 
 		if sku_type in ["BOTA", "PTA"]:
-			# For BOTA/PTA: TOG + Qualified Demand - Stock - WIP - Open PO - MRQ
-			base_order_rec = tog + qualified_demand - stock - wip - open_po
+			# For BOTA/PTA: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
+			base_order_rec = tog + total_demand - stock - wip - open_po
 		else:
-			# For other buffer items: TOG + Qualified Demand - Stock - WIP - MRQ
-			base_order_rec = tog + qualified_demand - stock - wip
+			# For other buffer items: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - MRQ
+			base_order_rec = tog + total_demand - stock - wip
 
 		# Subtract MRQ from base order recommendation
 		order_rec = max(0, base_order_rec - mrq)
@@ -790,8 +922,11 @@ def get_data(filters=None):
 	# Get sales order qty map (all-time data) - for ALL items
 	so_qty_map = get_sales_order_qty_map(filters)
 
-	# Get qualified demand map (Open SO with delivery_date <= today)
-	qualified_demand_map = get_qualified_demand_map(filters)
+	# Get qualified demand maps: till_today and spike
+	# till_today: Open SO with delivery_date <= today
+	# spike: Additional demand (currently 0, will be implemented later)
+	# For non-buffer items, spike is always 0
+	till_today_map, spike_map = get_qualified_demand_map(filters)
 
 	# Get items from database based on buffer_flag filter
 	if buffer_flag:
@@ -918,16 +1053,56 @@ def get_data(filters=None):
 		item_buffer_map_all = {}
 		item_sku_type_map_all = {}
 		item_tog_map_all = {}
+		item_type_map_all = {}
 		for item in items_details_all:
 			item_buffer_map_all[item.item_code] = item.buffer_flag or "Non-Buffer"
 			item_sku_type_map_all[item.item_code] = calculate_sku_type(
 				item.buffer_flag or "Non-Buffer", item.item_type
 			)
 			item_tog_map_all[item.item_code] = flt(item.tog or 0)
+			item_type_map_all[item.item_code] = item.item_type
 	else:
 		item_buffer_map_all = {}
 		item_sku_type_map_all = {}
 		item_tog_map_all = {}
+		item_type_map_all = {}
+
+	# Get Spike Master configuration for final qualified_demand check
+	spike_master_records = frappe.get_all(
+		"Spike Master", fields=["item_type", "demand_horizon", "spike_threshold"]
+	)
+	spike_master_map = {}
+	for sm in spike_master_records:
+		spike_master_map[sm.item_type] = {
+			"demand_horizon": flt(sm.demand_horizon),
+			"spike_threshold": flt(sm.spike_threshold),
+		}
+
+	# Calculate spike_map for buffer items based on Spike Master
+	# This will update spike_map with calculated values for buffer items
+	calculated_spike_map = calculate_spike_map(
+		all_item_codes, item_buffer_map_all, item_type_map_all, item_tog_map_all
+	)
+	# Update spike_map with calculated values
+	spike_map.update(calculated_spike_map)
+
+	# Create combined qualified_demand_map from till_today_map and spike_map
+	# For non-buffer items, spike is always 0
+	# For buffer items, spike can have value (calculated from Spike Master)
+	# Final check: if qualified_demand < spike_threshold_qty, set to 0
+	all_item_codes_for_demand = set(all_item_codes) | set(till_today_map.keys()) | set(spike_map.keys())
+	qualified_demand_map = {}
+	for item_code in all_item_codes_for_demand:
+		qualified_demand, _, _ = get_qualified_demand_for_item(
+			item_code,
+			till_today_map,
+			spike_map,
+			item_buffer_map_all,
+			item_tog_map_all,
+			item_type_map_all,
+			spike_master_map,
+		)
+		qualified_demand_map[item_code] = qualified_demand
 
 	# Step 1: Calculate initial order recommendations for all items
 	initial_order_recommendations = {}
@@ -1062,6 +1237,7 @@ def get_data(filters=None):
 				batch_size_map_all,
 				item_buffer_map_all,
 				item_sku_type_map_all,
+				item_tog_map_all,  # Add item_tog_map for buffer item calculations
 				lambda item_code: None,  # Helper function - maps already populated above
 				level=0,
 			)
@@ -1196,18 +1372,29 @@ def get_data(filters=None):
 		tog = flt(item_info.get("tog", 0))
 		toy = flt(item_info.get("toy", 0))
 		tor = flt(item_info.get("tor", 0))
-		# Get Qualified Demand (Open SO with delivery_date <= today)
-		qualify_demand = flt(qualified_demand_map.get(item_code, 0))
+		# Get Qualified Demand (Till Today + Spike)
+		# For non-buffer items, spike is always 0
+		# Final check: if qualified_demand < spike_threshold_qty, set to 0
+		qualify_demand, till_today, spike = get_qualified_demand_for_item(
+			item_code,
+			till_today_map,
+			spike_map,
+			item_buffer_map_all,
+			item_tog_map_all,
+			item_type_map_all,
+			spike_master_map,
+		)
+		qualify_demand = flt(qualify_demand)
 
 		# Check if item is buffer or non-buffer
 		is_item_buffer = item_buffer_flag == "Buffer"
-		
+
 		# Calculate On Hand Status = on_hand_stock / (TOG + qualify_demand) (rounded up)
 		# Only calculate for buffer items; set to None for non-buffer items
 		on_hand_status_value = None
 		on_hand_status = None
 		on_hand_colour = None
-		
+
 		if is_item_buffer:
 			denominator = flt(tog) + flt(qualify_demand)
 			if denominator > 0:
@@ -1276,8 +1463,12 @@ def get_data(filters=None):
 		# - net_po_recommendation = final_order_rec (same, before MOQ/Batch Size)
 		# - or_with_moq_batch_size = net_order_rec (after MOQ/Batch Size)
 		order_recommendation = math.ceil(flt(final_order_rec))
-		net_po_recommendation = math.ceil(flt(final_order_rec))  # Base order recommendation (before MOQ/Batch Size)
-		or_with_moq_batch_size = math.ceil(flt(net_order_rec))  # Net order recommendation (after MOQ/Batch Size)
+		net_po_recommendation = math.ceil(
+			flt(final_order_rec)
+		)  # Base order recommendation (before MOQ/Batch Size)
+		or_with_moq_batch_size = math.ceil(
+			flt(net_order_rec)
+		)  # Net order recommendation (after MOQ/Batch Size)
 
 		# Combine WIP and Open PO for display
 		wip_open_po = math.ceil(flt(wip) + flt(open_po))
@@ -1287,13 +1478,14 @@ def get_data(filters=None):
 
 		# Calculate final order recommendation for breakdown
 		# For non-buffer items, use qualified_demand (Open SO with delivery_date <= today) instead of all-time open_so
-		# This matches the buffer items' logic where Open SO = Qualified Demand
+		# For buffer items, include parent demand: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
 		if is_item_buffer:
-			# Buffer: TOG + Qualified Demand - Stock - WIP - Open PO - MRQ
+			# Buffer: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
+			total_demand = qualify_demand + parent_demand
 			if sku_type in ["BOTA", "PTA"]:
-				base_order_rec = tog + qualify_demand - on_hand_stock - wip - open_po
+				base_order_rec = tog + total_demand - on_hand_stock - wip - open_po
 			else:
-				base_order_rec = tog + qualify_demand - on_hand_stock - wip
+				base_order_rec = tog + total_demand - on_hand_stock - wip
 			final_order_rec = max(0, base_order_rec - mrq)
 		else:
 			# Non-buffer: (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
@@ -1330,10 +1522,14 @@ def get_data(filters=None):
 			final_order_rec,
 			net_order_rec_breakdown,
 			parent_demand_details_list,
+			till_today=till_today,  # Pass till_today for breakdown
+			spike=spike,  # Pass spike for breakdown
 		)
 
 		if is_item_buffer:
 			# Buffer items: use standard column names
+			# For buffer items, Qualified Demand column shows: Qualified Demand + Parent Demand
+			total_demand_for_display = qualify_demand + parent_demand
 			base_row = {
 				"item_code": item_code,
 				"item_name": item_name,
@@ -1345,7 +1541,9 @@ def get_data(filters=None):
 				"open_so": math.ceil(flt(open_so)),
 				"on_hand_stock": math.ceil(flt(on_hand_stock)),
 				"wip_open_po": math.ceil(flt(wip_open_po)),
-				"qualify_demand": math.ceil(flt(qualify_demand)),
+				"qualify_demand": math.ceil(
+					flt(total_demand_for_display)
+				),  # Show total demand (qualified + parent)
 			}
 		else:
 			# Non-buffer items: use same column names
@@ -1358,12 +1556,16 @@ def get_data(filters=None):
 				"item_code": item_code,
 				"item_name": item_name,
 				"sku_type": sku_type,
-				"requirement": math.ceil(flt(parent_demand)),  # Parent demand only (Open SO is in separate column)
+				"requirement": math.ceil(
+					flt(parent_demand)
+				),  # Parent demand only (Open SO is in separate column)
 				"tog": None,
 				"toy": None,
 				"tor": None,
 				"open_so": math.ceil(flt(open_so)),  # All-time Open SO
-				"total_so": math.ceil(flt(open_so)),  # Total SO = All-time Open SO (same as buffer items' open_so)
+				"total_so": math.ceil(
+					flt(open_so)
+				),  # Total SO = All-time Open SO (same as buffer items' open_so)
 				"on_hand_stock": math.ceil(flt(on_hand_stock)),
 				"wip_open_po": math.ceil(flt(wip_open_po)),
 				"qualify_demand": math.ceil(flt(qualify_demand)),  # Qualified Demand
@@ -1651,7 +1853,7 @@ def get_data(filters=None):
 			# - If child_wip_open_po_shortage > 0 AND child_wip_open_po_soft_allocation_qty = 0 → "Pending"
 			# - If child_wip_open_po_shortage > 0 AND child_wip_open_po_soft_allocation_qty > 0 → "Partial"
 			net_order_recommendation = flt(row.get("or_with_moq_batch_size", 0))
-			
+
 			if flt(net_order_recommendation) == 0:
 				row["child_wip_open_po_full_kit_status"] = None
 			elif flt(wip_open_po_shortage) == 0:
@@ -1695,6 +1897,15 @@ def get_data(filters=None):
 			remaining_child_stock_fifo[child_item_code] = available_stock - stock_allocated
 			# Update remaining WIP/Open PO for this child item (FIFO - reduce by allocated amount)
 			remaining_child_wip_open_po_fifo[child_item_code] = available_wip_open_po - wip_open_po_allocated
+
+	# Generate and log detailed breakdown to console (like MRP generation)
+	detailed_log = generate_detailed_log_po_report(filtered_data, net_order_recommendations)
+
+	# Log to console (will be visible in server logs)
+	frappe.log_error(detailed_log, "PO Recommendation for PSP - Detailed Breakdown")
+
+	# Also print to console for immediate visibility
+	print(detailed_log)
 
 	return filtered_data
 
@@ -2185,13 +2396,21 @@ def get_sales_order_qty_map(filters):
 
 def get_qualified_demand_map(filters):
 	"""Get qualified demand map for ALL items
-	Qualified Demand = Open SO quantity where delivery_date <= today
+	Returns two maps: till_today_map and spike_map
+	- till_today: Open SO quantity where delivery_date <= today
+	- spike: Additional demand (currently 0, will be implemented later)
+
+	For non-buffer items, spike is always 0.
+	For buffer items, spike will have logic added later.
+
+	Qualified Demand = till_today + spike
 	Open SO = qty - delivered_qty (quantity left to deliver)
 	"""
 	from frappe.utils import today
 
 	today_date = today()
 
+	# Get till_today: Open SO with delivery_date <= today
 	so_rows = frappe.db.sql(
 		"""
 		SELECT
@@ -2212,7 +2431,286 @@ def get_qualified_demand_map(filters):
 		as_dict=True,
 	)
 
-	return {d.item_code: flt(d.so_qty) for d in so_rows}
+	till_today_map = {d.item_code: flt(d.so_qty) for d in so_rows}
+
+	# Initialize spike_map - currently 0 for all items
+	# For non-buffer items, spike will always be 0
+	# For buffer items, spike logic will be added later
+	spike_map = {}
+
+	# Get all items that have till_today demand to initialize spike_map
+	for item_code in till_today_map.keys():
+		spike_map[item_code] = 0.0
+
+	return till_today_map, spike_map
+
+
+def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map):
+	"""Calculate spike map for buffer items based on Spike Master configuration
+
+	Logic:
+	1. For each buffer item, get its custom_item_type
+	2. Look up Spike Master for that item_type to get demand_horizon and spike_threshold
+	3. Calculate date range: tomorrow to (today + demand_horizon days)
+	4. Get sales orders in that date range
+	5. For each SO, check if qty > (TOG * spike_threshold / 100)
+	6. Take MAX of all qualifying sales orders
+	7. If no SO qualifies, spike = 0
+
+	For non-buffer items, spike is always 0.
+	"""
+	from frappe.utils import today, add_days
+
+	today_date = today()
+	spike_map = {}
+
+	# Get all Spike Master records
+	spike_master_records = frappe.get_all(
+		"Spike Master", fields=["item_type", "demand_horizon", "spike_threshold"]
+	)
+
+	# Create a map of item_type -> spike master config
+	spike_master_map = {}
+	for sm in spike_master_records:
+		spike_master_map[sm.item_type] = {
+			"demand_horizon": flt(sm.demand_horizon),
+			"spike_threshold": flt(sm.spike_threshold),
+		}
+
+	# IMPORTANT: Spike logic ONLY applies to buffer items
+	# Get all buffer items only
+	buffer_items = [
+		item_code for item_code in item_codes if item_buffer_map.get(item_code, "Non-Buffer") == "Buffer"
+	]
+
+	if not buffer_items:
+		# No buffer items, return empty spike_map (all items will get spike = 0)
+		return spike_map
+
+	# Get item details for buffer items (item_type and TOG)
+	buffer_items_with_details = []
+	for item_code in buffer_items:
+		item_type = item_type_map.get(item_code)
+		tog = flt(item_tog_map.get(item_code, 0))
+		if item_type and tog > 0:
+			buffer_items_with_details.append(
+				{
+					"item_code": item_code,
+					"item_type": item_type,
+					"tog": tog,
+				}
+			)
+
+	# Group items by item_type for efficient querying
+	items_by_type = {}
+	for item_info in buffer_items_with_details:
+		item_type = item_info["item_type"]
+		if item_type not in items_by_type:
+			items_by_type[item_type] = []
+		items_by_type[item_type].append(item_info)
+
+	# Calculate spike for each item_type group
+	for item_type, items_list in items_by_type.items():
+		# Get spike master config for this item_type
+		spike_config = spike_master_map.get(item_type)
+		if not spike_config:
+			# No spike master config for this item_type, set spike = 0 for all items
+			for item_info in items_list:
+				spike_map[item_info["item_code"]] = 0.0
+			continue
+
+		demand_horizon = spike_config["demand_horizon"]
+		spike_threshold_pct = spike_config["spike_threshold"]
+
+		# Calculate date range:
+		# - If demand_horizon > 0: tomorrow to (today + demand_horizon)
+		# - If demand_horizon is 0 or empty: ALL future SOs (delivery_date > today)
+		start_date = add_days(today_date, 1)  # Tomorrow
+		if demand_horizon and demand_horizon > 0:
+			end_date = add_days(today_date, demand_horizon)  # Today + demand_horizon
+		else:
+			end_date = None  # No upper limit (all future SOs)
+
+		# Get item codes for this item_type
+		item_codes_for_type = [item["item_code"] for item in items_list]
+
+		if not item_codes_for_type:
+			continue
+
+		# Build SQL query for items in this type
+		if len(item_codes_for_type) == 1:
+			item_codes_tuple = (item_codes_for_type[0],)
+		else:
+			item_codes_tuple = tuple(item_codes_for_type)
+
+		# Get sales orders in spike date range for these items
+		# If demand_horizon > 0 → tomorrow (start_date) to (today + demand_horizon) (end_date)
+		# If demand_horizon is 0/empty → ALL future SOs (delivery_date > today)
+		if end_date:
+			# Bounded future window
+			so_rows = frappe.db.sql(
+				"""
+				SELECT
+					soi.item_code,
+					soi.qty - IFNULL(soi.delivered_qty, 0) as so_qty,
+					IFNULL(soi.delivery_date, '1900-01-01') as delivery_date,
+					so.name as sales_order_name
+				FROM
+					`tabSales Order` so
+				INNER JOIN
+					`tabSales Order Item` soi ON soi.parent = so.name
+				WHERE
+					so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
+					AND so.docstatus = 1
+					AND soi.item_code IN %s
+					AND IFNULL(soi.delivery_date, '1900-01-01') >= %s
+					AND IFNULL(soi.delivery_date, '1900-01-01') <= %s
+				""",
+				(item_codes_tuple, start_date, end_date),
+				as_dict=True,
+			)
+		else:
+			# All future SOs (no upper bound)
+			so_rows = frappe.db.sql(
+				"""
+				SELECT
+					soi.item_code,
+					soi.qty - IFNULL(soi.delivered_qty, 0) as so_qty,
+					IFNULL(soi.delivery_date, '1900-01-01') as delivery_date,
+					so.name as sales_order_name
+				FROM
+					`tabSales Order` so
+				INNER JOIN
+					`tabSales Order Item` soi ON soi.parent = so.name
+				WHERE
+					so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
+					AND so.docstatus = 1
+					AND soi.item_code IN %s
+					AND IFNULL(soi.delivery_date, '1900-01-01') > %s
+				""",
+				(item_codes_tuple, today_date),
+				as_dict=True,
+			)
+
+		# Group sales orders by item_code (store both qty and delivery_date for debugging)
+		so_by_item = {}
+		for row in so_rows:
+			item_code = row.item_code
+			so_qty = flt(row.so_qty)
+			if so_qty > 0:  # Only consider positive quantities
+				if item_code not in so_by_item:
+					so_by_item[item_code] = []
+				so_by_item[item_code].append(
+					{
+						"qty": so_qty,
+						"delivery_date": row.delivery_date,
+						"sales_order": row.sales_order_name,
+					}
+				)
+
+		# Calculate spike for each item
+		for item_info in items_list:
+			item_code = item_info["item_code"]
+			tog = item_info["tog"]
+			spike_threshold_qty = tog * spike_threshold_pct / 100
+
+			# Get sales orders for this item
+			so_data_list = so_by_item.get(item_code, [])
+
+			if not so_data_list:
+				# No sales orders in spike range, spike = 0
+				spike_map[item_code] = 0.0
+				print(
+					f"[SPIKE DEBUG] Item: {item_code} | No SOs found in date range ({start_date} to {end_date})"
+				)
+				continue
+
+			# Debug: Print all SOs found
+			print(
+				f"[SPIKE DEBUG] Item: {item_code} | TOG: {tog} | Spike Threshold: {spike_threshold_pct}% | Threshold Qty: {spike_threshold_qty} | Found {len(so_data_list)} SOs in range:"
+			)
+			for so_data in so_data_list:
+				print(
+					f"  - SO: {so_data['sales_order']} | Delivery Date: {so_data['delivery_date']} | Qty: {so_data['qty']}"
+				)
+
+			# Extract quantities and find all sales orders with qty >= spike_threshold_qty
+			so_qtys = [so_data["qty"] for so_data in so_data_list]
+			qualifying_qtys = [qty for qty in so_qtys if qty >= spike_threshold_qty]
+
+			if not qualifying_qtys:
+				# No qualifying sales orders, spike = 0
+				spike_map[item_code] = 0.0
+				print(
+					f"[SPIKE DEBUG] Item: {item_code} | No SOs qualify (all qtys <= {spike_threshold_qty}) | Spike = 0"
+				)
+			else:
+				# Take SUM of qualifying sales orders (all spikes within horizon)
+				spike_value = sum(qualifying_qtys)
+				spike_map[item_code] = spike_value
+				print(
+					f"[SPIKE DEBUG] Item: {item_code} | Qualifying SOs (>= {spike_threshold_qty}): {qualifying_qtys} | SUM (Spike): {spike_value}"
+				)
+
+	# IMPORTANT: Set spike = 0 for all non-buffer items
+	# Spike logic ONLY applies to buffer items
+	for item_code in item_codes:
+		if item_buffer_map.get(item_code, "Non-Buffer") != "Buffer":
+			spike_map[item_code] = 0.0
+
+	return spike_map
+
+
+def get_qualified_demand_for_item(
+	item_code,
+	till_today_map,
+	spike_map,
+	item_buffer_map,
+	item_tog_map=None,
+	item_type_map=None,
+	spike_master_map=None,
+):
+	"""Get qualified demand for a single item
+	Qualified Demand = till_today + spike
+
+	IMPORTANT: Spike logic ONLY applies to buffer items
+	- For non-buffer items: spike is always 0, no spike calculation or final check
+	- For buffer items: spike is calculated from Spike Master, and final check applies
+
+	Additional logic for buffer items only:
+	- After calculating qualified_demand = till_today + spike
+	- If qualified_demand < (TOG * spike_threshold / 100), set qualified_demand = 0
+	"""
+	till_today = flt(till_today_map.get(item_code, 0))
+
+	# IMPORTANT: Spike logic ONLY applies to buffer items
+	# For non-buffer items, spike is always 0 (no calculation needed)
+	buffer_flag = item_buffer_map.get(item_code, "Non-Buffer")
+	if buffer_flag != "Buffer":
+		spike = 0.0  # Non-buffer items always have spike = 0 (no spike logic)
+		qualified_demand = till_today + spike
+		return qualified_demand, till_today, spike
+	else:
+		# Buffer items only: calculate spike from Spike Master
+		spike = flt(spike_map.get(item_code, 0))  # Buffer items can have spike
+		qualified_demand = till_today + spike
+
+		# Additional check for buffer items ONLY: if qualified_demand < (TOG * spike_threshold / 100), set to 0
+		if item_tog_map and item_type_map and spike_master_map:
+			tog = flt(item_tog_map.get(item_code, 0))
+			item_type = item_type_map.get(item_code)
+
+			if tog > 0 and item_type:
+				spike_config = spike_master_map.get(item_type)
+				if spike_config:
+					spike_threshold_pct = flt(spike_config.get("spike_threshold", 0))
+					spike_threshold_qty = tog * spike_threshold_pct / 100
+
+					# If qualified_demand < spike_threshold_qty, set to 0
+					if qualified_demand < spike_threshold_qty:
+						qualified_demand = 0.0
+
+		return qualified_demand, till_today, spike
 
 
 def get_wip_map(filters):
@@ -2313,7 +2811,9 @@ def get_wip_map(filters):
 							as_dict=True,
 						)
 
-						total_finished_from_bbp = sum(flt(doc.fg_weight) for doc in bright_bar_production_docs)
+						total_finished_from_bbp = sum(
+							flt(doc.fg_weight) for doc in bright_bar_production_docs
+						)
 
 						# Total finished = finish_weight + fg_weight
 						total_finished = total_finished_from_fw + total_finished_from_bbp
@@ -2333,7 +2833,9 @@ def get_wip_map(filters):
 						breakdown_lines.append("Finish Weight Documents:")
 						if finished_weight_docs:
 							for fw_doc in finished_weight_docs:
-								breakdown_lines.append(f"  - {fw_doc.name}: finish_weight = {flt(fw_doc.finish_weight)}")
+								breakdown_lines.append(
+									f"  - {fw_doc.name}: finish_weight = {flt(fw_doc.finish_weight)}"
+								)
 							breakdown_lines.append(f"  Total from Finish Weight: {total_finished_from_fw}")
 						else:
 							breakdown_lines.append("  (No Finish Weight documents found)")
@@ -2342,14 +2844,22 @@ def get_wip_map(filters):
 						breakdown_lines.append("Bright Bar Production Documents:")
 						if bright_bar_production_docs:
 							for bbp_doc in bright_bar_production_docs:
-								breakdown_lines.append(f"  - {bbp_doc.name}: fg_weight = {flt(bbp_doc.fg_weight)}")
-							breakdown_lines.append(f"  Total from Bright Bar Production: {total_finished_from_bbp}")
+								breakdown_lines.append(
+									f"  - {bbp_doc.name}: fg_weight = {flt(bbp_doc.fg_weight)}"
+								)
+							breakdown_lines.append(
+								f"  Total from Bright Bar Production: {total_finished_from_bbp}"
+							)
 						else:
 							breakdown_lines.append("  (No Bright Bar Production documents found)")
 							breakdown_lines.append("  Total from Bright Bar Production: 0")
 						breakdown_lines.append("")
-						breakdown_lines.append(f"Total Finished: {total_finished_from_fw} + {total_finished_from_bbp} = {total_finished}")
-						breakdown_lines.append(f"WIP Calculation: Planned Qty - Total Finished = {planned_qty} - {total_finished} = {wip_qty}")
+						breakdown_lines.append(
+							f"Total Finished: {total_finished_from_fw} + {total_finished_from_bbp} = {total_finished}"
+						)
+						breakdown_lines.append(
+							f"WIP Calculation: Planned Qty - Total Finished = {planned_qty} - {total_finished} = {wip_qty}"
+						)
 						breakdown_lines.append("=" * 80)
 
 						# Log the breakdown
@@ -2492,16 +3002,13 @@ def traverse_bom_for_parent_demand_simple(
 			normalized_bom_qty = bom_item_qty / bom_quantity
 			child_required_qty = parent_net_order_qty * normalized_bom_qty
 
-			# Check if child is buffer or non-buffer
-			child_buffer_flag = item_buffer_map.get(child_item_code, "Non-Buffer")
-			is_child_buffer = child_buffer_flag == "Buffer"
-
-			if not is_child_buffer:
-				# Non-buffer child: Add parent demand
-				if child_item_code in parent_demand_map:
-					parent_demand_map[child_item_code] += child_required_qty
-				else:
-					parent_demand_map[child_item_code] = child_required_qty
+			# Add parent demand for both buffer and non-buffer items
+			# Buffer items: parent demand will be added to qualified demand
+			# Non-buffer items: parent demand will be added to requirement
+			if child_item_code in parent_demand_map:
+				parent_demand_map[child_item_code] += child_required_qty
+			else:
+				parent_demand_map[child_item_code] = child_required_qty
 
 			# Recursively traverse child's BOM
 			if child_item_code not in visited_items:
@@ -2534,6 +3041,7 @@ def traverse_bom_for_parent_demand(
 	batch_size_map,
 	item_buffer_map,
 	item_sku_type_map,
+	item_tog_map,
 	get_item_details_func,
 	level=0,
 ):
@@ -2607,25 +3115,32 @@ def traverse_bom_for_parent_demand(
 			child_buffer_flag = item_buffer_map.get(child_item_code, "Non-Buffer")
 			is_child_buffer = child_buffer_flag == "Buffer"
 
+			# Add parent demand for both buffer and non-buffer items
+			# Buffer items: parent demand will be added to qualified demand
+			# Non-buffer items: parent demand will be added to requirement
+			# Accumulate parent demand (same item can appear in multiple BOMs)
+			if child_item_code in parent_demand_map:
+				parent_demand_map[child_item_code] += child_required_qty
+			else:
+				parent_demand_map[child_item_code] = child_required_qty
+
+			# Record parent demand details for logging
+			if child_item_code not in parent_demand_details:
+				parent_demand_details[child_item_code] = []
+
 			if is_child_buffer:
-				# Buffer child: Don't add parent demand (they use TOG + Qualified Demand calculation)
-				# But record it for logging
-				if child_item_code not in parent_demand_details:
-					parent_demand_details[child_item_code] = []
+				# Buffer child: parent demand added to qualified demand
 				parent_demand_details[child_item_code].append(
 					{
 						"parent_item": parent_item_code,
 						"bom_name": bom_doc.name,
 						"demand_qty": child_required_qty,
-						"applied": False,
-						"reason": f"Buffer item - parent demand ignored (from net_order_rec: {parent_net_order_qty})",
+						"applied": True,
+						"reason": f"Buffer item - parent demand added to qualified demand (from net_order_rec: {parent_net_order_qty})",
 					}
 				)
 			else:
-				# Non-buffer child: Add parent demand to requirement
-				# Record parent demand
-				if child_item_code not in parent_demand_details:
-					parent_demand_details[child_item_code] = []
+				# Non-buffer child: parent demand added to requirement
 				parent_demand_details[child_item_code].append(
 					{
 						"parent_item": parent_item_code,
@@ -2636,62 +3151,70 @@ def traverse_bom_for_parent_demand(
 					}
 				)
 
-				# Accumulate parent demand (same item can appear in multiple BOMs)
-				if child_item_code in parent_demand_map:
-					parent_demand_map[child_item_code] += child_required_qty
-				else:
-					parent_demand_map[child_item_code] = child_required_qty
+			# Calculate order recommendation for child item (with parent demand)
+			# For buffer items: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
+			# For non-buffer items: (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
+			# Note: open_so_map parameter is actually qualified_demand_map when called from Step 5
+			child_qualified_demand = flt(open_so_map.get(child_item_code, 0))  # This is qualified_demand_map
+			child_parent_demand = flt(parent_demand_map.get(child_item_code, 0))
+			child_stock = flt(stock_map.get(child_item_code, 0))
+			child_wip = flt(wip_map.get(child_item_code, 0))
+			child_sku_type = item_sku_type_map.get(child_item_code)
+			child_open_po = flt(open_po_map.get(child_item_code, 0))
+			child_mrq = flt(mrq_map.get(child_item_code, 0))
 
-				# Calculate order recommendation for child item (with parent demand)
-				# For non-buffer items, use qualified_demand (Open SO with delivery_date <= today) instead of all-time open_so
-				# Note: open_so_map parameter is actually qualified_demand_map when called from Step 5
-				child_qualified_demand = flt(
-					open_so_map.get(child_item_code, 0)
-				)  # This is qualified_demand_map
-				child_parent_demand = flt(parent_demand_map.get(child_item_code, 0))
+			if is_child_buffer:
+				# Buffer child: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
+				child_tog = flt(item_tog_map.get(child_item_code, 0))
+				child_total_demand = child_qualified_demand + child_parent_demand
+
+				if child_sku_type in ["BOTA", "PTA"]:
+					base_child_order_rec = (
+						child_tog + child_total_demand - child_stock - child_wip - child_open_po
+					)
+				else:
+					base_child_order_rec = child_tog + child_total_demand - child_stock - child_wip
+			else:
+				# Non-buffer child: (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
 				child_requirement = child_qualified_demand + child_parent_demand
-				child_stock = flt(stock_map.get(child_item_code, 0))
-				child_wip = flt(wip_map.get(child_item_code, 0))
-				child_sku_type = item_sku_type_map.get(child_item_code)
-				child_open_po = flt(open_po_map.get(child_item_code, 0))
-				child_mrq = flt(mrq_map.get(child_item_code, 0))
 
 				if child_sku_type in ["PTO", "BOTO"]:
 					base_child_order_rec = child_requirement - child_stock - child_wip - child_open_po
 				else:
 					base_child_order_rec = child_requirement - child_stock - child_wip
 
-				# Subtract MRQ from base order recommendation
-				child_base_order_rec = max(0, base_child_order_rec - child_mrq)
+			# Subtract MRQ from base order recommendation
+			child_base_order_rec = max(0, base_child_order_rec - child_mrq)
 
-				# Apply MOQ/Batch Size to get net_order_recommendation
-				child_moq = flt(moq_map.get(child_item_code, 0))
-				child_batch_size = flt(batch_size_map.get(child_item_code, 0))
-				child_net_order_rec = calculate_net_order_recommendation(
-					child_base_order_rec, child_moq, child_batch_size
+			# Apply MOQ/Batch Size to get net_order_recommendation
+			child_moq = flt(moq_map.get(child_item_code, 0))
+			child_batch_size = flt(batch_size_map.get(child_item_code, 0))
+			child_net_order_rec = calculate_net_order_recommendation(
+				child_base_order_rec, child_moq, child_batch_size
+			)
+
+			# If child has net_order_recommendation > 0, traverse its BOM recursively
+			if child_net_order_rec > 0 and child_item_code not in visited_items:
+				traverse_bom_for_parent_demand(
+					child_item_code,
+					child_net_order_rec,
+					parent_demand_map,
+					parent_demand_details,
+					visited_items.copy(),
+					item_groups_cache,
+					open_so_map,
+					stock_map,
+					wip_map,
+					open_po_map,
+					mrq_map,
+					moq_map,
+					batch_size_map,
+					item_buffer_map,
+					item_sku_type_map,
+					item_tog_map,
+					get_item_details_func,
+					level + 1,
 				)
-
-				# If child has net_order_recommendation > 0, traverse its BOM recursively
-				if child_net_order_rec > 0 and child_item_code not in visited_items:
-					traverse_bom_for_parent_demand(
-						child_item_code,
-						child_net_order_rec,
-						parent_demand_map,
-						parent_demand_details,
-						visited_items.copy(),
-						item_groups_cache,
-						open_so_map,
-						stock_map,
-						wip_map,
-						open_po_map,
-						mrq_map,
-						moq_map,
-						batch_size_map,
-						item_buffer_map,
-						item_sku_type_map,
-						get_item_details_func,
-						level + 1,
-					)
 
 	except Exception as e:
 		frappe.log_error(
