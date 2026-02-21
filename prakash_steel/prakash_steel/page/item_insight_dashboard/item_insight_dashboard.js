@@ -159,14 +159,21 @@ function initializeDashboard(state) {
 	// Create filter bar
 	createFilterBar(state);
 
+	// Set default date range: last 7 days → today
+	// (set BEFORE binding event handlers to avoid premature triggers)
+	const today = frappe.datetime.get_today();
+	const sevenDaysAgo = frappe.datetime.add_days(today, -7);
+	state.controls.from_date.set_value(sevenDaysAgo);
+	state.controls.to_date.set_value(today);
+
 	// Create table container
 	createTableContainer(state);
 
-	// Bind event handlers
+	// Bind event handlers (date change → auto-refresh)
 	bindEventHandlers(state);
 
-	// Load ALL data on initial load (no spinner, no filters)
-	loadInitialData(state);
+	// Fetch data immediately with the default date range
+	fetchData(state);
 }
 
 function createFilterBar(state) {
@@ -254,10 +261,8 @@ function createFilterControls(
 		render_input: true,
 	});
 
-	// Setup custom autocomplete for Item Code field
-	setTimeout(() => {
-		setupItemCodeAutocomplete(state.controls.item_code);
-	}, 300);
+	// Setup custom autocomplete for Item Code field (synchronous — control is already rendered)
+	setupItemCodeAutocomplete(state.controls.item_code);
 
 	// Item Grade filter (Link to Item Grade)
 	state.controls.item_grade = frappe.ui.form.make_control({
@@ -349,68 +354,66 @@ function createFilterControls(
 	state.controls.exportExcelBtn = $exportGroup.find('.export-excel-option');
 	state.controls.exportPdfBtn = $exportGroup.find('.export-pdf-option');
 
-	// Apply black outline borders to filter fields
-	setTimeout(() => {
-		$(state.controls.from_date.$input).css({
+	// Apply black outline borders to filter fields (synchronous — inputs exist)
+	$(state.controls.from_date.$input).css({
+		'border': '1px solid #000000',
+		'border-radius': '4px',
+		'padding': '8px 12px',
+		'height': '36px',
+		'line-height': '1.4'
+	});
+	$(state.controls.to_date.$input).css({
+		'border': '1px solid #000000',
+		'border-radius': '4px',
+		'padding': '8px 12px',
+		'height': '36px',
+		'line-height': '1.4'
+	});
+	$(state.controls.item_code.$input).css({
+		'border': '1px solid #000000',
+		'border-radius': '4px',
+		'padding': '8px 12px',
+		'height': '36px',
+		'line-height': '1.4'
+	});
+
+	// Description Code (Select)
+	if (state.controls.description_code && state.controls.description_code.$input) {
+		$(state.controls.description_code.$input).css({
 			'border': '1px solid #000000',
 			'border-radius': '4px',
 			'padding': '8px 12px',
 			'height': '36px',
 			'line-height': '1.4'
 		});
-		$(state.controls.to_date.$input).css({
-			'border': '1px solid #000000',
-			'border-radius': '4px',
-			'padding': '8px 12px',
-			'height': '36px',
-			'line-height': '1.4'
-		});
-		$(state.controls.item_code.$input).css({
-			'border': '1px solid #000000',
-			'border-radius': '4px',
-			'padding': '8px 12px',
-			'height': '36px',
-			'line-height': '1.4'
-		});
+	}
 
-		// Description Code (Select) - style input similar to other fields
-		if (state.controls.description_code && state.controls.description_code.$input) {
-			$(state.controls.description_code.$input).css({
-				'border': '1px solid #000000',
-				'border-radius': '4px',
-				'padding': '8px 12px',
-				'height': '36px',
-				'line-height': '1.4'
-			});
-		}
+	// For Link fields, style the wrapper instead of the inner input
+	const $gradeWrapper = $(state.controls.item_grade.$input).closest('.control-input');
+	$gradeWrapper.css({
+		'border': '1px solid #000000',
+		'border-radius': '4px',
+		'padding': '0'
+	});
+	$(state.controls.item_grade.$input).css({
+		'border': 'none',
+		'box-shadow': 'none',
+		'height': '36px',
+		'line-height': '1.4'
+	});
 
-		// For Link fields, style the wrapper instead of the inner input
-		const $gradeWrapper = $(state.controls.item_grade.$input).closest('.control-input');
-		$gradeWrapper.css({
-			'border': '1px solid #000000',
-			'border-radius': '4px',
-			'padding': '0'
-		});
-		$(state.controls.item_grade.$input).css({
-			'border': 'none',
-			'box-shadow': 'none',
-			'height': '36px',
-			'line-height': '1.4'
-		});
-
-		const $categoryWrapper = $(state.controls.category_name.$input).closest('.control-input');
-		$categoryWrapper.css({
-			'border': '1px solid #000000',
-			'border-radius': '4px',
-			'padding': '0'
-		});
-		$(state.controls.category_name.$input).css({
-			'border': 'none',
-			'box-shadow': 'none',
-			'height': '36px',
-			'line-height': '1.4'
-		});
-	}, 100);
+	const $categoryWrapper = $(state.controls.category_name.$input).closest('.control-input');
+	$categoryWrapper.css({
+		'border': '1px solid #000000',
+		'border-radius': '4px',
+		'padding': '0'
+	});
+	$(state.controls.category_name.$input).css({
+		'border': 'none',
+		'box-shadow': 'none',
+		'height': '36px',
+		'line-height': '1.4'
+	});
 }
 
 function setupItemCodeAutocomplete(control) {
@@ -692,21 +695,33 @@ function createTableContainer(state) {
 	state.$tableContainer = $tableContainer;
 }
 
-function loadInitialData(state) {
-	// Load ALL data on initial load - NO loading UI, NO filters
-	// Data will appear directly when API returns
+function fetchData(state) {
+	// Single unified data-fetch function used for both initial load and filter changes.
+	// Uses a monotonic request counter so stale (slow) responses never overwrite fresh ones.
+	state._requestId = (state._requestId || 0) + 1;
+	const thisRequest = state._requestId;
+
+	const filters = getFilters(state);
+
 	frappe.call({
 		method: 'prakash_steel.api.get_item_insight_data.get_item_insight_data',
 		args: {
-			from_date: null,
-			to_date: null,
-			item_code: null,
-			item_grade: null,
-			category_name: null,
-			description_code: null,
+			from_date: filters.from_date || null,
+			to_date: filters.to_date || null,
+			item_code: filters.item_code || null,
+			item_grade: filters.item_grade || null,
+			category_name: filters.category_name || null,
+			description_code: filters.description_code || null,
 		},
+		freeze: false,
 		async: true,
 		callback: function(r) {
+			// Ignore if a newer request has already been fired
+			if (thisRequest !== state._requestId) return;
+
+			// Clear old content before rendering
+			state.$tableContainer.empty();
+
 			if (r && r.message && r.message.length > 0) {
 				renderTable(state, r.message);
 			} else {
@@ -714,63 +729,58 @@ function loadInitialData(state) {
 			}
 		},
 		error: function(error) {
-			console.error('Initial load error:', error);
+			if (thisRequest !== state._requestId) return;
+			console.error('Data fetch error:', error);
 			showError(state, __('Failed to load data'));
 		}
 	});
 }
 
 function bindEventHandlers(state) {
-	// Debounce to prevent multiple rapid calls
-	let refreshTimeout;
-	function debouncedRefresh() {
-		clearTimeout(refreshTimeout);
-		refreshTimeout = setTimeout(() => {
-			refreshDashboard(state);
-		}, 300);
+	// Immediate refresh — no debounce. Race conditions are handled by
+	// the request-counter inside fetchData().
+	function immediateRefresh() {
+		fetchData(state);
 	}
-	
-	// Filter change events - Date fields
-	// Trigger on any change (including clear)
-	$(state.controls.from_date.$input).on('change', debouncedRefresh);
-	$(state.controls.to_date.$input).on('change', debouncedRefresh);
-	
-	// Item Code field - trigger on change
-	$(state.controls.item_code.$input).on('change', debouncedRefresh);
 
-	// Item Grade and Category Name fields - trigger on change
+	// Filter change events - Date fields
+	$(state.controls.from_date.$input).on('change', immediateRefresh);
+	$(state.controls.to_date.$input).on('change', immediateRefresh);
+
+	// Item Code field
+	$(state.controls.item_code.$input).on('change', immediateRefresh);
+
+	// Item Grade
 	if (state.controls.item_grade && state.controls.item_grade.$input) {
 		const $gradeInput = $(state.controls.item_grade.$input);
-		// When user types or clears value
 		$gradeInput.on('change', function () {
-			// Clear category filter when grade changes so that dependent suggestions stay valid
 			if (state.controls.category_name) {
 				state.controls.category_name.set_value('');
 			}
-			debouncedRefresh();
+			immediateRefresh();
 		});
-		// When user selects from the Link suggestion dropdown
 		$gradeInput.on('awesomplete-selectcomplete', function () {
 			if (state.controls.category_name) {
 				state.controls.category_name.set_value('');
 			}
-			debouncedRefresh();
+			immediateRefresh();
 		});
 	}
+
+	// Category Name
 	if (state.controls.category_name && state.controls.category_name.$input) {
 		const $categoryInput = $(state.controls.category_name.$input);
-		$categoryInput.on('change', debouncedRefresh);
-		$categoryInput.on('awesomplete-selectcomplete', debouncedRefresh);
+		$categoryInput.on('change', immediateRefresh);
+		$categoryInput.on('awesomplete-selectcomplete', immediateRefresh);
 	}
 
-	// Description Code field - trigger on change
+	// Description Code
 	if (state.controls.description_code && state.controls.description_code.$input) {
-		const $descCodeInput = $(state.controls.description_code.$input);
-		$descCodeInput.on('change', debouncedRefresh);
+		$(state.controls.description_code.$input).on('change', immediateRefresh);
 	}
 
-	// Button events - direct refresh
-	state.controls.refreshBtn.on('click', () => refreshDashboard(state));
+	// Refresh button
+	state.controls.refreshBtn.on('click', immediateRefresh);
 
 	// Export buttons
 	if (state.controls.exportExcelBtn) {
@@ -817,81 +827,6 @@ function exportTable(state, format) {
 	});
 }
 
-function refreshDashboard(state, showSpinner = true) {
-	// Called when filters change - fetches filtered data
-	const filters = getFilters(state);
-
-	// Check if any filter is set
-	const hasDateFilter = filters.from_date && filters.to_date;
-	const hasItemFilter = filters.item_code;
-	const hasGradeFilter = filters.item_grade;
-	const hasCategoryFilter = filters.category_name;
-	const hasDescriptionCodeFilter = filters.description_code;
-	
-	// If no filters are set, load all data (revert to initial state)
-	if (
-		!hasDateFilter &&
-		!hasItemFilter &&
-		!hasGradeFilter &&
-		!hasCategoryFilter &&
-		!hasDescriptionCodeFilter
-	) {
-		// Don't show spinner when clearing filters - just reload all data
-		frappe.call({
-			method: 'prakash_steel.api.get_item_insight_data.get_item_insight_data',
-			args: {
-				from_date: null,
-				to_date: null,
-				item_code: null,
-				item_grade: null,
-				category_name: null,
-				description_code: null,
-			},
-			callback: function(r) {
-				if (r && r.message && r.message.length > 0) {
-					renderTable(state, r.message);
-				} else {
-					showNoData(state);
-				}
-			},
-			error: function(error) {
-				console.error('Dashboard refresh error:', error);
-				showError(state, __('An error occurred while loading data'));
-			}
-		});
-		return;
-	}
-
-	// Show loading spinner only when filters are being applied
-	if (showSpinner) {
-		showLoading(state);
-	}
-
-	// Fetch filtered data
-	frappe.call({
-		method: 'prakash_steel.api.get_item_insight_data.get_item_insight_data',
-		args: {
-			from_date: filters.from_date || null,
-			to_date: filters.to_date || null,
-			item_code: filters.item_code || null,
-			item_grade: filters.item_grade || null,
-			category_name: filters.category_name || null,
-			description_code: filters.description_code || null,
-		},
-		callback: function(r) {
-			if (r && r.message && r.message.length > 0) {
-				renderTable(state, r.message);
-			} else {
-				showNoData(state);
-			}
-		},
-		error: function(error) {
-			console.error('Dashboard refresh error:', error);
-			showError(state, __('An error occurred while loading data'));
-		}
-	});
-}
-
 function showNoData(state) {
 	state.$tableContainer.empty();
 	state.$tableContainer.append(`
@@ -914,185 +849,151 @@ function getFilters(state) {
 }
 
 function renderTable(state, data) {
-	try {
-		console.log('renderTable called with data:', data);
-		state.$tableContainer.empty();
+	state.$tableContainer.empty();
 
-		if (!data || data.length === 0) {
-			state.$tableContainer.append(`
-				<div class="no-data-message" style="text-align:center;color:#7f8c8d;padding:24px;">
-					<i class="fa fa-info-circle" style="font-size:2rem;margin-bottom:12px;"></i>
-					<div>${__('No data available for selected criteria')}</div>
-				</div>
-			`);
-			return;
-		}
-
-	// Create table with grouped columns
-	const $table = $(`
-		<div class="item-insight-table-wrapper" style="background:white;border-radius:8px;border:1px solid #000000;">
-			<table class="item-insight-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1680px;table-layout:fixed;">
-				<thead>
-				<tr>
-					<!-- Item Details Group -->
-					<th colspan="1" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
-						${__('Item Details')}
-					</th>
-						<!-- Production Group -->
-						<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
-							${__('Production')}
-						</th>
-						<!-- Sales Group -->
-						<th colspan="5" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
-							${__('Sales')}
-						</th>
-						<!-- Purchase Group -->
-						<th colspan="5" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
-							${__('Purchase')}
-						</th>
-					<!-- Warehouse Stock Group (includes committed & projected) -->
-					<th colspan="4" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">
-						${__('Warehouse Stock')}
-					</th>
-				</tr>
-				<tr>
-					<!-- Item Details Columns -->
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:150px;min-width:150px;">${__('Item Code')}</th>
-					<!-- Production Columns -->
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Production Date')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Production Qty')}</th>
-					<!-- Sales Columns -->
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">${__('Last Sales Party')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Sales Date')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Last Sales Qty')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Last Sales Rate')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">${__('Pending SO Qty')}</th>
-					<!-- Purchase Columns -->
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">${__('Last Purchase Party')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Date')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Qty')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Last Purchase Rate')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Pending PO Qty')}</th>
-					<!-- Warehouse Stock Columns (per warehouse) -->
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:200px;min-width:200px;">${__('Warehouse')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:120px;min-width:120px;">${__('Stock Qty')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Committed Stock')}</th>
-					<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">${__('Projected Qty')}</th>
-				</tr>
-				</thead>
-				<tbody>
-				</tbody>
-			</table>
-		</div>
-	`);
-
-	const $tbody = $table.find('tbody');
-
-	// Render rows
-	data.forEach((row, index) => {
-		const rowId = `row-${index}`;
-		
-		// Determine background color based on item index (alternating blue and green)
-		const isEvenItem = index % 2 === 0;
-		const itemBgClass = isEvenItem ? 'item-bg-blue' : 'item-bg-green';
-		
-		// Main row
-		const $mainRow = $(`
-			<tr class="item-row ${itemBgClass}" data-row-id="${rowId}" data-item-index="${index}">
-				<!-- Item Details -->
-				<td style="padding:12px;border-right:2px solid #000000;color:#495057;width:150px;min-width:150px;">${frappe.utils.escape_html(row.item_code || '')}</td>
-				<!-- Production -->
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:140px;min-width:140px;">${row.last_production_date ? frappe.format(row.last_production_date, {fieldtype: 'Date'}) : '-'}</td>
-				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.last_production_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
-				<!-- Sales -->
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:180px;min-width:180px;">${frappe.utils.escape_html(row.last_sales_party || '-')}</td>
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${row.last_sales_date ? frappe.format(row.last_sales_date, {fieldtype: 'Date'}) : '-'}</td>
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:130px;min-width:130px;">${frappe.format(row.last_sales_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:130px;min-width:130px;">${frappe.format(row.last_sales_rate || 0, {fieldtype: 'Currency', precision: 2})}</td>
-				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:130px;min-width:130px;">${frappe.format(row.pending_sales_order_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
-				<!-- Purchase -->
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:180px;min-width:180px;">${frappe.utils.escape_html(row.last_purchase_party || '-')}</td>
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${row.last_purchase_date ? frappe.format(row.last_purchase_date, {fieldtype: 'Date'}) : '-'}</td>
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.last_purchase_quantity || 0, {fieldtype: 'Float', precision: 2})}</td>
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.last_purchase_rate || 0, {fieldtype: 'Currency', precision: 2})}</td>
-				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(row.pending_purchase_order_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
-				<!-- Warehouse Stock -->
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:200px;min-width:200px;">
-					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.utils.escape_html(row.warehouse_stock[0].warehouse || '-') : '-'}
-				</td>
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:120px;min-width:120px;">
-					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.format(row.warehouse_stock[0].stock_qty || 0, {fieldtype: 'Float', precision: 2}) : '-'}
-				</td>
-				<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">
-					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.format(row.warehouse_stock[0].committed_stock || 0, {fieldtype: 'Float', precision: 2}) : '-'}
-				</td>
-				<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">
-					${row.warehouse_stock && row.warehouse_stock.length > 0 ? frappe.format(row.warehouse_stock[0].projected_qty || 0, {fieldtype: 'Float', precision: 2}) : '-'}
-				</td>
-			</tr>
+	if (!data || data.length === 0) {
+		state.$tableContainer.append(`
+			<div class="no-data-message" style="text-align:center;color:#7f8c8d;padding:24px;">
+				<i class="fa fa-info-circle" style="font-size:2rem;margin-bottom:12px;"></i>
+				<div>${__('No data available for selected criteria')}</div>
+			</div>
 		`);
+		return;
+	}
 
-		// Check if this item has multiple warehouses
+	// ── Helpers for fast inline formatting (avoid frappe.format per-cell) ──
+	const esc = frappe.utils.escape_html;
+	function fmtDate(v) {
+		if (!v) return '-';
+		// v is "YYYY-MM-DD"; convert to user format cheaply
+		return frappe.format(v, {fieldtype: 'Date'});
+	}
+	function fmtFloat(v) {
+		const n = parseFloat(v) || 0;
+		return n.toFixed(2);
+	}
+	function fmtCurrency(v) {
+		const n = parseFloat(v) || 0;
+		return n.toFixed(2);
+	}
+
+	// ── Build entire table HTML as one string (single DOM insertion) ──
+	const htmlParts = [];
+
+	// Table wrapper + thead (static — computed once)
+	htmlParts.push(
+		'<div class="item-insight-table-wrapper" style="background:white;border-radius:8px;border:1px solid #000000;">',
+		'<table class="item-insight-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1680px;table-layout:fixed;">',
+		'<thead>',
+		'<tr>',
+		'<th colspan="1" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Item Details')), '</th>',
+		'<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Production')), '</th>',
+		'<th colspan="5" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Sales')), '</th>',
+		'<th colspan="5" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Purchase')), '</th>',
+		'<th colspan="4" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Warehouse Stock')), '</th>',
+		'</tr>',
+		'<tr>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:150px;min-width:150px;">', esc(__('Item Code')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Production Date')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Production Qty')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">', esc(__('Last Sales Party')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Sales Date')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">', esc(__('Last Sales Qty')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">', esc(__('Last Sales Rate')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">', esc(__('Pending SO Qty')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">', esc(__('Last Purchase Party')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Purchase Date')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Purchase Qty')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Purchase Rate')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Pending PO Qty')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:200px;min-width:200px;">', esc(__('Warehouse')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:120px;min-width:120px;">', esc(__('Stock Qty')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Committed Stock')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Projected Qty')), '</th>',
+		'</tr>',
+		'</thead>',
+		'<tbody>'
+	);
+
+	// ── Body rows — pure string concatenation (no jQuery per row) ──
+	const P = 'padding:12px;';                               // reusable style tokens
+	const BR1 = 'border-right:1px solid #000000;';
+	const BR2 = 'border-right:2px solid #000000;';
+	const CLR = 'color:#495057;';
+
+	for (let index = 0; index < data.length; index++) {
+		const row = data[index];
+		const itemBgClass = index % 2 === 0 ? 'item-bg-blue' : 'item-bg-green';
 		const hasMultipleWarehouses = row.warehouse_stock && row.warehouse_stock.length > 1;
-		
-		// If no multiple warehouses, mark main row as last row of this item
-		if (!hasMultipleWarehouses) {
-			$mainRow.addClass('item-last-row');
-		}
-		
-		$tbody.append($mainRow);
+		const mainLastClass = hasMultipleWarehouses ? '' : ' item-last-row';
 
-		// Additional rows for multiple warehouses
+		const wh0 = (row.warehouse_stock && row.warehouse_stock.length > 0) ? row.warehouse_stock[0] : null;
+
+		htmlParts.push(
+			'<tr class="item-row ', itemBgClass, mainLastClass, '" data-row-id="row-', index, '" data-item-index="', index, '">',
+			// Item Details
+			'<td style="', P, BR2, CLR, 'width:150px;min-width:150px;">', esc(row.item_code || ''), '</td>',
+			// Production
+			'<td style="', P, BR1, CLR, 'width:140px;min-width:140px;">', fmtDate(row.last_production_date), '</td>',
+			'<td style="', P, BR2, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtFloat(row.last_production_quantity), '</td>',
+			// Sales
+			'<td style="', P, BR1, CLR, 'width:180px;min-width:180px;">', esc(row.last_sales_party || '-'), '</td>',
+			'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtDate(row.last_sales_date), '</td>',
+			'<td style="', P, BR1, CLR, 'text-align:left;width:130px;min-width:130px;">', fmtFloat(row.last_sales_quantity), '</td>',
+			'<td style="', P, BR1, CLR, 'text-align:left;width:130px;min-width:130px;">', fmtCurrency(row.last_sales_rate), '</td>',
+			'<td style="', P, BR2, CLR, 'text-align:left;width:130px;min-width:130px;">', fmtFloat(row.pending_sales_order_qty), '</td>',
+			// Purchase
+			'<td style="', P, BR1, CLR, 'width:180px;min-width:180px;">', esc(row.last_purchase_party || '-'), '</td>',
+			'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtDate(row.last_purchase_date), '</td>',
+			'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtFloat(row.last_purchase_quantity), '</td>',
+			'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtCurrency(row.last_purchase_rate), '</td>',
+			'<td style="', P, BR2, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtFloat(row.pending_purchase_order_qty), '</td>',
+			// Warehouse Stock (first warehouse)
+			'<td style="', P, BR1, CLR, 'width:200px;min-width:200px;">', wh0 ? esc(wh0.warehouse || '-') : '-', '</td>',
+			'<td style="', P, BR1, CLR, 'text-align:left;width:120px;min-width:120px;">', wh0 ? fmtFloat(wh0.stock_qty) : '-', '</td>',
+			'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', wh0 ? fmtFloat(wh0.committed_stock) : '-', '</td>',
+			'<td style="', P, BR2, CLR, 'text-align:left;width:140px;min-width:140px;">', wh0 ? fmtFloat(wh0.projected_qty) : '-', '</td>',
+			'</tr>'
+		);
+
+		// Additional warehouse rows
 		if (hasMultipleWarehouses) {
 			for (let i = 1; i < row.warehouse_stock.length; i++) {
 				const wh = row.warehouse_stock[i];
-				const isLastWarehouse = (i === row.warehouse_stock.length - 1);
-				const rowClass = isLastWarehouse ? `warehouse-detail-row item-last-row ${itemBgClass}` : `warehouse-detail-row ${itemBgClass}`;
-				
-				const $warehouseRow = $(`
-					<tr class="${rowClass}" data-parent-row="${rowId}" data-item-index="${index}">
-						<!-- Empty cells for other columns -->
-						<td style="padding:12px;border-right:2px solid #000000;width:150px;min-width:150px;"></td>
-						<td style="padding:12px;border-right:1px solid #000000;"></td>
-						<td style="padding:12px;border-right:2px solid #000000;"></td>
-						<td style="padding:12px;border-right:1px solid #000000;"></td>
-						<td style="padding:12px;border-right:1px solid #000000;"></td>
-						<td style="padding:12px;border-right:1px solid #000000;"></td>
-						<td style="padding:12px;border-right:1px solid #000000;"></td>
-						<td style="padding:12px;border-right:2px solid #000000;"></td>
-						<td style="padding:12px;border-right:1px solid #000000;"></td>
-						<td style="padding:12px;border-right:1px solid #000000;"></td>
-						<td style="padding:12px;border-right:1px solid #000000;"></td>
-						<td style="padding:12px;border-right:1px solid #000000;"></td>
-						<td style="padding:12px;border-right:2px solid #000000;"></td>
-						<!-- Warehouse Stock Columns -->
-						<td style="padding:12px;border-right:1px solid #000000;color:#495057;width:200px;min-width:200px;">${frappe.utils.escape_html(wh.warehouse || '-')}</td>
-						<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:120px;min-width:120px;">${frappe.format(wh.stock_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
-						<td style="padding:12px;border-right:1px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(wh.committed_stock || 0, {fieldtype: 'Float', precision: 2})}</td>
-						<td style="padding:12px;border-right:2px solid #000000;color:#495057;text-align:left;width:140px;min-width:140px;">${frappe.format(wh.projected_qty || 0, {fieldtype: 'Float', precision: 2})}</td>
-					</tr>
-				`);
-				$tbody.append($warehouseRow);
+				const isLast = (i === row.warehouse_stock.length - 1);
+				const whClass = isLast
+					? 'warehouse-detail-row item-last-row ' + itemBgClass
+					: 'warehouse-detail-row ' + itemBgClass;
+
+				htmlParts.push(
+					'<tr class="', whClass, '" data-parent-row="row-', index, '" data-item-index="', index, '">',
+					'<td style="', P, BR2, 'width:150px;min-width:150px;"></td>',
+					'<td style="', P, BR1, '"></td>',
+					'<td style="', P, BR2, '"></td>',
+					'<td style="', P, BR1, '"></td>',
+					'<td style="', P, BR1, '"></td>',
+					'<td style="', P, BR1, '"></td>',
+					'<td style="', P, BR1, '"></td>',
+					'<td style="', P, BR2, '"></td>',
+					'<td style="', P, BR1, '"></td>',
+					'<td style="', P, BR1, '"></td>',
+					'<td style="', P, BR1, '"></td>',
+					'<td style="', P, BR1, '"></td>',
+					'<td style="', P, BR2, '"></td>',
+					'<td style="', P, BR1, CLR, 'width:200px;min-width:200px;">', esc(wh.warehouse || '-'), '</td>',
+					'<td style="', P, BR1, CLR, 'text-align:left;width:120px;min-width:120px;">', fmtFloat(wh.stock_qty), '</td>',
+					'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtFloat(wh.committed_stock), '</td>',
+					'<td style="', P, BR2, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtFloat(wh.projected_qty), '</td>',
+					'</tr>'
+				);
 			}
 		}
-	});
-
-	state.$tableContainer.append($table);
-		console.log('Table rendered successfully');
-	} catch (error) {
-		console.error('Error rendering table:', error);
-		showError(state, __('Error rendering table: ') + error.message);
 	}
-}
 
-function showLoading(state) {
-	state.$tableContainer.empty();
-	state.$tableContainer.append(`
-		<div class="loading-message" style="text-align:center;color:#7f8c8d;padding:24px;">
-			<i class="fa fa-spinner fa-spin" style="font-size:2rem;margin-bottom:12px;"></i>
-			<div>${__('Loading data...')}</div>
-		</div>
-	`);
+	htmlParts.push('</tbody></table></div>');
+
+	// Single DOM insertion — orders of magnitude faster than per-row append
+	state.$tableContainer[0].innerHTML = htmlParts.join('');
 }
 
 function showError(state, message) {
