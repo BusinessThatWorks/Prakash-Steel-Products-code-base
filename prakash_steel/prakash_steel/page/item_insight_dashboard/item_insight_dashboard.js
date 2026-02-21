@@ -920,6 +920,7 @@ function renderTable(state, data) {
 	const BR1 = 'border-right:1px solid #000000;';
 	const BR2 = 'border-right:2px solid #000000;';
 	const CLR = 'color:#495057;';
+	const LEFT = 'text-align:left;';                          // left alignment for all data cells
 
 	for (let index = 0; index < data.length; index++) {
 		const row = data[index];
@@ -932,27 +933,27 @@ function renderTable(state, data) {
 		htmlParts.push(
 			'<tr class="item-row ', itemBgClass, mainLastClass, '" data-row-id="row-', index, '" data-item-index="', index, '">',
 			// Item Details
-			'<td style="', P, BR2, CLR, 'width:150px;min-width:150px;">', esc(row.item_code || ''), '</td>',
+			'<td style="', P, BR2, CLR, LEFT, 'width:150px;min-width:150px;">', esc(row.item_code || ''), '</td>',
 			// Production
-			'<td style="', P, BR1, CLR, 'width:140px;min-width:140px;">', fmtDate(row.last_production_date), '</td>',
-			'<td style="', P, BR2, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtFloat(row.last_production_quantity), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtDate(row.last_production_date), '</td>',
+			'<td style="', P, BR2, CLR, LEFT, 'width:140px;min-width:140px;">', fmtFloat(row.last_production_quantity), '</td>',
 			// Sales
-			'<td style="', P, BR1, CLR, 'width:180px;min-width:180px;">', esc(row.last_sales_party || '-'), '</td>',
-			'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtDate(row.last_sales_date), '</td>',
-			'<td style="', P, BR1, CLR, 'text-align:left;width:130px;min-width:130px;">', fmtFloat(row.last_sales_quantity), '</td>',
-			'<td style="', P, BR1, CLR, 'text-align:left;width:130px;min-width:130px;">', fmtCurrency(row.last_sales_rate), '</td>',
-			'<td style="', P, BR2, CLR, 'text-align:left;width:130px;min-width:130px;">', fmtFloat(row.pending_sales_order_qty), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:180px;min-width:180px;">', esc(row.last_sales_party || '-'), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtDate(row.last_sales_date), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:130px;min-width:130px;">', fmtFloat(row.last_sales_quantity), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:130px;min-width:130px;">', fmtCurrency(row.last_sales_rate), '</td>',
+			'<td style="', P, BR2, CLR, LEFT, 'width:130px;min-width:130px;">', fmtFloat(row.pending_sales_order_qty), '</td>',
 			// Purchase
-			'<td style="', P, BR1, CLR, 'width:180px;min-width:180px;">', esc(row.last_purchase_party || '-'), '</td>',
-			'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtDate(row.last_purchase_date), '</td>',
-			'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtFloat(row.last_purchase_quantity), '</td>',
-			'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtCurrency(row.last_purchase_rate), '</td>',
-			'<td style="', P, BR2, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtFloat(row.pending_purchase_order_qty), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:180px;min-width:180px;">', esc(row.last_purchase_party || '-'), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtDate(row.last_purchase_date), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtFloat(row.last_purchase_quantity), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtCurrency(row.last_purchase_rate), '</td>',
+			'<td style="', P, BR2, CLR, LEFT, 'width:140px;min-width:140px;">', fmtFloat(row.pending_purchase_order_qty), '</td>',
 			// Warehouse Stock (first warehouse)
-			'<td style="', P, BR1, CLR, 'width:200px;min-width:200px;">', wh0 ? esc(wh0.warehouse || '-') : '-', '</td>',
-			'<td style="', P, BR1, CLR, 'text-align:left;width:120px;min-width:120px;">', wh0 ? fmtFloat(wh0.stock_qty) : '-', '</td>',
-			'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', wh0 ? fmtFloat(wh0.committed_stock) : '-', '</td>',
-			'<td style="', P, BR2, CLR, 'text-align:left;width:140px;min-width:140px;">', wh0 ? fmtFloat(wh0.projected_qty) : '-', '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:200px;min-width:200px;">', wh0 ? esc(wh0.warehouse || '-') : '-', '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:120px;min-width:120px;">', wh0 ? fmtFloat(wh0.stock_qty) : '-', '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', wh0 ? fmtFloat(wh0.committed_stock) : '-', '</td>',
+			'<td style="', P, BR2, CLR, LEFT, 'width:140px;min-width:140px;">', wh0 ? fmtFloat(wh0.projected_qty) : '-', '</td>',
 			'</tr>'
 		);
 
@@ -967,23 +968,23 @@ function renderTable(state, data) {
 
 				htmlParts.push(
 					'<tr class="', whClass, '" data-parent-row="row-', index, '" data-item-index="', index, '">',
-					'<td style="', P, BR2, 'width:150px;min-width:150px;"></td>',
-					'<td style="', P, BR1, '"></td>',
-					'<td style="', P, BR2, '"></td>',
-					'<td style="', P, BR1, '"></td>',
-					'<td style="', P, BR1, '"></td>',
-					'<td style="', P, BR1, '"></td>',
-					'<td style="', P, BR1, '"></td>',
-					'<td style="', P, BR2, '"></td>',
-					'<td style="', P, BR1, '"></td>',
-					'<td style="', P, BR1, '"></td>',
-					'<td style="', P, BR1, '"></td>',
-					'<td style="', P, BR1, '"></td>',
-					'<td style="', P, BR2, '"></td>',
-					'<td style="', P, BR1, CLR, 'width:200px;min-width:200px;">', esc(wh.warehouse || '-'), '</td>',
-					'<td style="', P, BR1, CLR, 'text-align:left;width:120px;min-width:120px;">', fmtFloat(wh.stock_qty), '</td>',
-					'<td style="', P, BR1, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtFloat(wh.committed_stock), '</td>',
-					'<td style="', P, BR2, CLR, 'text-align:left;width:140px;min-width:140px;">', fmtFloat(wh.projected_qty), '</td>',
+					'<td style="', P, BR2, LEFT, 'width:150px;min-width:150px;"></td>',
+					'<td style="', P, BR1, LEFT, '"></td>',
+					'<td style="', P, BR2, LEFT, '"></td>',
+					'<td style="', P, BR1, LEFT, '"></td>',
+					'<td style="', P, BR1, LEFT, '"></td>',
+					'<td style="', P, BR1, LEFT, '"></td>',
+					'<td style="', P, BR1, LEFT, '"></td>',
+					'<td style="', P, BR2, LEFT, '"></td>',
+					'<td style="', P, BR1, LEFT, '"></td>',
+					'<td style="', P, BR1, LEFT, '"></td>',
+					'<td style="', P, BR1, LEFT, '"></td>',
+					'<td style="', P, BR1, LEFT, '"></td>',
+					'<td style="', P, BR2, LEFT, '"></td>',
+					'<td style="', P, BR1, CLR, LEFT, 'width:200px;min-width:200px;">', esc(wh.warehouse || '-'), '</td>',
+					'<td style="', P, BR1, CLR, LEFT, 'width:120px;min-width:120px;">', fmtFloat(wh.stock_qty), '</td>',
+					'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtFloat(wh.committed_stock), '</td>',
+					'<td style="', P, BR2, CLR, LEFT, 'width:140px;min-width:140px;">', fmtFloat(wh.projected_qty), '</td>',
 					'</tr>'
 				);
 			}
