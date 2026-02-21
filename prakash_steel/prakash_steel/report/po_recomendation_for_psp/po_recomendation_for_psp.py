@@ -2395,12 +2395,13 @@ def get_sales_order_qty_map(filters):
 	"""Get sales order qty map for ALL items
 	Open SO = qty - delivered_qty (quantity left to deliver)
 	Includes ALL sales orders with the item, regardless of date range
+	If delivered_qty > qty, returns 0 (not negative)
 	"""
 	so_rows = frappe.db.sql(
 		"""
 		SELECT
 			soi.item_code,
-			SUM(soi.qty - IFNULL(soi.delivered_qty, 0)) as so_qty
+			SUM(GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0))) as so_qty
 		FROM
 			`tabSales Order` so
 		INNER JOIN
@@ -2428,17 +2429,19 @@ def get_qualified_demand_map(filters):
 
 	Qualified Demand = till_today + spike
 	Open SO = qty - delivered_qty (quantity left to deliver)
+	If delivered_qty > qty, returns 0 (not negative)
 	"""
 	from frappe.utils import today
 
 	today_date = today()
 
 	# Get till_today: Open SO with delivery_date <= today
+	# If delivered_qty > qty, returns 0 (not negative)
 	so_rows = frappe.db.sql(
 		"""
 		SELECT
 			soi.item_code,
-			SUM(soi.qty - IFNULL(soi.delivered_qty, 0)) as so_qty
+			SUM(GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0))) as so_qty
 		FROM
 			`tabSales Order` so
 		INNER JOIN
@@ -2571,11 +2574,12 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 		# If demand_horizon is 0/empty → ALL future SOs (delivery_date > today)
 		if end_date:
 			# Bounded future window
+			# If delivered_qty > qty, returns 0 (not negative)
 			so_rows = frappe.db.sql(
 				"""
 				SELECT
 					soi.item_code,
-					soi.qty - IFNULL(soi.delivered_qty, 0) as so_qty,
+					GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0)) as so_qty,
 					IFNULL(soi.delivery_date, '1900-01-01') as delivery_date,
 					so.name as sales_order_name
 				FROM
@@ -2594,11 +2598,12 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 			)
 		else:
 			# All future SOs (no upper bound)
+			# If delivered_qty > qty, returns 0 (not negative)
 			so_rows = frappe.db.sql(
 				"""
 				SELECT
 					soi.item_code,
-					soi.qty - IFNULL(soi.delivered_qty, 0) as so_qty,
+					GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0)) as so_qty,
 					IFNULL(soi.delivery_date, '1900-01-01') as delivery_date,
 					so.name as sales_order_name
 				FROM
