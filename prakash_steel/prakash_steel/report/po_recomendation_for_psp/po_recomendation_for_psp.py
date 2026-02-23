@@ -669,6 +669,12 @@ def get_columns(filters=None):
 					"width": 120,
 				},
 				{
+					"label": _("Additional Demand"),
+					"fieldname": "additional_demand",
+					"fieldtype": "Int",
+					"width": 130,
+				},
+				{
 					"label": _("Qualified Demand"),
 					"fieldname": "qualify_demand",
 					"fieldtype": "Int",
@@ -722,6 +728,13 @@ def get_columns(filters=None):
 					"fieldname": "wip_open_po",
 					"fieldtype": "Int",
 					"width": 120,
+				},
+				{
+					"label": _("Additional Demand"),
+					"fieldname": "additional_demand",
+					"fieldtype": "Int",
+					"width": 130,
+					"hidden": 1,
 				},
 				{
 					"label": _("Qualified Demand"),
@@ -1386,6 +1399,10 @@ def get_data(filters=None):
 		)
 		qualify_demand = flt(qualify_demand)
 
+		# Calculate Additional Demand: till_today + spike (the value compared with spike threshold)
+		# This is the value before the final check that might set qualified_demand to 0
+		additional_demand = flt(till_today) + flt(spike)
+
 		# Check if item is buffer or non-buffer
 		is_item_buffer = item_buffer_flag == "Buffer"
 
@@ -1541,6 +1558,9 @@ def get_data(filters=None):
 				"open_so": math.ceil(flt(open_so)),
 				"on_hand_stock": math.ceil(flt(on_hand_stock)),
 				"wip_open_po": math.ceil(flt(wip_open_po)),
+				"additional_demand": math.ceil(
+					flt(additional_demand)
+				),  # till_today + spike (value compared with spike threshold)
 				"qualify_demand": math.ceil(
 					flt(total_demand_for_display)
 				),  # Show total demand (qualified + parent)
@@ -1568,6 +1588,9 @@ def get_data(filters=None):
 				),  # Total SO = All-time Open SO (same as buffer items' open_so)
 				"on_hand_stock": math.ceil(flt(on_hand_stock)),
 				"wip_open_po": math.ceil(flt(wip_open_po)),
+				"additional_demand": math.ceil(
+					flt(additional_demand)
+				),  # till_today + spike (value compared with spike threshold)
 				"qualify_demand": math.ceil(flt(qualify_demand)),  # Qualified Demand
 				"open_so_qualified": math.ceil(
 					flt(qualify_demand)
@@ -2372,12 +2395,13 @@ def get_sales_order_qty_map(filters):
 	"""Get sales order qty map for ALL items
 	Open SO = qty - delivered_qty (quantity left to deliver)
 	Includes ALL sales orders with the item, regardless of date range
+	If delivered_qty > qty, returns 0 (not negative)
 	"""
 	so_rows = frappe.db.sql(
 		"""
 		SELECT
 			soi.item_code,
-			SUM(soi.qty - IFNULL(soi.delivered_qty, 0)) as so_qty
+			SUM(GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0))) as so_qty
 		FROM
 			`tabSales Order` so
 		INNER JOIN
@@ -2405,17 +2429,19 @@ def get_qualified_demand_map(filters):
 
 	Qualified Demand = till_today + spike
 	Open SO = qty - delivered_qty (quantity left to deliver)
+	If delivered_qty > qty, returns 0 (not negative)
 	"""
 	from frappe.utils import today
 
 	today_date = today()
 
 	# Get till_today: Open SO with delivery_date <= today
+	# If delivered_qty > qty, returns 0 (not negative)
 	so_rows = frappe.db.sql(
 		"""
 		SELECT
 			soi.item_code,
-			SUM(soi.qty - IFNULL(soi.delivered_qty, 0)) as so_qty
+			SUM(GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0))) as so_qty
 		FROM
 			`tabSales Order` so
 		INNER JOIN
@@ -2548,11 +2574,12 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 		# If demand_horizon is 0/empty → ALL future SOs (delivery_date > today)
 		if end_date:
 			# Bounded future window
+			# If delivered_qty > qty, returns 0 (not negative)
 			so_rows = frappe.db.sql(
 				"""
 				SELECT
 					soi.item_code,
-					soi.qty - IFNULL(soi.delivered_qty, 0) as so_qty,
+					GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0)) as so_qty,
 					IFNULL(soi.delivery_date, '1900-01-01') as delivery_date,
 					so.name as sales_order_name
 				FROM
@@ -2571,11 +2598,12 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 			)
 		else:
 			# All future SOs (no upper bound)
+			# If delivered_qty > qty, returns 0 (not negative)
 			so_rows = frappe.db.sql(
 				"""
 				SELECT
 					soi.item_code,
-					soi.qty - IFNULL(soi.delivered_qty, 0) as so_qty,
+					GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0)) as so_qty,
 					IFNULL(soi.delivery_date, '1900-01-01') as delivery_date,
 					so.name as sales_order_name
 				FROM

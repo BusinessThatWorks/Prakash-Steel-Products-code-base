@@ -338,12 +338,14 @@ function render_cards(state, totals) {
             label: __('Total Production (kg)'),
             gradientClass: gradientClasses[0],
             description: __('Sum of Qty across all rows'),
+            isQty: true, // Qty field - format as integer
         },
         {
             value: totals.rm_consumption,
             label: __('RM Consumption'),
             gradientClass: gradientClasses[1],
             description: __('Sum of RM Consumption across all rows'),
+            isQty: true, // Qty field - format as integer
         },
     ];
 
@@ -352,8 +354,8 @@ function render_cards(state, totals) {
     });
 }
 
-// Helper function to format numbers: truncate (don't round) and show without decimals
-function format_number_truncate(value) {
+// Helper function to format Qty fields: truncate (don't round) and show as INTEGER only
+function format_qty_as_integer(value) {
     if (value === undefined || value === null || value === '') {
         return '--';
     }
@@ -367,9 +369,23 @@ function format_number_truncate(value) {
     return format_number(truncated, null, 0);
 }
 
+// Helper function to format other numeric fields: keep decimal values as is (no rounding)
+function format_number_with_decimals(value) {
+    if (value === undefined || value === null || value === '') {
+        return '--';
+    }
+    const num = parseFloat(value);
+    if (isNaN(num)) {
+        return '--';
+    }
+    // Keep decimal values as is - use format_number with default decimals
+    return format_number(num);
+}
+
 function buildCardHtml(card) {
     const raw = card.value;
-    const display = format_number_truncate(raw);
+    // Use integer formatting for Qty fields, decimal formatting for others
+    const display = card.isQty ? format_qty_as_integer(raw) : format_number_with_decimals(raw);
 
     const gradientClass = card.gradientClass || 'card-blue';
     const gradient = getGradientStyle(gradientClass);
@@ -472,21 +488,25 @@ function buildTableRow(tabId, row) {
         ? frappe.utils.escape_html(row.finished_item)
         : '';
 
-    // Numeric fields – truncate (don't round) and format without decimals
-    const fgPlannedQty = format_number_truncate(row.fg_planned_qty);
-    const actualQty    = format_number_truncate(row.actual_qty);
-    const fgLength     = format_number_truncate(row.fg_length);
-    const rmConsumption = format_number_truncate(row.rm_consumption);
+    // Qty fields – format as INTEGER only (no decimals)
+    const fgPlannedQty = format_qty_as_integer(row.fg_planned_qty);
+    const actualQty    = format_qty_as_integer(row.actual_qty);
+    const rmConsumption = format_qty_as_integer(row.rm_consumption);
+
+    // FG Length – display exactly as stored (preserve units like "5 MTR", "10 MM", etc.)
+    const fgLength = row.fg_length ? frappe.utils.escape_html(String(row.fg_length)) : '';
+
+    // Other fields – keep decimal values as is (no rounding)
 
     // RM
     const rm = row.rm ? frappe.utils.escape_html(row.rm) : '';
 
-    // Last column differs per tab
+    // Last column differs per tab – keep decimals (percentage fields)
     let lastColValue = '';
     if (tabId === 'rolled_production') {
-        lastColValue = format_number_truncate(row.burning_loss);
+        lastColValue = format_number_with_decimals(row.burning_loss);
     } else {
-        lastColValue = format_number_truncate(row.wastage);
+        lastColValue = format_number_with_decimals(row.wastage);
     }
 
     return `<tr style="border-bottom:1px solid #e9ecef;">
