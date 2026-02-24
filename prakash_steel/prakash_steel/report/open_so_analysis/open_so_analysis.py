@@ -68,6 +68,7 @@ def get_data(conditions, filters):
             so.status,
             so.customer,
             soi.item_code,
+            i.custom_category_name as category_name,
             i.custom_buffer_flag as buffer_flag,
             i.custom_item_type as item_type,
             DATEDIFF(CURRENT_DATE, soi.delivery_date) as delay_days,
@@ -502,6 +503,14 @@ def get_columns(filters):
 				"fieldtype": "Link",
 				"options": "Item",
 				"width": 100,
+			}
+		)
+		columns.append(
+			{
+				"label": _("Category Name"),
+				"fieldname": "category_name",
+				"fieldtype": "Data",
+				"width": 120,
 			}
 		)
 		columns.append(

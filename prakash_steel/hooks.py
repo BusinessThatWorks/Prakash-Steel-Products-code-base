@@ -305,6 +305,7 @@ scheduler_events = {
 override_doctype_class = {
 	"Stock Entry": "prakash_steel.overrides.stock_entry.CustomStockEntry",
 	"Payment Reconciliation": "prakash_steel.overrides.payment_reconciliation.CustomPaymentReconciliation",
+	"Sales Invoice": "prakash_steel.overrides.sales_invoice.CustomSalesInvoice",
 }
 
 
