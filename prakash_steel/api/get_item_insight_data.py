@@ -167,23 +167,25 @@ def _get_items_with_transactions(
     parts = []
     params: list = []
 
-    # Sales Invoice
+    # Sales Order
     parts.append(
-        "SELECT DISTINCT sii.item_code "
-        "FROM `tabSales Invoice Item` sii "
-        "INNER JOIN `tabSales Invoice` si ON si.name = sii.parent "
-        "WHERE sii.item_code IN %s AND si.docstatus = 1 "
-        "AND si.posting_date BETWEEN %s AND %s"
+        "SELECT DISTINCT soi.item_code "
+        "FROM `tabSales Order Item` soi "
+        "INNER JOIN `tabSales Order` so ON so.name = soi.parent "
+        "WHERE soi.item_code IN %s AND so.docstatus = 1 "
+        "AND so.status NOT IN ('Closed', 'Cancelled') "
+        "AND so.transaction_date BETWEEN %s AND %s"
     )
     params.extend([codes_tuple, from_date, to_date])
 
-    # Purchase Invoice
+    # Purchase Order
     parts.append(
-        "SELECT DISTINCT pii.item_code "
-        "FROM `tabPurchase Invoice Item` pii "
-        "INNER JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent "
-        "WHERE pii.item_code IN %s AND pi.docstatus = 1 "
-        "AND pi.posting_date BETWEEN %s AND %s"
+        "SELECT DISTINCT poi.item_code "
+        "FROM `tabPurchase Order Item` poi "
+        "INNER JOIN `tabPurchase Order` po ON po.name = poi.parent "
+        "WHERE poi.item_code IN %s AND po.docstatus = 1 "
+        "AND po.status NOT IN ('Closed', 'Cancelled') "
+        "AND po.transaction_date BETWEEN %s AND %s"
     )
     params.extend([codes_tuple, from_date, to_date])
 
@@ -314,7 +316,7 @@ def _bulk_production_qty(rolled_codes, bright_codes, from_date, to_date):
 
 def _bulk_sales_data(item_codes, from_date, to_date):
     """
-    Bulk-fetch latest Sales Invoice data and pending SO qty.
+    Bulk-fetch latest Sales Order data and pending SO qty.
     Returns (sales_map, pending_so_map).
     """
     sales_map: dict = {}
@@ -325,28 +327,38 @@ def _bulk_sales_data(item_codes, from_date, to_date):
 
     codes_tuple = tuple(item_codes)
 
-    # Latest Sales Invoice per item
+    # Latest Sales Order per item - ensure we get the truly latest record per item
+    # Order all Sales Order Items by transaction_date DESC and take first occurrence per item
     query = """
-        SELECT sii.item_code, si.customer_name, sii.qty, sii.rate, si.posting_date
-        FROM `tabSales Invoice Item` sii
-        INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
-        WHERE sii.item_code IN %s
-            AND si.docstatus = 1
+        SELECT 
+            soi.item_code,
+            so.customer_name,
+            soi.qty,
+            soi.rate,
+            so.transaction_date
+        FROM `tabSales Order Item` soi
+        INNER JOIN `tabSales Order` so ON so.name = soi.parent
+        WHERE soi.item_code IN %s
+            AND so.docstatus = 1
+            AND so.status NOT IN ('Closed', 'Cancelled')
     """
     params: list = [codes_tuple]
     if from_date and to_date:
-        query += " AND si.posting_date BETWEEN %s AND %s"
+        query += " AND so.transaction_date BETWEEN %s AND %s"
         params.extend([from_date, to_date])
-    query += " ORDER BY si.posting_date DESC, si.posting_time DESC, si.creation DESC"
+    # Order by transaction_date DESC, then creation DESC to ensure latest record first
+    # Also order by item_code so we can easily take first occurrence per item
+    query += " ORDER BY soi.item_code, so.transaction_date DESC, so.creation DESC, soi.idx ASC"
 
     rows = frappe.db.sql(query, tuple(params), as_dict=True)
     for r in rows:
+        # Only take the first (latest) record for each item_code
         if r.item_code not in sales_map:
             sales_map[r.item_code] = {
                 "customer_name": r.customer_name,
                 "qty": r.qty,
                 "rate": r.rate,
-                "posting_date": r.posting_date,
+                "posting_date": r.transaction_date,  # Keep field name as posting_date for compatibility
             }
 
     # Pending SO qty (aggregated per item)
@@ -372,7 +384,7 @@ def _bulk_sales_data(item_codes, from_date, to_date):
 
 def _bulk_purchase_data(item_codes, from_date, to_date):
     """
-    Bulk-fetch latest Purchase Invoice data and pending PO qty.
+    Bulk-fetch latest Purchase Order data and pending PO qty.
     Returns (purchase_map, pending_po_map).
     """
     purchase_map: dict = {}
@@ -383,19 +395,20 @@ def _bulk_purchase_data(item_codes, from_date, to_date):
 
     codes_tuple = tuple(item_codes)
 
-    # Latest Purchase Invoice per item
+    # Latest Purchase Order per item
     query = """
-        SELECT pii.item_code, pi.supplier_name, pii.qty, pii.rate, pi.posting_date
-        FROM `tabPurchase Invoice Item` pii
-        INNER JOIN `tabPurchase Invoice` pi ON pi.name = pii.parent
-        WHERE pii.item_code IN %s
-            AND pi.docstatus = 1
+        SELECT poi.item_code, po.supplier_name, poi.qty, poi.rate, po.transaction_date
+        FROM `tabPurchase Order Item` poi
+        INNER JOIN `tabPurchase Order` po ON po.name = poi.parent
+        WHERE poi.item_code IN %s
+            AND po.docstatus = 1
+            AND po.status NOT IN ('Closed', 'Cancelled')
     """
     params: list = [codes_tuple]
     if from_date and to_date:
-        query += " AND pi.posting_date BETWEEN %s AND %s"
+        query += " AND po.transaction_date BETWEEN %s AND %s"
         params.extend([from_date, to_date])
-    query += " ORDER BY pi.posting_date DESC, pi.posting_time DESC, pi.creation DESC"
+    query += " ORDER BY po.transaction_date DESC, po.creation DESC"
 
     rows = frappe.db.sql(query, tuple(params), as_dict=True)
     for r in rows:
@@ -404,10 +417,10 @@ def _bulk_purchase_data(item_codes, from_date, to_date):
                 "supplier_name": r.supplier_name,
                 "qty": r.qty,
                 "rate": r.rate,
-                "posting_date": r.posting_date,
+                "posting_date": r.transaction_date,  # Keep field name as posting_date for compatibility
             }
 
-    # Pending PO qty (aggregated per item)
+    # Pending PO qty (aggregated per item) - sum of (qty - received_qty) from open Purchase Orders
     pending_rows = frappe.db.sql(
         """
         SELECT poi.item_code, SUM(poi.qty - IFNULL(poi.received_qty, 0)) AS pending_qty
