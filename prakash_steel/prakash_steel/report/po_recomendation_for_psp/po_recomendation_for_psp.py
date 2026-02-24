@@ -663,10 +663,22 @@ def get_columns(filters=None):
 					"width": 130,
 				},
 				{
-					"label": _("WIP/Open PO"),
-					"fieldname": "wip_open_po",
+					"label": _("WIP"),
+					"fieldname": "wip",
 					"fieldtype": "Int",
 					"width": 120,
+				},
+				{
+					"label": _("Open PO"),
+					"fieldname": "open_po",
+					"fieldtype": "Int",
+					"width": 120,
+				},
+				{
+					"label": _("Open Subcon PO"),
+					"fieldname": "open_subcon_po",
+					"fieldtype": "Int",
+					"width": 130,
 				},
 				{
 					"label": _("Additional Demand"),
@@ -691,6 +703,12 @@ def get_columns(filters=None):
 					"fieldname": "on_hand_colour",
 					"fieldtype": "Data",
 					"width": 130,
+				},
+				{
+					"label": _("Net Flow"),
+					"fieldname": "net_flow",
+					"fieldtype": "Int",
+					"width": 120,
 				},
 			]
 		)
@@ -724,10 +742,22 @@ def get_columns(filters=None):
 					"width": 130,
 				},
 				{
-					"label": _("WIP/Open PO"),
-					"fieldname": "wip_open_po",
+					"label": _("WIP"),
+					"fieldname": "wip",
 					"fieldtype": "Int",
 					"width": 120,
+				},
+				{
+					"label": _("Open PO"),
+					"fieldname": "open_po",
+					"fieldtype": "Int",
+					"width": 120,
+				},
+				{
+					"label": _("Open Subcon PO"),
+					"fieldname": "open_subcon_po",
+					"fieldtype": "Int",
+					"width": 130,
 				},
 				{
 					"label": _("Additional Demand"),
@@ -1487,32 +1517,43 @@ def get_data(filters=None):
 			flt(net_order_rec)
 		)  # Net order recommendation (after MOQ/Batch Size)
 
-		# Combine WIP and Open PO for display
-		wip_open_po = math.ceil(flt(wip) + flt(open_po))
+		# Get Open Subcon PO (will be populated with functionality later)
+		open_subcon_po = 0
+		
+		# Calculate Net Flow: on_hand_stock + wip + open_po + open_subcon_po - qualified_demand
+		# Use actual qualified_demand (not including parent_demand)
+		net_flow = on_hand_stock + wip + open_po + open_subcon_po - qualify_demand
 
 		# Base row with parent item data
 		is_item_buffer = item_buffer_flag == "Buffer"
 
 		# Calculate final order recommendation for breakdown
 		# For non-buffer items, use qualified_demand (Open SO with delivery_date <= today) instead of all-time open_so
-		# For buffer items, include parent demand: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
+		# For buffer items, include parent demand: TOG + (Qualified Demand + Parent Demand) - Stock - (WIP + Open PO + Open Subcon PO) - MRQ
+		# Use combined value: wip + open_po + open_subcon_po
+		wip_open_po_combined = wip + open_po + open_subcon_po
+		
 		if is_item_buffer:
-			# Buffer: TOG + (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
+			# Buffer: TOG + (Qualified Demand + Parent Demand) - Stock - (WIP + Open PO + Open Subcon PO) - MRQ
 			total_demand = qualify_demand + parent_demand
 			if sku_type in ["BOTA", "PTA"]:
+				# For BOTA/PTA: subtract open_po separately (existing logic)
 				base_order_rec = tog + total_demand - on_hand_stock - wip - open_po
 			else:
-				base_order_rec = tog + total_demand - on_hand_stock - wip
+				# For others: use combined value
+				base_order_rec = tog + total_demand - on_hand_stock - wip_open_po_combined
 			final_order_rec = max(0, base_order_rec - mrq)
 		else:
-			# Non-buffer: (Qualified Demand + Parent Demand) - Stock - WIP - Open PO - MRQ
+			# Non-buffer: (Qualified Demand + Parent Demand) - Stock - (WIP + Open PO + Open Subcon PO) - MRQ
 			# Use qualified_demand instead of all-time open_so for calculation
 			open_so_for_calc = qualify_demand  # Use qualified demand (Open SO with delivery_date <= today)
 			requirement = open_so_for_calc + parent_demand
 			if sku_type in ["PTO", "BOTO"]:
+				# For PTO/BOTO: subtract open_po separately (existing logic)
 				base_order_rec = requirement - on_hand_stock - wip - open_po
 			else:
-				base_order_rec = requirement - on_hand_stock - wip
+				# For others: use combined value
+				base_order_rec = requirement - on_hand_stock - wip_open_po_combined
 			final_order_rec = max(0, base_order_rec - mrq)
 
 		# Calculate net order recommendation for breakdown
@@ -1557,7 +1598,9 @@ def get_data(filters=None):
 				"tor": math.ceil(flt(tor)),
 				"open_so": math.ceil(flt(open_so)),
 				"on_hand_stock": math.ceil(flt(on_hand_stock)),
-				"wip_open_po": math.ceil(flt(wip_open_po)),
+				"wip": math.ceil(flt(wip)),  # WIP value only
+				"open_po": math.ceil(flt(open_po)),  # Open PO value only
+				"open_subcon_po": math.ceil(flt(open_subcon_po)),  # Open Subcon PO value
 				"additional_demand": math.ceil(
 					flt(additional_demand)
 				),  # till_today + spike (value compared with spike threshold)
@@ -1587,7 +1630,9 @@ def get_data(filters=None):
 					flt(open_so)
 				),  # Total SO = All-time Open SO (same as buffer items' open_so)
 				"on_hand_stock": math.ceil(flt(on_hand_stock)),
-				"wip_open_po": math.ceil(flt(wip_open_po)),
+				"wip": math.ceil(flt(wip)),  # WIP value only
+				"open_po": math.ceil(flt(open_po)),  # Open PO value only
+				"open_subcon_po": math.ceil(flt(open_subcon_po)),  # Open Subcon PO value
 				"additional_demand": math.ceil(
 					flt(additional_demand)
 				),  # till_today + spike (value compared with spike threshold)
@@ -1598,36 +1643,43 @@ def get_data(filters=None):
 			}
 
 		# Add common fields
-		base_row.update(
-			{
-				"on_hand_status": on_hand_status,
-				"on_hand_colour": on_hand_colour,
-				"buffer_flag": item_buffer_flag,  # Add buffer_flag for JavaScript formatter
-				"order_recommendation": math.ceil(flt(order_recommendation)),
-				"batch_size": math.ceil(flt(batch_size)),
-				"moq": math.ceil(flt(moq)),
-				"or_with_moq_batch_size": math.ceil(flt(or_with_moq_batch_size)),
-				"mrq": math.ceil(flt(mrq)),
-				"net_po_recommendation": math.ceil(flt(net_po_recommendation)),
-				"calculation_breakdown": calculation_breakdown,  # Add breakdown for console logging
-				# Initialize child columns as None/0
-				"batch_size_multiple": None,
-				"production_qty_based_on_child_stock": None,
-				"production_qty_based_on_child_stock_wip_open_po": None,
-				"child_item_code": None,
-				"child_item_type": None,
-				"child_sku_type": None,
-				"child_requirement": None,
-				"child_stock": None,
-				"child_stock_soft_allocation_qty": None,
-				"child_stock_shortage": None,
-				"child_full_kit_status": None,
-				"child_wip_open_po": None,
-				"child_wip_open_po_soft_allocation_qty": None,
-				"child_wip_open_po_shortage": None,
-				"child_wip_open_po_full_kit_status": None,
-			}
-		)
+		# Net Flow only for buffer items
+		common_fields = {
+			"on_hand_status": on_hand_status,
+			"on_hand_colour": on_hand_colour,
+			"buffer_flag": item_buffer_flag,  # Add buffer_flag for JavaScript formatter
+			"order_recommendation": math.ceil(flt(order_recommendation)),
+			"batch_size": math.ceil(flt(batch_size)),
+			"moq": math.ceil(flt(moq)),
+			"or_with_moq_batch_size": math.ceil(flt(or_with_moq_batch_size)),
+			"mrq": math.ceil(flt(mrq)),
+			"net_po_recommendation": math.ceil(flt(net_po_recommendation)),
+			"calculation_breakdown": calculation_breakdown,  # Add breakdown for console logging
+			# Initialize child columns as None/0
+			"batch_size_multiple": None,
+			"production_qty_based_on_child_stock": None,
+			"production_qty_based_on_child_stock_wip_open_po": None,
+			"child_item_code": None,
+			"child_item_type": None,
+			"child_sku_type": None,
+			"child_requirement": None,
+			"child_stock": None,
+			"child_stock_soft_allocation_qty": None,
+			"child_stock_shortage": None,
+			"child_full_kit_status": None,
+			"child_wip_open_po": None,
+			"child_wip_open_po_soft_allocation_qty": None,
+			"child_wip_open_po_shortage": None,
+			"child_wip_open_po_full_kit_status": None,
+		}
+		
+		# Add Net Flow only for buffer items
+		if is_item_buffer:
+			common_fields["net_flow"] = math.ceil(flt(net_flow))  # Net Flow: on_hand_stock + wip + open_po + open_subcon_po - qualified_demand
+		else:
+			common_fields["net_flow"] = None  # Net Flow not applicable for non-buffer items
+		
+		base_row.update(common_fields)
 
 		# Get BOM for this item to find child items
 		bom = get_default_bom(item_code)
