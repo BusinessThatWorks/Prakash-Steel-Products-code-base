@@ -869,8 +869,12 @@ function renderTable(state, data) {
 		return frappe.format(v, {fieldtype: 'Date'});
 	}
 	function fmtFloat(v) {
-		const n = parseFloat(v) || 0;
-		return n.toFixed(2);
+		const n = parseFloat(v);
+		if (isNaN(n)) {
+			return '0';
+		}
+		// Show only integer quantity (e.g. 8.89 → "8")
+		return Math.floor(n).toString();
 	}
 	function fmtCurrency(v) {
 		const n = parseFloat(v) || 0;
