@@ -46,38 +46,39 @@ class CustomSalesInvoice(SalesInvoice):
 
 			# Get required quantity in stock UOM
 			# Use stock_qty if available (already in stock UOM), otherwise convert qty to stock UOM
-			if hasattr(item, 'stock_qty') and item.stock_qty:
+			if hasattr(item, "stock_qty") and item.stock_qty:
 				required_qty = flt(item.stock_qty, item.precision("stock_qty"))
 			else:
 				# Convert qty to stock UOM using conversion_factor
 				conversion_factor = flt(item.conversion_factor) or 1.0
 				required_qty = flt(item.qty, item.precision("qty")) * conversion_factor
-			
+
 			if required_qty <= 0:
 				continue
 
-			# Get available stock from warehouse
+			# Get available stock from warehous
 			available_qty = self.get_available_stock(item.item_code, item.warehouse)
 
 			# Validation: If any item has 0 quantity in warehouse, throw error and prevent submission
 			if available_qty == 0:
 				frappe.throw(
-					_("Item {0} has 0 quantity in warehouse {1}. Cannot create Material Receipt for items with zero stock. Please add stock manually before submitting.").format(
-						frappe.bold(item.item_code),
-						frappe.bold(item.warehouse)
-					),
-					title=_("Zero Stock Error")
+					_(
+						"Item {0} has 0 quantity in warehouse {1}. Cannot create Material Receipt for items with zero stock. Please add stock manually before submitting."
+					).format(frappe.bold(item.item_code), frappe.bold(item.warehouse)),
+					title=_("Zero Stock Error"),
 				)
 
 			# Check if stock is insufficient
 			if available_qty < required_qty:
 				shortage_qty = required_qty - available_qty
-				items_to_receipt.append({
-					"item": item,
-					"shortage_qty": shortage_qty,
-					"available_qty": available_qty,
-					"required_qty": required_qty
-				})
+				items_to_receipt.append(
+					{
+						"item": item,
+						"shortage_qty": shortage_qty,
+						"available_qty": available_qty,
+						"required_qty": required_qty,
+					}
+				)
 
 		# If no items need stock receipt, return
 		if not items_to_receipt:
@@ -100,40 +101,46 @@ class CustomSalesInvoice(SalesInvoice):
 				# Get item details
 				item_doc = frappe.get_doc("Item", item.item_code)
 				stock_uom = item_doc.stock_uom or item.uom or "Nos"
-				
+
 				# Calculate rate in stock UOM if needed
 				conversion_factor = flt(item.conversion_factor) or 1.0
-				rate_in_stock_uom = flt(item.rate or 0) / conversion_factor if conversion_factor > 0 else flt(item.rate or 0)
+				rate_in_stock_uom = (
+					flt(item.rate or 0) / conversion_factor if conversion_factor > 0 else flt(item.rate or 0)
+				)
 
 				# Add to stock entry items (shortage_qty is already in stock UOM)
-				stock_entry_items.append({
-					"item_code": item.item_code,
-					"item_name": item.item_name,
-					"description": item.description,
-					"qty": shortage_qty,
-					"uom": stock_uom,  # Use stock UOM for Material Receipt
-					"stock_uom": stock_uom,
-					"conversion_factor": 1.0,  # Already in stock UOM
-					"t_warehouse": item.warehouse,  # Target warehouse for Material Receipt
-					"basic_rate": rate_in_stock_uom,
-					"basic_amount": flt(shortage_qty * rate_in_stock_uom),
-					"expense_account": item.expense_account,
-					"cost_center": item.cost_center or self.cost_center,
-				})
+				stock_entry_items.append(
+					{
+						"item_code": item.item_code,
+						"item_name": item.item_name,
+						"description": item.description,
+						"qty": shortage_qty,
+						"uom": stock_uom,  # Use stock UOM for Material Receipt
+						"stock_uom": stock_uom,
+						"conversion_factor": 1.0,  # Already in stock UOM
+						"t_warehouse": item.warehouse,  # Target warehouse for Material Receipt
+						"basic_rate": rate_in_stock_uom,
+						"basic_amount": flt(shortage_qty * rate_in_stock_uom),
+						"expense_account": item.expense_account,
+						"cost_center": item.cost_center or self.cost_center,
+					}
+				)
 
 			# Create Stock Entry
-			stock_entry = frappe.get_doc({
-				"doctype": "Stock Entry",
-				"stock_entry_type": "Material Receipt",
-				"company": company,
-				"set_posting_time": 1,
-				"posting_date": posting_date,
-				"posting_time": posting_time,
-				"items": stock_entry_items,
-				"remarks": _("Auto-created Material Receipt for insufficient stock in Sales Invoice {0}").format(
-					self.name
-				),
-			})
+			stock_entry = frappe.get_doc(
+				{
+					"doctype": "Stock Entry",
+					"stock_entry_type": "Material Receipt",
+					"company": company,
+					"set_posting_time": 1,
+					"posting_date": posting_date,
+					"posting_time": posting_time,
+					"items": stock_entry_items,
+					"remarks": _(
+						"Auto-created Material Receipt for insufficient stock in Sales Invoice {0}"
+					).format(self.name),
+				}
+			)
 
 			# Explicitly set posting time and date
 			stock_entry.set_posting_time = 1
@@ -166,10 +173,9 @@ class CustomSalesInvoice(SalesInvoice):
 			# Show success message
 			item_list = ", ".join([f"{r['item'].item_code} ({r['shortage_qty']})" for r in items_to_receipt])
 			frappe.msgprint(
-				_("Material Receipt {0} created and submitted automatically for insufficient stock items: {1}").format(
-					frappe.bold(stock_entry.name),
-					item_list
-				),
+				_(
+					"Material Receipt {0} created and submitted automatically for insufficient stock items: {1}"
+				).format(frappe.bold(stock_entry.name), item_list),
 				indicator="green",
 				alert=True,
 			)
@@ -186,7 +192,7 @@ class CustomSalesInvoice(SalesInvoice):
 
 	def get_available_stock(self, item_code, warehouse):
 		"""Get available stock quantity for an item in a warehouse.
-		
+
 		Uses Stock Ledger Entry to get accurate stock as of the posting date.
 		"""
 		try:
@@ -226,4 +232,3 @@ class CustomSalesInvoice(SalesInvoice):
 				pass
 
 			return 0
-
