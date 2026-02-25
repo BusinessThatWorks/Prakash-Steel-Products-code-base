@@ -326,18 +326,18 @@ function render_cards(state, totals) {
 
     totals = totals || {};
 
-    // Use teal and light pink for Rolled Production,
-    // and light yellow + green combo for Bright Production
+    // Use teal and light pink (plus purple) for Rolled Production,
+    // and light yellow + green (plus orange) for Bright Production
     const gradientClasses = tabId === 'rolled_production'
-        ? ['card-teal', 'card-pink']
-        : ['card-yellow', 'card-green'];
+        ? ['card-teal', 'card-pink', 'card-purple']
+        : ['card-yellow', 'card-green', 'card-orange'];
 
     const cards = [
         {
             value: totals.total_production,
             label: __('Total Production (kg)'),
             gradientClass: gradientClasses[0],
-            description: __('Sum of Qty across all rows'),
+            description: __('Sum of Actual Qty across all rows'),
             isQty: true, // Qty field - format as integer
         },
         {
@@ -348,6 +348,27 @@ function render_cards(state, totals) {
             isQty: true, // Qty field - format as integer
         },
     ];
+
+    // Tab-specific KPI cards for percentage metrics
+    if (tabId === 'rolled_production') {
+        // Average Burning Loss % from Finish Weight
+        cards.push({
+            value: totals.burning_loss_per,
+            label: __('Burning Loss %'),
+            gradientClass: gradientClasses[2],
+            description: __('Average Burning Loss % (from Finish Weight)'),
+            isPercentage: true, // format as percentage with 2 decimals
+        });
+    } else if (tabId === 'bright_production') {
+        // Average Wastage % from Bright Bar Production
+        cards.push({
+            value: totals.wastage_per,
+            label: __('Wastage %'),
+            gradientClass: gradientClasses[2],
+            description: __('Average Wastage % (from Bright Bar Production)'),
+            isPercentage: true, // format as percentage with 2 decimals
+        });
+    }
 
     cards.forEach(card => {
         $container.append(buildCardHtml(card));
@@ -382,10 +403,30 @@ function format_number_with_decimals(value) {
     return format_number(num);
 }
 
+// Helper function to format percentage values: show exactly 2 decimal places (e.g., 2.03)
+function format_percentage(value) {
+    if (value === undefined || value === null || value === '') {
+        return '--';
+    }
+    const num = parseFloat(value);
+    if (isNaN(num)) {
+        return '--';
+    }
+    // Format with exactly 2 decimal places
+    return num.toFixed(2);
+}
+
 function buildCardHtml(card) {
     const raw = card.value;
-    // Use integer formatting for Qty fields, decimal formatting for others
-    const display = card.isQty ? format_qty_as_integer(raw) : format_number_with_decimals(raw);
+    // Use integer formatting for Qty fields, percentage formatting for percentages, decimal formatting for others
+    let display;
+    if (card.isQty) {
+        display = format_qty_as_integer(raw);
+    } else if (card.isPercentage) {
+        display = format_percentage(raw);
+    } else {
+        display = format_number_with_decimals(raw);
+    }
 
     const gradientClass = card.gradientClass || 'card-blue';
     const gradient = getGradientStyle(gradientClass);
@@ -501,12 +542,12 @@ function buildTableRow(tabId, row) {
     // RM
     const rm = row.rm ? frappe.utils.escape_html(row.rm) : '';
 
-    // Last column differs per tab – keep decimals (percentage fields)
+    // Last column differs per tab – format as percentage with exactly 2 decimal places
     let lastColValue = '';
     if (tabId === 'rolled_production') {
-        lastColValue = format_number_with_decimals(row.burning_loss);
+        lastColValue = format_percentage(row.burning_loss);
     } else {
-        lastColValue = format_number_with_decimals(row.wastage);
+        lastColValue = format_percentage(row.wastage);
     }
 
     return `<tr style="border-bottom:1px solid #e9ecef;">

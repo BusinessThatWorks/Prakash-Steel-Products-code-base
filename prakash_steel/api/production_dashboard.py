@@ -84,7 +84,7 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			planned_qty_map[(pr.production_plan, pr.item_code)] = flt(pr.planned_qty)
 
 	# ── 3.  Batch-fetch Actual Qty & Burning Loss from Finish Weight
-	#         Aggregate per (production_plan, item_code).
+	#         Aggregate per (production_plan, item_code) for row-level data.
 	fw_map = {}  # key: (production_plan, item_code) → {actual_qty, burning_loss}
 	if pp_names:
 		pp_list = list(pp_names)
@@ -109,12 +109,46 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 				"burning_loss": flt(fr.avg_burning_loss, 2),
 			}
 
+	# ── 3.a  Compute average Burning Loss % from Finish Weight records ──
+	# Calculate the average of burning_loss_per values from all Finish Weight
+	# records that match the current filters (date, item, production plan).
+	avg_burning_loss_per = 0.0
+	if pp_names:
+		conditions_fw = ["fw.docstatus = 1", "fw.production_plan IN %(pp_list)s"]
+		params_fw = {"pp_list": list(pp_names)}
+
+		if from_date:
+			# Use posting_date on Finish Weight to align with the date filters.
+			conditions_fw.append("fw.posting_date >= %(from_date)s")
+			params_fw["from_date"] = from_date
+		if to_date:
+			conditions_fw.append("fw.posting_date <= %(to_date)s")
+			params_fw["to_date"] = to_date
+		if item_code:
+			conditions_fw.append("fw.item_code = %(item_code)s")
+			params_fw["item_code"] = item_code
+		if production_plan:
+			conditions_fw.append("fw.production_plan = %(production_plan)s")
+			params_fw["production_plan"] = production_plan
+
+		fw_avg_rows = frappe.db.sql(
+			f"""
+			SELECT
+				AVG(NULLIF(fw.burning_loss_per, 0)) AS avg_burning_loss
+			FROM `tabFinish Weight` fw
+			WHERE {" AND ".join(conditions_fw)}
+			""",
+			params_fw,
+			as_dict=True,
+		)
+
+		if fw_avg_rows and fw_avg_rows[0].get("avg_burning_loss") is not None:
+			avg_burning_loss_per = flt(fw_avg_rows[0].get("avg_burning_loss"), 2)
+
 	# ── 4.  Assemble final rows ────────────────────────────────────
 	rows = []
 	total_production = 0
 	total_rm_consumption = 0
-	# Track unique (production_plan, finished_item) pairs to avoid double-counting planned qty
-	planned_qty_tracked = set()
 
 	for row in billet_cutting_data:
 		pp = row.production_plan or ""
@@ -125,10 +159,8 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 		actual_qty = fw_data.get("actual_qty", 0)
 		burning_loss = fw_data.get("burning_loss", 0)
 
-		# Sum FG Planned Qty only once per (production_plan, finished_item) combination
-		if pp and fi and (pp, fi) not in planned_qty_tracked:
-			total_production += flt(fg_planned_qty)
-			planned_qty_tracked.add((pp, fi))
+		# Sum Actual Qty (from Finish Weight) for Total Production
+		total_production += flt(actual_qty)
 
 		total_rm_consumption += flt(row.rm_consumption)
 
@@ -149,6 +181,9 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 		"totals": {
 			"total_production": flt(total_production),
 			"rm_consumption": flt(total_rm_consumption),
+			# Average Burning Loss % from all Finish Weight records that match
+			# the current filters (date, item, production plan).
+			"burning_loss_per": flt(avg_burning_loss_per, 2),
 		},
 	}
 
@@ -236,8 +271,8 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 	rows = []
 	total_production = 0
 	total_rm_consumption = 0
-	# Track unique (production_plan, finished_item) pairs to avoid double-counting planned qty
-	planned_qty_tracked = set()
+	total_fg_weight = 0.0
+	total_rm_for_wastage = 0.0
 
 	for row in bright_data:
 		pp = row.production_plan or ""
@@ -245,29 +280,48 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 
 		fg_planned_qty = planned_qty_map.get((pp, fi), 0)
 
-		# Sum FG Planned Qty only once per (production_plan, finished_item) combination
-		if pp and fi and (pp, fi) not in planned_qty_tracked:
-			total_production += flt(fg_planned_qty)
-			planned_qty_tracked.add((pp, fi))
+		rm_consumption = flt(row.rm_consumption)
+		actual_qty = flt(row.actual_qty)
 
-		total_rm_consumption += flt(row.rm_consumption)
+		# Sum Actual Qty (fg_weight from Bright Bar Production) for Total Production
+		total_production += actual_qty
+
+		total_rm_consumption += rm_consumption
+		# For correct overall wastage %, aggregate via quantities rather than
+		# simply averaging the per-row percentage:
+		#   wastage_per (per row) = |(fg_weight / actual_rm) * 100 - 100|
+		# In the normal case fg_weight <= actual_rm, this is:
+		#   (actual_rm - fg_weight) / actual_rm * 100
+		# So overall wastage % is:
+		#   (Σ(actual_rm - fg_weight) / Σ(actual_rm)) * 100
+		total_fg_weight += actual_qty
+		total_rm_for_wastage += rm_consumption
 
 		rows.append({
 			"production_plan": pp,
 			"production_date": str(row.production_date) if row.production_date else "",
 			"finished_item": fi,
 			"fg_planned_qty": flt(fg_planned_qty),
-			"actual_qty": flt(row.actual_qty),
+			"actual_qty": actual_qty,
 			"fg_length": row.fg_length or "",
 			"rm": row.rm or "",
-			"rm_consumption": flt(row.rm_consumption),
+			"rm_consumption": rm_consumption,
 			"wastage": flt(row.wastage, 2),
 		})
+
+	# Average Wastage % for KPI card - calculate average of wastage_per from rows
+	avg_wastage_per = 0.0
+	wastage_values = [flt(row.get("wastage", 0)) for row in bright_data if row.get("wastage") is not None]
+	if wastage_values:
+		avg_wastage_per = sum(wastage_values) / len(wastage_values)
 
 	return {
 		"rows": rows,
 		"totals": {
 			"total_production": flt(total_production),
 			"rm_consumption": flt(total_rm_consumption),
+			# Average Wastage % from all Bright Bar Production rows that
+			# match the current filters (date, item, production plan).
+			"wastage_per": flt(avg_wastage_per, 2),
 		},
 	}
