@@ -153,18 +153,18 @@ doc_events = {
 	"Production Plan": {
 		"on_submit": "prakash_steel.prakash_steel.utils.production_plan.on_production_plan_submit",
 	},
-	# "Sales Order": {
-	# 	"before_cancel": "prakash_steel.utils.sales_order_cancel.validate_cancel_reason",
-	# },
-	# "Purchase Order": {
-	# 	"before_cancel": "prakash_steel.utils.purchase_order_cancel.validate_cancel_reason",
-	# },
-	# "Purchase Invoice": {
-	# 	"before_cancel": "prakash_steel.utils.purchase_invoice_cancel.validate_cancel_reason",
-	# },
-	# "Material Request": {
-	# 	"before_cancel": "prakash_steel.utils.material_request_cancel.validate_cancel_reason",
-	# },
+	"Sales Order": {
+		"before_cancel": "prakash_steel.utils.sales_order_cancel.validate_cancel_reason",
+	},
+	"Purchase Order": {
+		"before_cancel": "prakash_steel.utils.purchase_order_cancel.validate_cancel_reason",
+	},
+	"Purchase Invoice": {
+		"before_cancel": "prakash_steel.utils.purchase_invoice_cancel.validate_cancel_reason",
+	},
+	"Material Request": {
+		"before_cancel": "prakash_steel.utils.material_request_cancel.validate_cancel_reason",
+	},
 	# "Sales Invoice": {
 	# 	"validate": "prakash_steel.utils.sales_invoice.validate_sales_order_items_required",
 	# 	"on_submit": "prakash_steel.utils.sales_invoice.create_stock_entries_on_submit",
@@ -275,10 +275,10 @@ fixtures = [
 ]
 
 doctype_js = {
-	# "Material Request": "public/js/material_request.js",
-	# "Sales Order": "public/js/sales_order.js",
-	# "Purchase Order": "public/js/purchase_order.js",
-	# "Purchase Invoice": "public/js/purchase_invoice.js",
+	"Material Request": "public/js/material_request.js",
+	"Sales Order": "public/js/sales_order.js",
+	"Purchase Order": "public/js/purchase_order.js",
+	"Purchase Invoice": "public/js/purchase_invoice.js",
 	"Item": "public/js/item.js",
 	"Stock Entry": "public/js/stock_entry.js",
 	"Purchase Receipt": "public/js/purchase_receipt.js",
@@ -319,5 +319,5 @@ scheduler_events = {
 override_doctype_class = {
 	"Stock Entry": "prakash_steel.overrides.stock_entry.CustomStockEntry",
 	"Payment Reconciliation": "prakash_steel.overrides.payment_reconciliation.CustomPaymentReconciliation",
-	# "Sales Invoice": "prakash_steel.overrides.sales_invoice.CustomSalesInvoice",
+	"Sales Invoice": "prakash_steel.overrides.sales_invoice.CustomSalesInvoice",
 }
