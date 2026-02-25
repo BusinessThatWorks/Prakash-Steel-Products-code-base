@@ -149,6 +149,7 @@ doc_events = {
 	},
 	"Purchase Receipt": {
 		"on_submit": "prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
+		"before_cancel": "prakash_steel.utils.purchase_receipt_cancel.validate_cancel_reason",
 	},
 	"Production Plan": {
 		"on_submit": "prakash_steel.prakash_steel.utils.production_plan.on_production_plan_submit",
