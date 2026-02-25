@@ -149,8 +149,6 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 	rows = []
 	total_production = 0
 	total_rm_consumption = 0
-	# Track unique (production_plan, finished_item) pairs to avoid double-counting planned qty
-	planned_qty_tracked = set()
 
 	for row in billet_cutting_data:
 		pp = row.production_plan or ""
@@ -161,10 +159,8 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 		actual_qty = fw_data.get("actual_qty", 0)
 		burning_loss = fw_data.get("burning_loss", 0)
 
-		# Sum FG Planned Qty only once per (production_plan, finished_item) combination
-		if pp and fi and (pp, fi) not in planned_qty_tracked:
-			total_production += flt(fg_planned_qty)
-			planned_qty_tracked.add((pp, fi))
+		# Sum Actual Qty (from Finish Weight) for Total Production
+		total_production += flt(actual_qty)
 
 		total_rm_consumption += flt(row.rm_consumption)
 
@@ -277,8 +273,6 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 	total_rm_consumption = 0
 	total_fg_weight = 0.0
 	total_rm_for_wastage = 0.0
-	# Track unique (production_plan, finished_item) pairs to avoid double-counting planned qty
-	planned_qty_tracked = set()
 
 	for row in bright_data:
 		pp = row.production_plan or ""
@@ -286,13 +280,11 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 
 		fg_planned_qty = planned_qty_map.get((pp, fi), 0)
 
-		# Sum FG Planned Qty only once per (production_plan, finished_item) combination
-		if pp and fi and (pp, fi) not in planned_qty_tracked:
-			total_production += flt(fg_planned_qty)
-			planned_qty_tracked.add((pp, fi))
-
 		rm_consumption = flt(row.rm_consumption)
 		actual_qty = flt(row.actual_qty)
+
+		# Sum Actual Qty (fg_weight from Bright Bar Production) for Total Production
+		total_production += actual_qty
 
 		total_rm_consumption += rm_consumption
 		# For correct overall wastage %, aggregate via quantities rather than

@@ -337,7 +337,7 @@ function render_cards(state, totals) {
             value: totals.total_production,
             label: __('Total Production (kg)'),
             gradientClass: gradientClasses[0],
-            description: __('Sum of Qty across all rows'),
+            description: __('Sum of Actual Qty across all rows'),
             isQty: true, // Qty field - format as integer
         },
         {
