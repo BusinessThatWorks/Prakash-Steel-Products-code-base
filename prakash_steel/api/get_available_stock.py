@@ -1,26 +1,29 @@
 import frappe
 
+
 @frappe.whitelist()
 def get_available_stock(item_code):
     """
-    Fetch total available stock from Bin table excluding rejected warehouses.
-    Returns available quantity in KG
+    Fetch total available stock from Bin table for the given item
+    across ALL warehouses.
+
+    Returns available quantity in KG.
     """
     try:
-        # Replace with your actual warehouse names to exclude
-        excluded_warehouses = ["Rejected Warehouse"]
-
         total_qty = frappe.db.sql(
             """
-            SELECT SUM(actual_qty) 
+            SELECT SUM(actual_qty) AS qty
             FROM `tabBin`
-            WHERE item_code=%s AND warehouse NOT IN %s
+            WHERE item_code=%s
         """,
-            (item_code, tuple(excluded_warehouses)),
+            (item_code,),
             as_dict=True,
         )
 
-        available_qty = total_qty[0]["SUM(actual_qty)"] or 0
+        # total_qty will be a list with one dict; handle None safely
+        available_qty = (
+            total_qty[0].get("qty") if total_qty and total_qty[0] else 0
+        ) or 0
         return available_qty
 
     except Exception:
@@ -53,9 +56,13 @@ def get_available_stock_for_warehouse(item_code, warehouse):
             as_dict=True,
         )
 
-        available_qty = (total_qty[0].get("qty") if total_qty and total_qty[0] else 0) or 0
+        available_qty = (
+            total_qty[0].get("qty") if total_qty and total_qty[0] else 0
+        ) or 0
         return available_qty
 
     except Exception:
-        frappe.log_error(frappe.get_traceback(), "get_available_stock_for_warehouse_error")
+        frappe.log_error(
+            frappe.get_traceback(), "get_available_stock_for_warehouse_error"
+        )
         return 0
