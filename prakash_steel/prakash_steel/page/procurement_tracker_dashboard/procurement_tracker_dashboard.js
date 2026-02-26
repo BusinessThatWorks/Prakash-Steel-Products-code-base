@@ -1198,27 +1198,170 @@ function fetchPurchaseOrderData(filters, state) {
                         filteredData = filteredData.filter(po => po.supplier === filters.supplier);
                     }
 
-                    // Create status summary based on workflow_state
-                    const statusCounts = {};
-                    filteredData.forEach(item => {
-                        const status = item.workflow_state || 'Draft';
-                        statusCounts[status] = (statusCounts[status] || 0) + 1;
-                    });
+                    // Create status summary - we'll update this after fetching approved POs
+                    // For now, create empty summary that will be populated with approved PO data
+                    const summary = [];
 
-                    const summary = Object.keys(statusCounts).map(status => ({
-                        value: statusCounts[status],
-                        label: `${status} Purchase Orders`,
-                        datatype: 'Int',
-                        indicator: getStatusIndicator(status),
-                        description: `Purchase orders with ${status} status`
-                    }));
+                    // Fetch ALL approved purchase orders directly (not just those from Material Requests)
+                    // to ensure we get all POs with docstatus=1 and workflow_state='Approved'
+                    // This data will be used for both the card value and the table
+                    const poFilters = {
+                        docstatus: 1,
+                        workflow_state: 'Approved',
+                        transaction_date: ['between', [filters.from_date, filters.to_date]]
+                    };
+                    
+                    // Add supplier filter if specified
+                    if (filters.supplier) {
+                        poFilters.supplier = filters.supplier;
+                    }
+                    
+                    // Add ID filter if specified
+                    if (filters.po_id) {
+                        poFilters.name = filters.po_id;
+                    }
+                    
+                    frappe.call({
+                        method: 'frappe.client.get_list',
+                        args: {
+                            doctype: 'Purchase Order',
+                            filters: poFilters,
+                            fields: ['name', 'transaction_date', 'workflow_state', 'status', 'supplier', 'grand_total'],
+                            limit_page_length: 10000
+                        },
+                        callback: (r) => {
+                            let approvedPOs = [];
+                            let approvedPOValue = 0;
+                            
+                            if (r.message && r.message.length > 0) {
+                                // Transform the data to match the expected format
+                                approvedPOs = r.message.map(po => ({
+                                    name: po.name,
+                                    transaction_date: po.transaction_date,
+                                    workflow_state: po.workflow_state || 'Approved',
+                                    status: po.status || '',
+                                    supplier: po.supplier || '',
+                                    grand_total: parseFloat(po.grand_total || 0)
+                                }));
+                            } else {
+                                // Fallback: calculate from filteredData if direct fetch returns empty
+                                approvedPOs = filteredData.filter(po => 
+                                    po.workflow_state === 'Approved'
+                                );
+                            }
 
-                    // Update status options based on actual data
-                    updateStatusOptions('purchase_order', purchaseOrders, state);
+                            // Apply item filter if specified
+                            if (filters.po_item_name && approvedPOs.length > 0) {
+                                const poNames = approvedPOs.map(po => po.name);
+                                
+                                frappe.call({
+                                    method: 'frappe.client.get_list',
+                                    args: {
+                                        doctype: 'Purchase Order Item',
+                                        filters: [
+                                            ['parent', 'in', poNames],
+                                            ['item_code', '=', filters.po_item_name]
+                                        ],
+                                        fields: ['parent'],
+                                        limit_page_length: 10000
+                                    },
+                                    callback: (itemResult) => {
+                                        if (itemResult.message && itemResult.message.length > 0) {
+                                            const filteredPONames = [...new Set(itemResult.message.map(item => item.parent))];
+                                            approvedPOs = approvedPOs.filter(po => filteredPONames.includes(po.name));
+                                        } else {
+                                            approvedPOs = [];
+                                        }
+                                        
+                                        // Calculate total value
+                                        approvedPOValue = approvedPOs.reduce((sum, po) => {
+                                            return sum + po.grand_total;
+                                        }, 0);
 
-                    resolve({
-                        summary: summary,
-                        raw_data: filteredData
+                                        // Add Approved Purchase Orders count card
+                                        summary.push({
+                                            value: approvedPOs.length,
+                                            label: __('Approved Purchase Orders'),
+                                            datatype: 'Int',
+                                            indicator: 'Green',
+                                            description: __('Number of approved and submitted purchase orders')
+                                        });
+
+                                        // Update status options and resolve with approved POs as raw_data
+                                        updateStatusOptions('purchase_order', purchaseOrders, state);
+                                        resolve({
+                                            summary: summary,
+                                            raw_data: approvedPOs  // Table will show only approved POs
+                                        });
+                                    },
+                                    error: () => {
+                                        // If item filter fails, proceed without it
+                                        approvedPOValue = approvedPOs.reduce((sum, po) => {
+                                            return sum + po.grand_total;
+                                        }, 0);
+
+                                        summary.push({
+                                            value: approvedPOs.length,
+                                            label: __('Approved Purchase Orders'),
+                                            datatype: 'Int',
+                                            indicator: 'Green',
+                                            description: __('Number of approved and submitted purchase orders')
+                                        });
+
+                                        updateStatusOptions('purchase_order', purchaseOrders, state);
+                                        resolve({
+                                            summary: summary,
+                                            raw_data: approvedPOs
+                                        });
+                                    }
+                                });
+                            } else {
+                                // No item filter, calculate directly
+                                approvedPOValue = approvedPOs.reduce((sum, po) => {
+                                    return sum + po.grand_total;
+                                }, 0);
+
+                                // Add Approved Purchase Orders count card
+                                summary.push({
+                                    value: approvedPOs.length,
+                                    label: __('Approved Purchase Orders'),
+                                    datatype: 'Int',
+                                    indicator: 'Green',
+                                    description: __('Number of approved and submitted purchase orders')
+                                });
+
+                                // Update status options and resolve with approved POs as raw_data
+                                updateStatusOptions('purchase_order', purchaseOrders, state);
+                                resolve({
+                                    summary: summary,
+                                    raw_data: approvedPOs  // Table will show only approved POs
+                                });
+                            }
+                        },
+                        error: () => {
+                            // Fallback: calculate from filteredData if direct fetch fails
+                            const approvedPOs = filteredData.filter(po => 
+                                po.workflow_state === 'Approved'
+                            );
+                            const approvedPOValue = approvedPOs.reduce((sum, po) => {
+                                return sum + parseFloat(po.grand_total || 0);
+                            }, 0);
+
+                            // Add Approved Purchase Orders count card
+                            summary.push({
+                                value: approvedPOs.length,
+                                label: __('Approved Purchase Orders'),
+                                datatype: 'Int',
+                                indicator: 'Green',
+                                description: __('Number of approved and submitted purchase orders')
+                            });
+
+                            updateStatusOptions('purchase_order', purchaseOrders, state);
+                            resolve({
+                                summary: summary,
+                                raw_data: approvedPOs  // Table will show only approved POs
+                            });
+                        }
                     });
                 } else {
                     resolve({ summary: [], raw_data: [] });

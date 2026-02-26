@@ -131,6 +131,11 @@ frappe.ui.form.on("Material Request Item", {
             console.log("[Step 1] No item_code provided, exiting.");
             console.log("No Item Code selected. Setting available stock to 0");
             frappe.model.set_value(cdt, cdn, 'custom_quantity_available_in_kg', 0);
+            // Also reset total stock field when no item is selected
+            frappe.model.set_value(cdt, cdn, 'custom_item_size', 0);
+            // Reset last purchase/production info
+            frappe.model.set_value(cdt, cdn, 'custom_last_purchase_or_production', null);
+            frappe.model.set_value(cdt, cdn, 'custom_purchase_or_production_quantity_in_kg', 0);
             frm.refresh_field("items");
             return;
         }
@@ -149,6 +154,35 @@ frappe.ui.form.on("Material Request Item", {
             }
         });
 
+        // Fetch latest purchase or production date & quantity for this item
+        frappe.call({
+            method: "prakash_steel.api.get_last_purchase_or_production.get_last_purchase_or_production",
+            args: {
+                item_code: row.item_code
+            },
+            callback: function (r) {
+                const data = r.message || {};
+                // Date field on child row
+                frappe.model.set_value(
+                    cdt,
+                    cdn,
+                    "custom_last_purchase_or_production",
+                    data.date || null
+                );
+                // Quantity field on child row
+                frappe.model.set_value(
+                    cdt,
+                    cdn,
+                    "custom_purchase_or_production_quantity_in_kg",
+                    data.qty || 0
+                );
+            },
+            error: function () {
+                frappe.model.set_value(cdt, cdn, "custom_last_purchase_or_production", null);
+                frappe.model.set_value(cdt, cdn, "custom_purchase_or_production_quantity_in_kg", 0);
+            },
+        });
+
         console.log("Calling Server Script API: get_available_stock");
         frappe.call({
             method: "prakash_steel.api.get_available_stock.get_available_stock",
@@ -160,15 +194,19 @@ frappe.ui.form.on("Material Request Item", {
                 if (res.message !== undefined) {
                     console.log("Available stock received:", res.message);
                     frappe.model.set_value(cdt, cdn, 'custom_quantity_available_in_kg', res.message);
+                    // Populate TOTAL STOCK across all warehouses into custom_item_size
+                    frappe.model.set_value(cdt, cdn, 'custom_item_size', res.message);
                 } else {
                     console.log("No stock returned from server. Setting 0");
                     frappe.model.set_value(cdt, cdn, 'custom_quantity_available_in_kg', 0);
+                    frappe.model.set_value(cdt, cdn, 'custom_item_size', 0);
                 }
                 frm.refresh_field("items");
             },
             error: function (err) {
                 console.error("Error fetching stock from server:", err);
                 frappe.model.set_value(cdt, cdn, 'custom_quantity_available_in_kg', 0);
+                frappe.model.set_value(cdt, cdn, 'custom_item_size', 0);
                 frm.refresh_field("items");
             }
         });
