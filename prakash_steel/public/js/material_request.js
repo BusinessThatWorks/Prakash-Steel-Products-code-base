@@ -133,6 +133,9 @@ frappe.ui.form.on("Material Request Item", {
             frappe.model.set_value(cdt, cdn, 'custom_quantity_available_in_kg', 0);
             // Also reset total stock field when no item is selected
             frappe.model.set_value(cdt, cdn, 'custom_item_size', 0);
+            // Reset last purchase/production info
+            frappe.model.set_value(cdt, cdn, 'custom_last_purchase_or_production', null);
+            frappe.model.set_value(cdt, cdn, 'custom_purchase_or_production_quantity_in_kg', 0);
             frm.refresh_field("items");
             return;
         }
@@ -149,6 +152,35 @@ frappe.ui.form.on("Material Request Item", {
             callback: function (r) {
                 frappe.model.set_value(cdt, cdn, "custom_last_rate", r.message || 0);
             }
+        });
+
+        // Fetch latest purchase or production date & quantity for this item
+        frappe.call({
+            method: "prakash_steel.api.get_last_purchase_or_production.get_last_purchase_or_production",
+            args: {
+                item_code: row.item_code
+            },
+            callback: function (r) {
+                const data = r.message || {};
+                // Date field on child row
+                frappe.model.set_value(
+                    cdt,
+                    cdn,
+                    "custom_last_purchase_or_production",
+                    data.date || null
+                );
+                // Quantity field on child row
+                frappe.model.set_value(
+                    cdt,
+                    cdn,
+                    "custom_purchase_or_production_quantity_in_kg",
+                    data.qty || 0
+                );
+            },
+            error: function () {
+                frappe.model.set_value(cdt, cdn, "custom_last_purchase_or_production", null);
+                frappe.model.set_value(cdt, cdn, "custom_purchase_or_production_quantity_in_kg", 0);
+            },
         });
 
         console.log("Calling Server Script API: get_available_stock");
