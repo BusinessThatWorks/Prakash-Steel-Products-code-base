@@ -131,6 +131,8 @@ frappe.ui.form.on("Material Request Item", {
             console.log("[Step 1] No item_code provided, exiting.");
             console.log("No Item Code selected. Setting available stock to 0");
             frappe.model.set_value(cdt, cdn, 'custom_quantity_available_in_kg', 0);
+            // Also reset total stock field when no item is selected
+            frappe.model.set_value(cdt, cdn, 'custom_item_size', 0);
             frm.refresh_field("items");
             return;
         }
@@ -160,15 +162,19 @@ frappe.ui.form.on("Material Request Item", {
                 if (res.message !== undefined) {
                     console.log("Available stock received:", res.message);
                     frappe.model.set_value(cdt, cdn, 'custom_quantity_available_in_kg', res.message);
+                    // Populate TOTAL STOCK across all warehouses into custom_item_size
+                    frappe.model.set_value(cdt, cdn, 'custom_item_size', res.message);
                 } else {
                     console.log("No stock returned from server. Setting 0");
                     frappe.model.set_value(cdt, cdn, 'custom_quantity_available_in_kg', 0);
+                    frappe.model.set_value(cdt, cdn, 'custom_item_size', 0);
                 }
                 frm.refresh_field("items");
             },
             error: function (err) {
                 console.error("Error fetching stock from server:", err);
                 frappe.model.set_value(cdt, cdn, 'custom_quantity_available_in_kg', 0);
+                frappe.model.set_value(cdt, cdn, 'custom_item_size', 0);
                 frm.refresh_field("items");
             }
         });
