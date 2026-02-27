@@ -1,0 +1,165 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-02-25 15:21:41.454463",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "director",
+  "column_break_onkm",
+  "relative_of_director",
+  "section_break_wpnl",
+  "unsecured_loan",
+  "column_break_ozvz",
+  "closing_balance",
+  "financial_year_section",
+  "financial_year",
+  "section_break_ztbj",
+  "from_date",
+  "column_break_pztt",
+  "to_date",
+  "period_per_annum_interest__section",
+  "interest_percent",
+  "amount",
+  "monthbased_on_financial_year_section",
+  "month",
+  "interest_details_section",
+  "interest_details"
+ ],
+ "fields": [
+  {
+   "fieldname": "director",
+   "fieldtype": "Data",
+   "label": "Director"
+  },
+  {
+   "fieldname": "relative_of_director",
+   "fieldtype": "Data",
+   "label": "Relative of Director"
+  },
+  {
+   "fieldname": "column_break_onkm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_wpnl",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "unsecured_loan",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Unsecured Loan",
+   "options": "Account",
+   "reqd": 1
+  },
+  {
+   "fieldname": "closing_balance",
+   "fieldtype": "Currency",
+   "label": "Closing Balance",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ozvz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "financial_year_section",
+   "fieldtype": "Section Break",
+   "label": "Financial Year"
+  },
+  {
+   "fieldname": "financial_year",
+   "fieldtype": "Link",
+   "label": "Financial Year",
+   "options": "Fiscal Year",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_ztbj",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fetch_from": "financial_year.year_start_date",
+   "fieldname": "from_date",
+   "fieldtype": "Date",
+   "label": "From Date"
+  },
+  {
+   "fetch_from": "financial_year.year_end_date",
+   "fieldname": "to_date",
+   "fieldtype": "Date",
+   "label": "To Date"
+  },
+  {
+   "fieldname": "column_break_pztt",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "period_per_annum_interest__section",
+   "fieldtype": "Section Break",
+   "label": "Period Per Annum (Interest %)"
+  },
+  {
+   "fieldname": "interest_percent",
+   "fieldtype": "Percent",
+   "label": "Interest % Per Annum",
+   "precision": "3"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "monthbased_on_financial_year_section",
+   "fieldtype": "Section Break",
+   "label": "Month(Based on Financial Year)"
+  },
+  {
+   "fieldname": "month",
+   "fieldtype": "Select",
+   "label": "Month",
+   "options": "April\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember\nJanuary\nFebruary\nMarch"
+  },
+  {
+   "fieldname": "interest_details_section",
+   "fieldtype": "Section Break",
+   "label": "Interest Details"
+  },
+  {
+   "fieldname": "interest_details",
+   "fieldtype": "Table",
+   "label": "Interest Details",
+   "options": "Interest Details"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-02-25 16:01:37.955355",
+ "modified_by": "Administrator",
+ "module": "Prakash Steel",
+ "name": "Unsecured Loans and Transaction",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
