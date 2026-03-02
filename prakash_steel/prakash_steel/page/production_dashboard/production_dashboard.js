@@ -132,7 +132,7 @@ function getProductionPlanQuery(state) {
     const filters = { docstatus: 1 };
     if (state.currentTab === 'rolled_production') {
         filters['name'] = ['like', '%Rolled%'];
-    } else {
+	} else if (state.currentTab === 'bright_production') {
         filters['name'] = ['like', '%Bright%'];
     }
     return { filters };
@@ -157,7 +157,8 @@ function createTabbedInterface(state) {
 
     const tabs = [
         { id: 'rolled_production', label: __('Rolled Production'), icon: 'fa fa-industry' },
-        { id: 'bright_production', label: __('Bright Production'), icon: 'fa fa-cog' },
+		{ id: 'bright_production', label: __('Bright Production'), icon: 'fa fa-cog' },
+		{ id: 'bend_weight_details', label: __('Bend Weight Details'), icon: 'fa fa-balance-scale' },
     ];
 
     tabs.forEach((tab, idx) => {
@@ -195,10 +196,17 @@ function createContentContainers(state) {
         if (!state.$cards) state.$cards = {};
         state.$cards[tabId] = $cards;
 
-        // Table
-        const title = tabId === 'rolled_production'
-            ? __('Rolled Production Details')
-            : __('Bright Production Details');
+		// Table
+		let title;
+		if (tabId === 'rolled_production') {
+			title = __('Rolled Production Details');
+		} else if (tabId === 'bright_production') {
+			title = __('Bright Production Details');
+		} else if (tabId === 'bend_weight_details') {
+			title = __('Bend Weight Details');
+		} else {
+			title = '';
+		}
 
         const $tableSection = $(`
             <div class="detailed-data-section">
@@ -282,9 +290,14 @@ function refreshDashboard(state) {
 
     state.page.set_indicator(__('Loading…'), 'blue');
 
-    const apiMethod = tabId === 'rolled_production'
-        ? 'prakash_steel.api.production_dashboard.get_rolled_production_data'
-        : 'prakash_steel.api.production_dashboard.get_bright_production_data';
+	let apiMethod;
+	if (tabId === 'rolled_production') {
+		apiMethod = 'prakash_steel.api.production_dashboard.get_rolled_production_data';
+	} else if (tabId === 'bright_production') {
+		apiMethod = 'prakash_steel.api.production_dashboard.get_bright_production_data';
+	} else if (tabId === 'bend_weight_details') {
+		apiMethod = 'prakash_steel.api.production_dashboard.get_bend_weight_details';
+	}
 
     // If no date filters are set, fetch data till today (but keep UI filters empty)
     const from_date = filters.from_date || '';
@@ -325,6 +338,11 @@ function render_cards(state, totals) {
     $container.empty();
 
     totals = totals || {};
+
+	// For Bend Weight Details, skip KPI cards for now
+	if (tabId === 'bend_weight_details') {
+		return;
+	}
 
     // Use teal and light pink (plus purple) for Rolled Production,
     // and light yellow + green (plus orange) for Bright Production
@@ -579,8 +597,8 @@ function buildTableRow(tabId, row) {
         lastColValue = format_percentage(row.wastage);
     }
 
-    // Build row with tab-specific layouts
-    if (tabId === 'rolled_production') {
+	// Build row with tab-specific layouts
+	if (tabId === 'rolled_production') {
         // Rolled Production:
         // RM section first (RM, Actual RM Consumption, Burning Loss %, Total Billet Pcs, Description of Cutting Billet,
         // Total Raw Material Pcs, Miss Billet Pcs, Miss Billet Weight, Heat No, Total Hr Consumed – inside border),
@@ -609,65 +627,87 @@ function buildTableRow(tabId, row) {
         <td style="${tdStyle}">${totalMissIngotPcs}</td>
         <td style="${tdStyle}">${totalMissIngotWeight}</td>
     </tr>`;
-    }
+	}
 
-    // Bright Production – keep existing order:
-    // Production Plan, Production Date, Finished Item, FG Planned Qty, FG Length,
-    // Actual Qty (with border), RM, Actual RM Consumption, Wastage %.
-    return `<tr style="border-bottom:1px solid #e9ecef;">
-        <td style="${tdStyle}">${ppLink}</td>
-        <td style="${tdStyle} border-right:2px solid #dee2e6;">${prodDate}</td>
-        <td style="${tdStyle}">${finishedItem}</td>
-        <td style="${tdStyle}">${fgPlannedQty}</td>
-        <td style="${tdStyle}">${fgLength}</td>
-        <td style="${tdStyle} border-right:2px solid #dee2e6;">${actualQty}</td>
-        <td style="${tdStyle}">${rm}</td>
-        <td style="${tdStyle}">${rmConsumption}</td>
-        <td style="${tdStyle}">${lastColValue}</td>
-    </tr>`;
+	if (tabId === 'bend_weight_details') {
+		// Bend Weight Details: simple three-column layout
+		const bendWeight = format_number_with_decimals(row.bend_material_weight);
+		const itemCode = row.item_code ? frappe.utils.escape_html(String(row.item_code)) : '';
+		const id = row.id || row.name || '';
+		const safeId = id ? frappe.utils.escape_html(String(id)) : '';
+
+		return `<tr style="border-bottom:1px solid #e9ecef;">
+		<td style="${tdStyle}">${bendWeight}</td>
+		<td style="${tdStyle}">${itemCode}</td>
+		<td style="${tdStyle}">${safeId}</td>
+	</tr>`;
+	}
+
+	// Bright Production – keep existing order:
+	// Production Plan, Production Date, Finished Item, FG Planned Qty, FG Length,
+	// Actual Qty (with border), RM, Actual RM Consumption, Wastage %.
+	return `<tr style="border-bottom:1px solid #e9ecef;">
+		<td style="${tdStyle}">${ppLink}</td>
+		<td style="${tdStyle} border-right:2px solid #dee2e6;">${prodDate}</td>
+		<td style="${tdStyle}">${finishedItem}</td>
+		<td style="${tdStyle}">${fgPlannedQty}</td>
+		<td style="${tdStyle}">${fgLength}</td>
+		<td style="${tdStyle} border-right:2px solid #dee2e6;">${actualQty}</td>
+		<td style="${tdStyle}">${rm}</td>
+		<td style="${tdStyle}">${rmConsumption}</td>
+		<td style="${tdStyle}">${lastColValue}</td>
+	</tr>`;
 }
 
 function getTableColumns(tabId) {
-    if (tabId === 'rolled_production') {
-        // Rolled Production:
-        // RM section first (RM, Actual RM Consumption, Burning Loss %, Total Billet Pcs,
-        // Description of Cutting Billet, Total Raw Material Pcs, Miss Billet Pcs, Miss Billet Weight, Heat No, Total Hr Consumed),
-        // then FG section starting with Finished Item.
-        return [
-            { label: __('Production Plan'), align: 'left' },
-            { label: __('Production Date'), align: 'left' },
-            { label: __('RM'), align: 'left' },
-            { label: __('Actual RM Consumption'), align: 'left' },
-            { label: __('Burning Loss %'), align: 'left' },
-            { label: __('Total Billet Pcs'), align: 'left' },
-            { label: __('Description of Cutting Billet'), align: 'left' },
-            { label: __('Total Raw Material Pcs'), align: 'left' },
-            { label: __('Miss Billet Pcs'), align: 'left' },
-            { label: __('Miss Billet Weight'), align: 'left' },
-            { label: __('Heat No'), align: 'left' },
-            { label: __('Total Hr Consumed'), align: 'left' },
-            { label: __('Finished Item'), align: 'left' },
-            { label: __('FG Planned Qty'), align: 'left' },
-            { label: __('FG Length'), align: 'left' },
-            { label: __('Actual Qty'), align: 'left' },
-            { label: __('Melting Weight'), align: 'left' },
-            { label: __('Finish Pcs'), align: 'left' },
-            { label: __('Total Miss Roll (Pcs)'), align: 'left' },
-            { label: __('Total Miss Roll Weight'), align: 'left' },
-            { label: __('Total Miss Ingot'), align: 'left' },
-            { label: __('Total Miss Ingot'), align: 'left' },
-        ];
-    }
-    // bright_production
-    return [
-        { label: __('Production Plan'), align: 'left' },
-        { label: __('Production Date'), align: 'left' },
-        { label: __('Finished Item'), align: 'left' },
-        { label: __('FG Planned Qty'), align: 'left' },
-        { label: __('FG Length'), align: 'left' },
-        { label: __('Actual Qty'), align: 'left' },
-        { label: __('RM'), align: 'left' },
-        { label: __('Actual RM Consumption'), align: 'left' },
-        { label: __('Wastage %'), align: 'left' },
-    ];
+	if (tabId === 'rolled_production') {
+		// Rolled Production:
+		// RM section first (RM, Actual RM Consumption, Burning Loss %, Total Billet Pcs,
+		// Description of Cutting Billet, Total Raw Material Pcs, Miss Billet Pcs, Miss Billet Weight, Heat No, Total Hr Consumed),
+		// then FG section starting with Finished Item.
+		return [
+			{ label: __('Production Plan'), align: 'left' },
+			{ label: __('Production Date'), align: 'left' },
+			{ label: __('RM'), align: 'left' },
+			{ label: __('Actual RM Consumption'), align: 'left' },
+			{ label: __('Burning Loss %'), align: 'left' },
+			{ label: __('Total Billet Pcs'), align: 'left' },
+			{ label: __('Description of Cutting Billet'), align: 'left' },
+			{ label: __('Total Raw Material Pcs'), align: 'left' },
+			{ label: __('Miss Billet Pcs'), align: 'left' },
+			{ label: __('Miss Billet Weight'), align: 'left' },
+			{ label: __('Heat No'), align: 'left' },
+			{ label: __('Total Hr Consumed'), align: 'left' },
+			{ label: __('Finished Item'), align: 'left' },
+			{ label: __('FG Planned Qty'), align: 'left' },
+			{ label: __('FG Length'), align: 'left' },
+			{ label: __('Actual Qty'), align: 'left' },
+			{ label: __('Melting Weight'), align: 'left' },
+			{ label: __('Finish Pcs'), align: 'left' },
+			{ label: __('Total Miss Roll (Pcs)'), align: 'left' },
+			{ label: __('Total Miss Roll Weight'), align: 'left' },
+			{ label: __('Total Miss Ingot'), align: 'left' },
+			{ label: __('Total Miss Ingot'), align: 'left' },
+		];
+	}
+	if (tabId === 'bend_weight_details') {
+		// Bend Weight Details – simple three-column layout
+		return [
+			{ label: __('Bend Material Weight'), align: 'left' },
+			{ label: __('Item Code'), align: 'left' },
+			{ label: __('ID'), align: 'left' },
+		];
+	}
+	// bright_production
+	return [
+		{ label: __('Production Plan'), align: 'left' },
+		{ label: __('Production Date'), align: 'left' },
+		{ label: __('Finished Item'), align: 'left' },
+		{ label: __('FG Planned Qty'), align: 'left' },
+		{ label: __('FG Length'), align: 'left' },
+		{ label: __('Actual Qty'), align: 'left' },
+		{ label: __('RM'), align: 'left' },
+		{ label: __('Actual RM Consumption'), align: 'left' },
+		{ label: __('Wastage %'), align: 'left' },
+	];
 }

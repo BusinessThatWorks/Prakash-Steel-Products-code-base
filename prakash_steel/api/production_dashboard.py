@@ -401,3 +401,59 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 			"wastage_per": flt(avg_wastage_per, 2),
 		},
 	}
+
+
+@frappe.whitelist()
+def get_bend_weight_details(from_date=None, to_date=None, item_code=None, production_plan=None):
+	"""
+	Fetch Bend Weight Details for the Production Dashboard.
+
+	Source: Finish Weight (submitted)
+	Fields:
+	  - bend_material_weight (Bend Material Weight)
+	  - item_code
+	  - billet_cutting_id (ID)
+	"""
+	conditions = "fw.docstatus = 1"
+	params = {}
+
+	if from_date:
+		conditions += " AND fw.posting_date >= %(from_date)s"
+		params["from_date"] = from_date
+	if to_date:
+		conditions += " AND fw.posting_date <= %(to_date)s"
+		params["to_date"] = to_date
+	if item_code:
+		conditions += " AND fw.item_code = %(item_code)s"
+		params["item_code"] = item_code
+	if production_plan:
+		conditions += " AND fw.production_plan = %(production_plan)s"
+		params["production_plan"] = production_plan
+
+	rows = frappe.db.sql(
+		f"""
+		SELECT
+			fw.bend_material_weight,
+			fw.item_code,
+			fw.billet_cutting_id
+		FROM `tabFinish Weight` fw
+		WHERE {conditions}
+		ORDER BY fw.posting_date DESC, fw.name DESC
+		""",
+		params,
+		as_dict=True,
+	)
+
+	# Shape rows for frontend: expose ID as simple 'id' field
+	result_rows = []
+	for r in rows:
+		result_rows.append({
+			"bend_material_weight": flt(r.bend_material_weight),
+			"item_code": r.item_code,
+			"id": r.billet_cutting_id,
+		})
+
+	return {
+		"rows": result_rows,
+		"totals": {},
+	}
