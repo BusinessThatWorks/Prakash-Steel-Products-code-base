@@ -95,6 +95,8 @@ def get_data(filters=None):
 	"""
 	# Map of item_code -> total sales qty in horizon
 	sales_qty_map = _get_sales_qty_by_item()
+	# Map of item_code -> total consumption
+	consumption_map = _get_consumption_by_item()
 
 	items = frappe.db.get_all(
 		"Item",
@@ -113,7 +115,7 @@ def get_data(filters=None):
 	for item in items:
 		item_code = item.get("item_code")
 		item["sell"] = flt(sales_qty_map.get(item_code, 0.0))
-		item.setdefault("consumption", None)
+		item["consumption"] = flt(consumption_map.get(item_code, 0.0))
 		item.setdefault("sd", None)
 		item.setdefault("cov", None)
 
@@ -161,3 +163,61 @@ def _get_sales_qty_by_item() -> dict[str, float]:
 	)
 
 	return {row["item_code"]: flt(row.get("total_qty", 0.0)) for row in rows}
+
+
+def _get_consumption_by_item() -> dict[str, float]:
+	"""
+	Return a mapping of item_code -> total consumption.
+
+	Logic:
+	- For items with item_type = "rb": sum finish_weight from Finish Weight doctype
+	- For items with item_type = "rm" or "traded": sum billet_weight from Billet Cutting doctype
+	"""
+	consumption_map = {}
+
+	# Get consumption from Finish Weight for items with item_type = "rb"
+	finish_weight_rows = frappe.db.sql(
+		"""
+		SELECT
+			fw.item_code,
+			COALESCE(SUM(fw.finish_weight), 0) AS total_finish_weight
+		FROM `tabFinish Weight` fw
+		INNER JOIN `tabItem` i ON i.name = fw.item_code
+		WHERE
+			fw.docstatus = 1
+			AND i.custom_item_type = 'rb'
+		GROUP BY fw.item_code
+		""",
+		as_dict=True,
+	)
+
+	for row in finish_weight_rows:
+		item_code = row.get("item_code")
+		if item_code:
+			consumption_map[item_code] = flt(row.get("total_finish_weight", 0.0))
+
+	# Get consumption from Billet Cutting for items with item_type = "rm" or "traded"
+	billet_cutting_rows = frappe.db.sql(
+		"""
+		SELECT
+			bc.billet_size AS item_code,
+			COALESCE(SUM(bc.billet_weight), 0) AS total_billet_weight
+		FROM `tabBillet Cutting` bc
+		INNER JOIN `tabItem` i ON i.name = bc.billet_size
+		WHERE
+			bc.docstatus = 1
+			AND i.custom_item_type IN ('rm', 'traded')
+		GROUP BY bc.billet_size
+		""",
+		as_dict=True,
+	)
+
+	for row in billet_cutting_rows:
+		item_code = row.get("item_code")
+		if item_code:
+			# If item already has consumption from Finish Weight, add to it
+			# Otherwise, set it
+			current_consumption = consumption_map.get(item_code, 0.0)
+			consumption_map[item_code] = current_consumption + flt(row.get("total_billet_weight", 0.0))
+
+	return consumption_map
