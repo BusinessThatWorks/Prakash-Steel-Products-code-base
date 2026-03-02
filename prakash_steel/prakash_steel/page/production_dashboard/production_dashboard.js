@@ -349,15 +349,21 @@ function render_cards(state, totals) {
         },
     ];
 
-    // Tab-specific KPI cards for percentage metrics
+    // Tab-specific KPI cards
     if (tabId === 'rolled_production') {
-        // Average Burning Loss % from Finish Weight
+        // Total Hour = Total Hr Consumed / Total Production
+        let totalHour = 0;
+        const totalProd = parseFloat(totals.total_production) || 0;
+        const totalHr = parseFloat(totals.total_hr_consumed) || 0;
+        if (totalProd > 0) {
+            totalHour = totalHr / totalProd;
+        }
+
         cards.push({
-            value: totals.burning_loss_per,
-            label: __('Burning Loss %'),
+            value: totalHour,
+            label: __('Total Hour'),
             gradientClass: gradientClasses[2],
-            description: __('Average Burning Loss % (from Finish Weight)'),
-            isPercentage: true, // format as percentage with 2 decimals
+            description: __('Total Hr Consumed / Total Production'),
         });
     } else if (tabId === 'bright_production') {
         // Average Wastage % from Bright Bar Production
@@ -483,12 +489,12 @@ function render_table(state, rows) {
 
     const headerHtml = columns.map((c, idx) => {
         // Add vertical border after Production Date (index 1) and between RM / FG sections
-        // For rolled_production: border after Miss Billet Weight (index 9) - end of RM section
+        // For rolled_production: border after Total Hr Consumed (index 11) - end of RM section
         // Columns (rolled): 0=PP,1=Date,2=RM,3=Actual RM Cons,4=Burning Loss %,5=Total Billet Pcs,
-        //                   6=Description of Cutting Billet,7=Total Raw Material Pcs,8=Miss Billet Pcs,9=Miss Billet Weight,
-        //                   10=Finished Item,11=FG Planned Qty,12=FG Length,13=Actual Qty,...
+        //                   6=Description of Cutting Billet,7=Total Raw Material Pcs,8=Miss Billet Pcs,9=Miss Billet Weight,10=Heat No,
+        //                   11=Total Hr Consumed,12=Finished Item,13=FG Planned Qty,14=FG Length,15=Actual Qty,...
         // For bright_production: border after Actual Qty (index 5)
-        const borderAfterQty = (tabId === 'rolled_production' && idx === 9) || (tabId === 'bright_production' && idx === 5);
+        const borderAfterQty = (tabId === 'rolled_production' && idx === 11) || (tabId === 'bright_production' && idx === 5);
         const borderRight = (idx === 1 || borderAfterQty) ? ' border-right:2px solid #dee2e6;' : '';
         return `<th style="${thStyle}${borderRight}">${c.label}</th>`;
     }).join('');
@@ -548,6 +554,8 @@ function buildTableRow(tabId, row) {
     const totalRawMaterialPcs = format_qty_as_integer(row.total_raw_material_pcs);
     const missBilletPcs = format_qty_as_integer(row.miss_billet_pcs);
     const missBilletWeight = format_qty_as_integer(row.miss_billet_weight);
+    const heatNo = row.heat_no ? frappe.utils.escape_html(String(row.heat_no)) : '';
+    const totalHrConsumed = format_number_with_decimals(row.total_hr_consumed);
     const rmConsumption = format_qty_as_integer(row.rm_consumption);
 
     // FG Length – display exactly as stored (preserve units like "5 MTR", "10 MM", etc.)
@@ -574,7 +582,8 @@ function buildTableRow(tabId, row) {
     // Build row with tab-specific layouts
     if (tabId === 'rolled_production') {
         // Rolled Production:
-        // RM section first (RM, Actual RM Consumption, Burning Loss %, Total Billet Pcs, Description of Cutting Billet, Total Raw Material Pcs, Miss Billet Pcs, Miss Billet Weight – inside border),
+        // RM section first (RM, Actual RM Consumption, Burning Loss %, Total Billet Pcs, Description of Cutting Billet,
+        // Total Raw Material Pcs, Miss Billet Pcs, Miss Billet Weight, Heat No, Total Hr Consumed – inside border),
         // then FG section
         return `<tr style="border-bottom:1px solid #e9ecef;">
         <td style="${tdStyle}">${ppLink}</td>
@@ -586,7 +595,9 @@ function buildTableRow(tabId, row) {
         <td style="${tdStyle}">${descriptionOfCuttingBillet}</td>
         <td style="${tdStyle}">${totalRawMaterialPcs}</td>
         <td style="${tdStyle}">${missBilletPcs}</td>
-        <td style="${tdStyle} border-right:2px solid #dee2e6;">${missBilletWeight}</td>
+        <td style="${tdStyle}">${missBilletWeight}</td>
+        <td style="${tdStyle}">${heatNo}</td>
+        <td style="${tdStyle} border-right:2px solid #dee2e6;">${totalHrConsumed}</td>
         <td style="${tdStyle}">${finishedItem}</td>
         <td style="${tdStyle}">${fgPlannedQty}</td>
         <td style="${tdStyle}">${fgLength}</td>
@@ -619,8 +630,9 @@ function buildTableRow(tabId, row) {
 function getTableColumns(tabId) {
     if (tabId === 'rolled_production') {
         // Rolled Production:
-        // RM section first (RM, Actual RM Consumption, Total Billet Pcs),
-        // then FG section starting with Finished Item, and Burning Loss % inside the Actual part.
+        // RM section first (RM, Actual RM Consumption, Burning Loss %, Total Billet Pcs,
+        // Description of Cutting Billet, Total Raw Material Pcs, Miss Billet Pcs, Miss Billet Weight, Heat No, Total Hr Consumed),
+        // then FG section starting with Finished Item.
         return [
             { label: __('Production Plan'), align: 'left' },
             { label: __('Production Date'), align: 'left' },
@@ -632,6 +644,8 @@ function getTableColumns(tabId) {
             { label: __('Total Raw Material Pcs'), align: 'left' },
             { label: __('Miss Billet Pcs'), align: 'left' },
             { label: __('Miss Billet Weight'), align: 'left' },
+            { label: __('Heat No'), align: 'left' },
+            { label: __('Total Hr Consumed'), align: 'left' },
             { label: __('Finished Item'), align: 'left' },
             { label: __('FG Planned Qty'), align: 'left' },
             { label: __('FG Length'), align: 'left' },

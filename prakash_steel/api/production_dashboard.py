@@ -49,7 +49,8 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			bc.description_of_cutting_billet AS description_of_cutting_billet,
 			bc.total_raw_material_pcs AS total_raw_material_pcs,
 			bc.miss_billet_pcs   AS miss_billet_pcs,
-			bc.miss_billet_weight AS miss_billet_weight
+			bc.miss_billet_weight AS miss_billet_weight,
+			bc.heat_no            AS heat_no
 		FROM `tabBillet Cutting` bc
 		WHERE {conditions}
 		ORDER BY bc.posting_date DESC, bc.name DESC
@@ -173,10 +174,32 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 		if fw_avg_rows and fw_avg_rows[0].get("avg_burning_loss") is not None:
 			avg_burning_loss_per = flt(fw_avg_rows[0].get("avg_burning_loss"), 2)
 
+	# ── 3.b  Compute Total Hr Consumed from Hourly Production (per Billet Cutting) ──
+	hours_map = {}  # key: billet_cutting_name → total_hours
+	if billet_cutting_data:
+		bc_names = [row.billet_cutting_name for row in billet_cutting_data if row.get("billet_cutting_name")]
+		if bc_names:
+			hour_rows = frappe.db.sql(
+				"""
+				SELECT
+					hp.billet_cutting_id AS billet_cutting_name,
+					SUM(TIME_TO_SEC(TIMEDIFF(hp.time_to, hp.time_from))) / 3600.0 AS total_hours
+				FROM `tabHourly Production` hp
+				WHERE hp.docstatus = 1
+				  AND hp.billet_cutting_id IN %(bc_names)s
+				GROUP BY hp.billet_cutting_id
+				""",
+				{"bc_names": tuple(bc_names)},
+				as_dict=True,
+			)
+			for hr in hour_rows:
+				hours_map[hr.billet_cutting_name] = flt(hr.total_hours, 2)
+
 	# ── 4.  Assemble final rows ────────────────────────────────────
 	rows = []
 	total_production = 0
 	total_rm_consumption = 0
+	total_hours_overall = 0
 
 	for row in billet_cutting_data:
 		pp = row.production_plan or ""
@@ -200,6 +223,9 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 
 		total_rm_consumption += flt(row.rm_consumption)
 
+		total_hr_consumed = hours_map.get(row.billet_cutting_name, 0)
+		total_hours_overall += flt(total_hr_consumed)
+
 		rows.append({
 			"production_plan": pp,
 			"production_date": str(row.production_date) if row.production_date else "",
@@ -217,6 +243,8 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			"total_raw_material_pcs": flt(row.total_raw_material_pcs) if row.total_raw_material_pcs else 0,
 			"miss_billet_pcs": flt(row.miss_billet_pcs) if row.miss_billet_pcs else 0,
 			"miss_billet_weight": flt(row.miss_billet_weight) if row.miss_billet_weight else 0,
+			"heat_no": row.heat_no or "",
+			"total_hr_consumed": flt(total_hr_consumed, 2),
 			"fg_length": fg_length,
 			"rm": row.rm or "",
 			"rm_consumption": flt(row.rm_consumption),
@@ -228,6 +256,7 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 		"totals": {
 			"total_production": flt(total_production),
 			"rm_consumption": flt(total_rm_consumption),
+			"total_hr_consumed": flt(total_hours_overall, 2),
 			# Average Burning Loss % from all Finish Weight records that match
 			# the current filters (date, item, production plan).
 			"burning_loss_per": flt(avg_burning_loss_per, 2),
