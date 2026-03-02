@@ -1,5 +1,6 @@
 import frappe
 from frappe.utils import cint, flt, today, add_days
+import math
 
 
 def execute(filters=None):
@@ -51,19 +52,19 @@ def get_columns():
 		{
 			"label": "Sell",
 			"fieldname": "sell",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 100,
 		},
 		{
 			"label": "Consumption",
 			"fieldname": "consumption",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 110,
 		},
 		{
 			"label": "ADU",
 			"fieldname": "custom_adu",
-			"fieldtype": "Float",
+			"fieldtype": "Int",
 			"width": 90,
 		},
 		{
@@ -97,6 +98,8 @@ def get_data(filters=None):
 	sales_qty_map = _get_sales_qty_by_item()
 	# Map of item_code -> total consumption
 	consumption_map = _get_consumption_by_item()
+	# Number of days in horizon (based on ADU Horizon)
+	days = _get_horizon_days()
 
 	items = frappe.db.get_all(
 		"Item",
@@ -114,8 +117,24 @@ def get_data(filters=None):
 	# Populate measure columns
 	for item in items:
 		item_code = item.get("item_code")
-		item["sell"] = flt(sales_qty_map.get(item_code, 0.0))
-		item["consumption"] = flt(consumption_map.get(item_code, 0.0))
+
+		# 1) Sell: live total sales qty in current horizon (integer)
+		sell_qty = flt(sales_qty_map.get(item_code, 0.0))
+		item["sell"] = int(sell_qty) if sell_qty else 0
+
+		# 2) Consumption: live total consumption (integer)
+		consumption_qty = flt(consumption_map.get(item_code, 0.0))
+		item["consumption"] = int(consumption_qty) if consumption_qty else 0
+
+		# 3) ADU: always recalculate from Sell / days (ceiled to whole number)
+		if days > 0 and sell_qty > 0:
+			adu_raw = sell_qty / days
+			item["custom_adu"] = int(math.ceil(adu_raw))
+		else:
+			# If horizon not configured or no sales, set ADU to 0
+			item["custom_adu"] = 0
+
+		# 4) SD / COV placeholders (not yet implemented)
 		item.setdefault("sd", None)
 		item.setdefault("cov", None)
 

@@ -14,6 +14,9 @@ frappe.ui.form.on("Item", {
 
         // Initialize min_order_qty and custom_batch_size exclusivity
         handle_min_order_qty_batch_size_exclusivity(frm);
+
+        // Recalculate ADU on form load so Item ADU always matches current Sales Invoices + ADU Horizon
+        refresh_item_adu(frm);
     },
 
     custom_store_item: function (frm) {
@@ -693,5 +696,58 @@ function handle_min_order_qty_batch_size_exclusivity(frm) {
         frm.set_df_property('min_order_qty', 'read_only', 0);
         frm.set_df_property('custom_batch_size', 'read_only', 0);
     }
+}
+
+
+function refresh_item_adu(frm) {
+    // Only recalculate ADU for existing, saved items
+    if (!frm.doc.item_code || frm.is_new() || frm.doc.__islocal) {
+        return;
+    }
+
+    // Ensure the custom_adu field exists
+    if (!frm.fields_dict['custom_adu']) {
+        return;
+    }
+
+    const was_dirty = frm.is_dirty();
+
+    frappe.call({
+        method: "prakash_steel.prakash_steel.api.adu.update_item_adu",
+        args: {
+            item_code: frm.doc.item_code
+        },
+        callback: function (r) {
+            if (r.message !== undefined && r.message !== null) {
+                const new_adu = r.message;
+                const current_adu = frm.doc.custom_adu;
+
+                if (current_adu !== new_adu) {
+                    // Update doc and locals without marking form dirty permanently
+                    const doc = locals[frm.doctype] && locals[frm.doctype][frm.docname];
+                    if (doc) {
+                        doc.custom_adu = new_adu;
+                    }
+                    frm.doc.custom_adu = new_adu;
+                    frm.refresh_field('custom_adu');
+
+                    if (!was_dirty) {
+                        if (frm._dirty_fields) {
+                            const idx = frm._dirty_fields.indexOf('custom_adu');
+                            if (idx > -1) {
+                                frm._dirty_fields.splice(idx, 1);
+                            }
+                        }
+                        setTimeout(function () {
+                            const has_other_changes = frm._dirty_fields && frm._dirty_fields.length > 0;
+                            if (!has_other_changes && frm.is_dirty && frm.is_dirty()) {
+                                frm.dirty(false);
+                            }
+                        }, 100);
+                    }
+                }
+            }
+        }
+    });
 }
 
