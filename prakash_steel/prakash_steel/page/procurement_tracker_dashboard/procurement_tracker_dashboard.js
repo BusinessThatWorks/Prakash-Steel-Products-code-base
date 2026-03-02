@@ -57,12 +57,13 @@ function initializeDashboard(state) {
     // Bind event handlers
     bindEventHandlers(state);
 
-    // Set initial refresh button visibility (show for overview tab by default)
+    // Set initial refresh button and supplier visibility for the default tab
     if (state.currentTab === 'overview') {
         state.controls.refreshBtn.show();
     } else {
         state.controls.refreshBtn.hide();
     }
+    updateSupplierVisibility(state);
 
     // Load initial data
     refreshDashboard(state);
@@ -88,6 +89,9 @@ function createFilterBar(state) {
 
     // Create filter controls
     createFilterControls(state, $fromWrap, $toWrap, $supplierWrap, $btnWrap);
+
+    // Keep a reference to the supplier wrapper so we can hide/show it per tab
+    state.controls.supplierWrapper = $supplierWrap;
 }
 
 function createFilterControls(state, $fromWrap, $toWrap, $supplierWrap, $btnWrap) {
@@ -358,7 +362,8 @@ function createSectionFilterControls(state, tabId) {
             parent: $(`#${tabId}-status-filter`).get(0),
             df: {
                 fieldtype: 'Select',
-                label: __('Workflow Status'),
+                // For Material Request we show plain "Status" label, for others keep "Workflow Status"
+                label: tabId === 'material_request' ? __('Status') : __('Workflow Status'),
                 fieldname: `${tabId}_status`,
                 options: statusOptions, reqd: 0,
             },
@@ -714,6 +719,9 @@ function bindEventHandlers(state) {
             $('.nav-link').removeClass('active');
             $(`#${tabId}-tab`).addClass('active');
 
+            // Show / hide supplier filter based on current tab
+            updateSupplierVisibility(state);
+
             // Show/hide main refresh button based on current tab
             if (tabId === 'overview') {
                 state.controls.refreshBtn.show();
@@ -725,6 +733,18 @@ function bindEventHandlers(state) {
             refreshDashboard(state);
         });
     });
+}
+
+function updateSupplierVisibility(state) {
+    const hideTabs = ['overview', 'material_request', 'item_wise'];
+    const wrapper = state.controls && state.controls.supplierWrapper;
+    if (!wrapper) return;
+
+    if (hideTabs.includes(state.currentTab)) {
+        wrapper.hide();
+    } else {
+        wrapper.show();
+    }
 }
 
 function updateTabStyles(state) {
@@ -862,9 +882,9 @@ function fetchMaterialRequestData(filters, state) {
                     // Apply additional filters
                     let filteredData = materialRequests;
 
-                    // Apply status filter
-                    if (filters.mr_status) {
-                        filteredData = filteredData.filter(mr => mr.workflow_state === filters.mr_status);
+                    // Apply status filter (treat "All" as no filter)
+                    if (filters.mr_status && filters.mr_status !== 'All') {
+                        filteredData = filteredData.filter(mr => (mr.workflow_state || '').toLowerCase() === filters.mr_status.toLowerCase());
                     }
 
 
@@ -899,22 +919,50 @@ function fetchMaterialRequestData(filters, state) {
                         filteredData = itemFilteredMRs;
                     }
 
-                    // Create status summary based on workflow_state
-                    const statusCounts = {};
-                    filteredData.forEach(item => {
-                        const status = item.workflow_state || 'Draft';
-                        statusCounts[status] = (statusCounts[status] || 0) + 1;
-                    });
+                    // ── Build Material Request summary cards ──
+                    // Total Material Requests (excluding cancelled – report already enforces docstatus = 1)
+                    const totalMR = filteredData.length;
 
-                    const summary = Object.keys(statusCounts).map(status => ({
-                        value: statusCounts[status],
-                        label: `${status} Material Requests`,
-                        datatype: 'Int',
-                        indicator: getStatusIndicator(status),
-                        description: `Material requests with ${status} status`
-                    }));
+                    // Helper to count by status (case‑insensitive)
+                    const countByStatus = (statusName) =>
+                        filteredData.filter(mr => (mr.workflow_state || '').toLowerCase() === statusName.toLowerCase()).length;
 
-                    // Update status options based on actual data
+                    const pendingMR = countByStatus('Pending');
+                    const partiallyReceivedMR = countByStatus('Partially Received');
+                    const partiallyOrderedMR = countByStatus('Partially Ordered');
+
+                    const summary = [
+                        {
+                            value: totalMR,
+                            label: __('Total Material Requests'),
+                            datatype: 'Int',
+                            indicator: 'Blue',
+                            description: __('Total material requests (excluding cancelled)')
+                        },
+                        {
+                            value: pendingMR,
+                            label: __('Pending Material Requests'),
+                            datatype: 'Int',
+                            indicator: 'Orange',
+                            description: __('Material requests with Pending status')
+                        },
+                        {
+                            value: partiallyReceivedMR,
+                            label: __('Partially Received MR'),
+                            datatype: 'Int',
+                            indicator: 'Yellow',
+                            description: __('Material requests with Partially Received status')
+                        },
+                        {
+                            value: partiallyOrderedMR,
+                            label: __('Partially Ordered MR'),
+                            datatype: 'Int',
+                            indicator: 'Green',
+                            description: __('Material requests with partial order quantity')
+                        }
+                    ];
+
+                    // Update status options (fixed options for MR tab)
                     updateStatusOptions('material_request', filteredData, state);
 
                     resolve({
@@ -997,7 +1045,8 @@ function filterPurchaseOrdersByItemName(purchaseOrders, itemName) {
                 doctype: 'Purchase Order Item',
                 filters: [
                     ['Purchase Order Item', 'parent', 'in', poNames],
-                    ['Purchase Order Item', 'item_name', 'like', `%${itemName}%`]
+                    // Match by item_code so it aligns with the Item link filter on the UI
+                    ['Purchase Order Item', 'item_code', '=', itemName]
                 ],
                 fields: ['parent'],
                 limit_page_length: 1000
@@ -1038,7 +1087,8 @@ function filterPurchaseReceiptsByItemName(purchaseReceipts, itemName) {
                 doctype: 'Purchase Receipt Item',
                 filters: [
                     ['Purchase Receipt Item', 'parent', 'in', prNames],
-                    ['Purchase Receipt Item', 'item_name', 'like', `%${itemName}%`]
+                    // Match item_code so it aligns with the Item link filter on the UI
+                    ['Purchase Receipt Item', 'item_code', '=', itemName]
                 ],
                 fields: ['parent'],
                 limit_page_length: 1000
@@ -1102,269 +1152,112 @@ function filterPurchaseInvoicesByItemName(purchaseInvoices, itemName) {
 
 function fetchPurchaseOrderData(filters, state) {
     return new Promise((resolve, reject) => {
-        // Use the procurement tracker report to get data with workflow_state
+        // Build filters directly on Purchase Order doctype so we include ALL POs,
+        // not just those linked via the New Procurement Tracker report.
+        const poFilters = {
+            docstatus: 1,
+            transaction_date: ['between', [filters.from_date, filters.to_date]]
+        };
+
+        if (filters.supplier) {
+            poFilters.supplier = filters.supplier;
+        }
+        if (filters.po_status) {
+            poFilters.workflow_state = filters.po_status;
+        }
+        if (filters.po_id) {
+            poFilters.name = filters.po_id;
+        }
+
         frappe.call({
-            method: 'frappe.desk.query_report.run',
+            method: 'frappe.client.get_list',
             args: {
-                report_name: 'New Procurement Tracker',
-                filters: {
-                    from_date: filters.from_date,
-                    to_date: filters.to_date,
-                    item_code: filters.po_item_name || ''
-                },
-                ignore_prepared_report: 1,
+                doctype: 'Purchase Order',
+                filters: poFilters,
+                fields: ['name', 'transaction_date', 'workflow_state', 'status', 'supplier', 'grand_total'],
+                limit_page_length: 10000
             },
             callback: (r) => {
-                if (r.message && r.message.result) {
-                    let procurementData = r.message.result;
+                let purchaseOrders = (r.message || []).map(po => ({
+                    name: po.name,
+                    transaction_date: po.transaction_date,
+                    workflow_state: po.workflow_state || '',
+                    status: po.status || '',
+                    supplier: po.supplier || '',
+                    grand_total: parseFloat(po.grand_total || 0)
+                }));
 
-                    // Extract unique Purchase Orders from procurement data
-                    const purchaseOrders = [];
-                    const seenPOs = new Set();
+                const proceedWithData = (data) => {
+                    const filteredData = data;
 
-                    procurementData.forEach(row => {
-                        if (row.purchase_order && !seenPOs.has(row.purchase_order)) {
-                            seenPOs.add(row.purchase_order);
-                            purchaseOrders.push({
-                                name: row.purchase_order,
-                                transaction_date: row.po_date,
-                                workflow_state: row.po_status,
-                                status: row.po_doc_status || '',
-                                supplier: row.supplier,
-                                grand_total: row.po_grand_total
-                            });
+                    // ── Build Purchase Order summary cards (matching the screenshot) ──
+                    const totalPOs = filteredData.length;
+
+                    const countByWorkflow = (statusName) =>
+                        filteredData.filter(po => (po.workflow_state || '').toLowerCase() === statusName.toLowerCase()).length;
+
+                    const pendingPOs = countByWorkflow('Pending');
+                    // Pending Approval – include both 'Waiting For Approval' and 'To Approve'
+                    const pendingApprovalPOs =
+                        countByWorkflow('Waiting For Approval') + countByWorkflow('To Approve');
+
+                    const totalPOValue = filteredData.reduce((sum, po) => {
+                        return sum + (po.grand_total || 0);
+                    }, 0);
+
+                    const summary = [
+                        {
+                            value: totalPOs,
+                            label: __('Total Purchase Orders'),
+                            datatype: 'Int',
+                            indicator: 'Blue',
+                            description: __('Total purchase orders (excluding cancelled)')
+                        },
+                        {
+                            value: pendingPOs,
+                            label: __('Pending Purchase Orders'),
+                            datatype: 'Int',
+                            indicator: 'Orange',
+                            description: __('Purchase orders with Pending status')
+                        },
+                        {
+                            value: pendingApprovalPOs,
+                            label: __('Pending Approval Purchase Orders'),
+                            datatype: 'Int',
+                            indicator: 'Green',
+                            description: __('Purchase orders pending approval')
+                        },
+                        {
+                            value: totalPOValue,
+                            label: __('Total Purchase Order Value'),
+                            datatype: 'Currency',
+                            indicator: 'Purple',
+                            description: __('Sum of grand total for selected date range'),
+                            prefix: '₹'
                         }
+                    ];
+
+                    // Dynamic status dropdown options based on actual workflow_state values
+                    updateStatusOptions('purchase_order', purchaseOrders, state);
+
+                    resolve({
+                        summary: summary,
+                        raw_data: filteredData
                     });
+                };
 
-                    // Apply additional filters
-                    let filteredData = purchaseOrders;
-
-                    // Apply status filter
-                    if (filters.po_status) {
-                        filteredData = filteredData.filter(po => po.workflow_state === filters.po_status);
-                    }
-
-
-                    // Apply ID filter (exact match since Link field returns exact name)
-                    if (filters.po_id) {
-                        filteredData = filteredData.filter(po => po.name === filters.po_id);
-                    }
-
-                    // Apply supplier filter if specified
-                    if (filters.supplier) {
-                        filteredData = filteredData.filter(po => po.supplier === filters.supplier);
-                    }
-
-                    // Apply item filter if specified - filter the original procurement data first
-                    if (filters.po_item_name) {
-                        const itemFilteredProcurementData = procurementData.filter(row =>
-                            row.item_code === filters.po_item_name
-                        );
-
-                        // Extract unique Purchase Orders from item-filtered data
-                        const itemFilteredPOs = [];
-                        const seenItemFilteredPOs = new Set();
-
-                        itemFilteredProcurementData.forEach(row => {
-                            if (row.purchase_order && !seenItemFilteredPOs.has(row.purchase_order)) {
-                                seenItemFilteredPOs.add(row.purchase_order);
-                                itemFilteredPOs.push({
-                                    name: row.purchase_order,
-                                    transaction_date: row.po_date,
-                                    workflow_state: row.po_status,
-                                    status: row.po_doc_status || '',
-                                    supplier: row.supplier,
-                                    grand_total: row.po_grand_total
-                                });
-                            }
+                // Apply item filter via Purchase Order Item if specified
+                if (filters.po_item_name && purchaseOrders.length > 0) {
+                    filterPurchaseOrdersByItemName(purchaseOrders, filters.po_item_name)
+                        .then(filtered => {
+                            proceedWithData(filtered);
+                        })
+                        .catch(err => {
+                            console.warn('Error filtering POs by item, falling back to unfiltered list:', err);
+                            proceedWithData(purchaseOrders);
                         });
-
-                        // Apply other filters to item-filtered data
-                        filteredData = itemFilteredPOs;
-                    }
-
-                    // Apply status filter
-                    if (filters.po_status) {
-                        filteredData = filteredData.filter(po => po.workflow_state === filters.po_status);
-                    }
-
-                    // Apply ID filter (exact match since Link field returns exact name)
-                    if (filters.po_id) {
-                        filteredData = filteredData.filter(po => po.name === filters.po_id);
-                    }
-
-                    // Apply supplier filter
-                    if (filters.supplier) {
-                        filteredData = filteredData.filter(po => po.supplier === filters.supplier);
-                    }
-
-                    // Create status summary - we'll update this after fetching approved POs
-                    // For now, create empty summary that will be populated with approved PO data
-                    const summary = [];
-
-                    // Fetch ALL approved purchase orders directly (not just those from Material Requests)
-                    // to ensure we get all POs with docstatus=1 and workflow_state='Approved'
-                    // This data will be used for both the card value and the table
-                    const poFilters = {
-                        docstatus: 1,
-                        workflow_state: 'Approved',
-                        transaction_date: ['between', [filters.from_date, filters.to_date]]
-                    };
-                    
-                    // Add supplier filter if specified
-                    if (filters.supplier) {
-                        poFilters.supplier = filters.supplier;
-                    }
-                    
-                    // Add ID filter if specified
-                    if (filters.po_id) {
-                        poFilters.name = filters.po_id;
-                    }
-                    
-                    frappe.call({
-                        method: 'frappe.client.get_list',
-                        args: {
-                            doctype: 'Purchase Order',
-                            filters: poFilters,
-                            fields: ['name', 'transaction_date', 'workflow_state', 'status', 'supplier', 'grand_total'],
-                            limit_page_length: 10000
-                        },
-                        callback: (r) => {
-                            let approvedPOs = [];
-                            let approvedPOValue = 0;
-                            
-                            if (r.message && r.message.length > 0) {
-                                // Transform the data to match the expected format
-                                approvedPOs = r.message.map(po => ({
-                                    name: po.name,
-                                    transaction_date: po.transaction_date,
-                                    workflow_state: po.workflow_state || 'Approved',
-                                    status: po.status || '',
-                                    supplier: po.supplier || '',
-                                    grand_total: parseFloat(po.grand_total || 0)
-                                }));
-                            } else {
-                                // Fallback: calculate from filteredData if direct fetch returns empty
-                                approvedPOs = filteredData.filter(po => 
-                                    po.workflow_state === 'Approved'
-                                );
-                            }
-
-                            // Apply item filter if specified
-                            if (filters.po_item_name && approvedPOs.length > 0) {
-                                const poNames = approvedPOs.map(po => po.name);
-                                
-                                frappe.call({
-                                    method: 'frappe.client.get_list',
-                                    args: {
-                                        doctype: 'Purchase Order Item',
-                                        filters: [
-                                            ['parent', 'in', poNames],
-                                            ['item_code', '=', filters.po_item_name]
-                                        ],
-                                        fields: ['parent'],
-                                        limit_page_length: 10000
-                                    },
-                                    callback: (itemResult) => {
-                                        if (itemResult.message && itemResult.message.length > 0) {
-                                            const filteredPONames = [...new Set(itemResult.message.map(item => item.parent))];
-                                            approvedPOs = approvedPOs.filter(po => filteredPONames.includes(po.name));
-                                        } else {
-                                            approvedPOs = [];
-                                        }
-                                        
-                                        // Calculate total value
-                                        approvedPOValue = approvedPOs.reduce((sum, po) => {
-                                            return sum + po.grand_total;
-                                        }, 0);
-
-                                        // Add Approved Purchase Orders count card
-                                        summary.push({
-                                            value: approvedPOs.length,
-                                            label: __('Approved Purchase Orders'),
-                                            datatype: 'Int',
-                                            indicator: 'Green',
-                                            description: __('Number of approved and submitted purchase orders')
-                                        });
-
-                                        // Update status options and resolve with approved POs as raw_data
-                                        updateStatusOptions('purchase_order', purchaseOrders, state);
-                                        resolve({
-                                            summary: summary,
-                                            raw_data: approvedPOs  // Table will show only approved POs
-                                        });
-                                    },
-                                    error: () => {
-                                        // If item filter fails, proceed without it
-                                        approvedPOValue = approvedPOs.reduce((sum, po) => {
-                                            return sum + po.grand_total;
-                                        }, 0);
-
-                                        summary.push({
-                                            value: approvedPOs.length,
-                                            label: __('Approved Purchase Orders'),
-                                            datatype: 'Int',
-                                            indicator: 'Green',
-                                            description: __('Number of approved and submitted purchase orders')
-                                        });
-
-                                        updateStatusOptions('purchase_order', purchaseOrders, state);
-                                        resolve({
-                                            summary: summary,
-                                            raw_data: approvedPOs
-                                        });
-                                    }
-                                });
-                            } else {
-                                // No item filter, calculate directly
-                                approvedPOValue = approvedPOs.reduce((sum, po) => {
-                                    return sum + po.grand_total;
-                                }, 0);
-
-                                // Add Approved Purchase Orders count card
-                                summary.push({
-                                    value: approvedPOs.length,
-                                    label: __('Approved Purchase Orders'),
-                                    datatype: 'Int',
-                                    indicator: 'Green',
-                                    description: __('Number of approved and submitted purchase orders')
-                                });
-
-                                // Update status options and resolve with approved POs as raw_data
-                                updateStatusOptions('purchase_order', purchaseOrders, state);
-                                resolve({
-                                    summary: summary,
-                                    raw_data: approvedPOs  // Table will show only approved POs
-                                });
-                            }
-                        },
-                        error: () => {
-                            // Fallback: calculate from filteredData if direct fetch fails
-                            const approvedPOs = filteredData.filter(po => 
-                                po.workflow_state === 'Approved'
-                            );
-                            const approvedPOValue = approvedPOs.reduce((sum, po) => {
-                                return sum + parseFloat(po.grand_total || 0);
-                            }, 0);
-
-                            // Add Approved Purchase Orders count card
-                            summary.push({
-                                value: approvedPOs.length,
-                                label: __('Approved Purchase Orders'),
-                                datatype: 'Int',
-                                indicator: 'Green',
-                                description: __('Number of approved and submitted purchase orders')
-                            });
-
-                            updateStatusOptions('purchase_order', purchaseOrders, state);
-                            resolve({
-                                summary: summary,
-                                raw_data: approvedPOs  // Table will show only approved POs
-                            });
-                        }
-                    });
                 } else {
-                    resolve({ summary: [], raw_data: [] });
+                    proceedWithData(purchaseOrders);
                 }
             },
             error: reject
@@ -1374,142 +1267,140 @@ function fetchPurchaseOrderData(filters, state) {
 
 function fetchPurchaseReceiptData(filters, state) {
     return new Promise((resolve, reject) => {
-        // Use the procurement tracker report to get data with workflow_state
+        // Fetch Purchase Receipts directly so we can build accurate cards:
+        // Total Purchase Receipts, Completed Purchase Receipts, Total Receipt Value
+        const prFilters = {
+            docstatus: 1,
+            posting_date: ['between', [filters.from_date, filters.to_date]]
+        };
+
+        // Add supplier filter if specified
+        if (filters.supplier) {
+            prFilters.supplier = filters.supplier;
+        }
+
+        // Add ID filter if specified
+        if (filters.pr_id) {
+            prFilters.name = filters.pr_id;
+        }
+
+        const summary = [];
+
         frappe.call({
-            method: 'frappe.desk.query_report.run',
+            method: 'frappe.client.get_list',
             args: {
-                report_name: 'New Procurement Tracker',
-                filters: {
-                    from_date: filters.from_date,
-                    to_date: filters.to_date,
-                    item_code: filters.pr_item_name || ''
-                },
-                ignore_prepared_report: 1,
+                doctype: 'Purchase Receipt',
+                filters: prFilters,
+                fields: ['name', 'posting_date', 'status', 'supplier', 'grand_total'],
+                limit_page_length: 10000
             },
             callback: (r) => {
-                if (r.message && r.message.result) {
-                    let procurementData = r.message.result;
+                let receipts = [];
 
-                    // Extract unique Purchase Receipts from procurement data
-                    const purchaseReceipts = [];
-                    const seenPRs = new Set();
-
-                    procurementData.forEach(row => {
-                        if (row.purchase_receipt && !seenPRs.has(row.purchase_receipt)) {
-                            seenPRs.add(row.purchase_receipt);
-                            purchaseReceipts.push({
-                                name: row.purchase_receipt,
-                                posting_date: row.receipt_date,
-                                workflow_state: 'Completed', // Purchase Receipts are typically completed when created
-                                status: 'Completed', // Use workflow_state as status for display
-                                supplier: row.supplier,
-                                grand_total: row.pr_grand_total || 0
-                            });
-                        }
-                    });
-
-                    // Apply additional filters
-                    let filteredData = purchaseReceipts;
-
-                    // Apply status filter
-                    if (filters.pr_status) {
-                        filteredData = filteredData.filter(pr => pr.workflow_state === filters.pr_status);
-                    }
-
-
-                    // Apply ID filter (exact match since Link field returns exact name)
-                    if (filters.pr_id) {
-                        filteredData = filteredData.filter(pr => pr.name === filters.pr_id);
-                    }
-
-                    // Apply supplier filter if specified
-                    if (filters.supplier) {
-                        filteredData = filteredData.filter(pr => pr.supplier === filters.supplier);
-                    }
-
-                    // Apply item filter if specified - filter the original procurement data first
-                    if (filters.pr_item_name) {
-                        const itemFilteredProcurementData = procurementData.filter(row =>
-                            row.item_code === filters.pr_item_name
-                        );
-
-                        // Extract unique Purchase Receipts from item-filtered data
-                        const itemFilteredPRs = [];
-                        const seenItemFilteredPRs = new Set();
-
-                        itemFilteredProcurementData.forEach(row => {
-                            if (row.purchase_receipt && !seenItemFilteredPRs.has(row.purchase_receipt)) {
-                                seenItemFilteredPRs.add(row.purchase_receipt);
-                                itemFilteredPRs.push({
-                                    name: row.purchase_receipt,
-                                    posting_date: row.receipt_date,
-                                    workflow_state: 'Completed',
-                                    status: 'Completed',
-                                    supplier: row.supplier,
-                                    grand_total: row.pr_grand_total || 0
-                                });
-                            }
-                        });
-
-                        // Apply other filters to item-filtered data
-                        filteredData = itemFilteredPRs;
-                    }
-
-                    // Apply status filter
-                    if (filters.pr_status) {
-                        filteredData = filteredData.filter(pr => pr.workflow_state === filters.pr_status);
-                    }
-
-                    // Apply ID filter (exact match since Link field returns exact name)
-                    if (filters.pr_id) {
-                        filteredData = filteredData.filter(pr => pr.name === filters.pr_id);
-                    }
-
-                    // Apply supplier filter
-                    if (filters.supplier) {
-                        filteredData = filteredData.filter(pr => pr.supplier === filters.supplier);
-                    }
-
-                    // Create status summary based on workflow_state
-                    const statusCounts = {};
-                    let filteredTotalGrandTotal = 0;
-
-                    filteredData.forEach(item => {
-                        const status = item.workflow_state || 'Draft';
-                        statusCounts[status] = (statusCounts[status] || 0) + 1;
-                        filteredTotalGrandTotal += parseFloat(item.grand_total || 0);
-                    });
-
-                    const summary = Object.keys(statusCounts).map(status => ({
-                        value: statusCounts[status],
-                        label: `${status} Purchase Receipts`,
-                        datatype: 'Int',
-                        indicator: getStatusIndicator(status),
-                        description: `Purchase receipts with ${status} status`
+                if (r.message && r.message.length > 0) {
+                    receipts = r.message.map(pr => ({
+                        name: pr.name,
+                        posting_date: pr.posting_date,
+                        workflow_state: pr.status || '',
+                        status: pr.status || '',
+                        supplier: pr.supplier || '',
+                        grand_total: parseFloat(pr.grand_total || 0)
                     }));
+                }
 
-                    // Add total grand total card
+                const proceedWithData = (data) => {
+                    const filteredData = data;
+
+                    const totalReceipts = filteredData.length;
+                    const completedReceipts = filteredData.filter(pr =>
+                        (pr.status || '').toLowerCase() === 'completed'
+                    ).length;
+
+                    const totalReceiptValue = filteredData.reduce((sum, pr) => {
+                        return sum + (pr.grand_total || 0);
+                    }, 0);
+
+                    // Total Purchase Receipts card
                     summary.push({
-                        value: filteredTotalGrandTotal,
+                        value: totalReceipts,
+                        label: __('Total Purchase Receipts'),
+                        datatype: 'Int',
+                        indicator: 'Blue',
+                        description: __('Total purchase receipts')
+                    });
+
+                    // Completed Purchase Receipts card
+                    summary.push({
+                        value: completedReceipts,
+                        label: __('Completed Purchase Receipts'),
+                        datatype: 'Int',
+                        indicator: 'Green',
+                        description: __('Purchase receipts with Completed status')
+                    });
+
+                    // Total Receipt Value card
+                    summary.push({
+                        value: totalReceiptValue,
                         label: __('Total Receipt Value'),
                         datatype: 'Currency',
-                        indicator: 'Orange',
+                        indicator: 'Purple',
                         description: __('Sum of grand total for selected date range'),
                         prefix: '₹'
                     });
 
-                    // Update status options based on actual data
-                    updateStatusOptions('purchase_receipt', procurementData, state);
-
+                    updateStatusOptions('purchase_receipt', receipts, state);
                     resolve({
                         summary: summary,
                         raw_data: filteredData
                     });
+                };
+
+                // Apply item filter via Purchase Receipt Item if specified
+                if (filters.pr_item_name && receipts.length > 0) {
+                    filterPurchaseReceiptsByItemName(receipts, filters.pr_item_name)
+                        .then(filtered => {
+                            proceedWithData(filtered);
+                        })
+                        .catch(err => {
+                            console.warn('Error filtering PRs by item, falling back to unfiltered list:', err);
+                            proceedWithData(receipts);
+                        });
                 } else {
-                    resolve({ summary: [], raw_data: [] });
+                    proceedWithData(receipts);
                 }
             },
-            error: reject
+            error: () => {
+                summary.push({
+                    value: 0,
+                    label: __('Total Purchase Receipts'),
+                    datatype: 'Int',
+                    indicator: 'Blue',
+                    description: __('Total purchase receipts')
+                });
+
+                summary.push({
+                    value: 0,
+                    label: __('Completed Purchase Receipts'),
+                    datatype: 'Int',
+                    indicator: 'Green',
+                    description: __('Purchase receipts with Completed status')
+                });
+
+                summary.push({
+                    value: 0,
+                    label: __('Total Receipt Value'),
+                    datatype: 'Currency',
+                    indicator: 'Purple',
+                    description: __('Sum of grand total for selected date range'),
+                    prefix: '₹'
+                });
+
+                updateStatusOptions('purchase_receipt', [], state);
+                resolve({
+                    summary: summary,
+                    raw_data: []
+                });
+            }
         });
     });
 }
@@ -1525,7 +1416,8 @@ function fetchPurchaseInvoiceData(filters, state) {
                     from_date: filters.from_date,
                     to_date: filters.to_date,
                     supplier: filters.supplier || '',
-                    workflow_status: filters.pi_status || ''
+                    // Treat "All" (or empty) as no workflow filter
+                    workflow_status: (!filters.pi_status || filters.pi_status === 'All') ? '' : filters.pi_status
                 },
                 ignore_prepared_report: 1,
             },
@@ -1643,8 +1535,8 @@ function fetchPurchaseInvoiceData(filters, state) {
                             filteredData = itemFilteredPIs;
                         }
 
-                        // Apply status filter
-                        if (filters.pi_status) {
+                        // Apply status filter (ignore "All")
+                        if (filters.pi_status && filters.pi_status !== 'All') {
                             filteredData = filteredData.filter(pi => pi.workflow_state === filters.pi_status);
                         }
 
@@ -1658,33 +1550,55 @@ function fetchPurchaseInvoiceData(filters, state) {
                             filteredData = filteredData.filter(pi => pi.supplier === filters.supplier);
                         }
 
-                        // Create status summary based on workflow_state
-                        const statusCounts = {};
-                        let filteredTotalGrandTotal = 0;
+                        // Never count cancelled invoices in the dashboard cards / table
+                        filteredData = filteredData.filter(pi =>
+                            (pi.status || '').toLowerCase() !== 'cancelled'
+                        );
 
-                        filteredData.forEach(item => {
-                            const status = item.workflow_state || 'Draft';
-                            statusCounts[status] = (statusCounts[status] || 0) + 1;
-                            filteredTotalGrandTotal += parseFloat(item.grand_total || 0);
-                        });
+                        // ── Build Purchase Invoice summary cards (matching UI) ──
+                        const totalInvoices = filteredData.length;
 
-                        const summary = Object.keys(statusCounts).map(status => ({
-                            value: statusCounts[status],
-                            label: `${status} Purchase Invoices`,
-                            datatype: 'Int',
-                            indicator: getStatusIndicator(status),
-                            description: `Purchase invoices with ${status} status`
-                        }));
+                        const countByStatus = (statusName) =>
+                            filteredData.filter(pi => (pi.status || '').toLowerCase() === statusName.toLowerCase()).length;
 
-                        // Add total grand total card (keep existing workflow state cards)
-                        summary.push({
-                            value: filteredTotalGrandTotal,
-                            label: __('Total Invoice Value'),
-                            datatype: 'Currency',
-                            indicator: 'Teal',
-                            description: __('Sum of grand total for selected date range'),
-                            prefix: '₹'
-                        });
+                        const paidInvoices = countByStatus('Paid');
+                        const overdueInvoices = countByStatus('Overdue');
+
+                        const totalInvoiceValue = filteredData.reduce((sum, pi) => {
+                            return sum + parseFloat(pi.grand_total || 0);
+                        }, 0);
+
+                        const summary = [
+                            {
+                                value: totalInvoices,
+                                label: __('Total Purchase Invoice'),
+                                datatype: 'Int',
+                                indicator: 'Blue',
+                                description: __('Total purchase invoices (excluding cancelled)')
+                            },
+                            {
+                                value: paidInvoices,
+                                label: __('Paid Purchase Invoice'),
+                                datatype: 'Int',
+                                indicator: 'Green',
+                                description: __('Purchase invoices with Paid status')
+                            },
+                            {
+                                value: overdueInvoices,
+                                label: __('Overdue Purchase Invoices'),
+                                datatype: 'Int',
+                                indicator: 'Red',
+                                description: __('Purchase invoices with Overdue status')
+                            },
+                            {
+                                value: totalInvoiceValue,
+                                label: __('Total Invoice Value'),
+                                datatype: 'Currency',
+                                indicator: 'Purple',
+                                description: __('Sum of grand total for selected date range'),
+                                prefix: '₹'
+                            }
+                        ];
 
                         // Update status options based on actual data
                         updateStatusOptions('purchase_invoice', purchaseInvoices, state);
@@ -1761,7 +1675,11 @@ function fetchOverviewData(filters) {
 }
 
 function getStatusOptions(tabId) {
-    // Start empty; options will be updated dynamically from data for all tabs
+    // Material Request uses a fixed set of status options; others start empty and
+    // are populated dynamically from data.
+    if (tabId === 'material_request') {
+        return ['All', 'Pending', 'Partially Ordered', 'Partially Received'];
+    }
     return [''];
 }
 
@@ -1774,11 +1692,9 @@ function updateStatusOptions(tabId, data, state) {
     }
 
     if (tabId === 'material_request') {
-        data.forEach(row => {
-            if (row.workflow_state) {
-                statusSet.add(row.workflow_state);
-            }
-        });
+        // For Material Request we keep a fixed set of options matching the UI:
+        // All, Pending, Partially Ordered, Partially Received
+        ['Pending', 'Partially Ordered', 'Partially Received'].forEach(s => statusSet.add(s));
     } else if (tabId === 'purchase_order') {
         data.forEach(row => {
             if (row.workflow_state) {
