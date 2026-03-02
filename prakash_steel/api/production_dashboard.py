@@ -44,7 +44,12 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			bc.finish_size       AS finished_item,
 			bc.billet_length_full AS fg_length,
 			bc.billet_size       AS rm,
-			bc.billet_weight     AS rm_consumption
+			bc.billet_weight     AS rm_consumption,
+			bc.billet_pcs_full   AS billet_pcs,
+			bc.description_of_cutting_billet AS description_of_cutting_billet,
+			bc.total_raw_material_pcs AS total_raw_material_pcs,
+			bc.miss_billet_pcs   AS miss_billet_pcs,
+			bc.miss_billet_weight AS miss_billet_weight
 		FROM `tabBillet Cutting` bc
 		WHERE {conditions}
 		ORDER BY bc.posting_date DESC, bc.name DESC
@@ -83,18 +88,34 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 		for pr in planned_rows:
 			planned_qty_map[(pr.production_plan, pr.item_code)] = flt(pr.planned_qty)
 
-	# ── 3.  Batch-fetch Actual Qty & Burning Loss from Finish Weight
+	# ── 3.  Batch-fetch Actual Qty, Burning Loss, Length, Melting Weight, Finish Pcs, and Miss Roll/Ingot fields from Finish Weight
 	#         Aggregate per (production_plan, item_code) for row-level data.
-	fw_map = {}  # key: (production_plan, item_code) → {actual_qty, burning_loss}
+	fw_map = {}  # key: (production_plan, item_code) → {actual_qty, burning_loss, length, melting_weight, finish_pcs, miss_roll_pcs, miss_roll_weight, miss_ingot_pcs, miss_ingot_weight}
 	if pp_names:
 		pp_list = list(pp_names)
+		# Get aggregated data (actual_qty and burning_loss) along with length, melting_weight, finish_pcs, and miss roll/ingot fields
 		fw_rows = frappe.db.sql(
 			"""
 			SELECT
 				fw.production_plan,
 				fw.item_code,
 				SUM(fw.finish_weight)               AS total_finish_weight,
-				AVG(NULLIF(fw.burning_loss_per, 0))  AS avg_burning_loss
+				AVG(NULLIF(fw.burning_loss_per, 0))  AS avg_burning_loss,
+				SUM(fw.melting_weight)              AS total_melting_weight,
+				SUM(fw.finish_pcs)                 AS total_finish_pcs,
+				SUM(fw.total_miss_roll_pcs)        AS total_miss_roll_pcs,
+				SUM(fw.total_miss_roll_weight)     AS total_miss_roll_weight,
+				SUM(fw.total_miss_ingot_pcs)       AS total_miss_ingot_pcs,
+				SUM(fw.total_miss_ingot_weight)    AS total_miss_ingot_weight,
+				(SELECT fw2.length
+				 FROM `tabFinish Weight` fw2
+				 WHERE fw2.docstatus = 1
+				   AND fw2.production_plan = fw.production_plan
+				   AND fw2.item_code = fw.item_code
+				   AND fw2.length IS NOT NULL
+				   AND fw2.length != ''
+				 ORDER BY fw2.creation DESC
+				 LIMIT 1) AS length
 			FROM `tabFinish Weight` fw
 			WHERE fw.docstatus = 1
 			  AND fw.production_plan IN %(pp_list)s
@@ -107,6 +128,13 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			fw_map[(fr.production_plan, fr.item_code)] = {
 				"actual_qty": flt(fr.total_finish_weight),
 				"burning_loss": flt(fr.avg_burning_loss, 2),
+				"length": fr.length or "",
+				"melting_weight": flt(fr.total_melting_weight),
+				"finish_pcs": flt(fr.total_finish_pcs),
+				"total_miss_roll_pcs": flt(fr.total_miss_roll_pcs),
+				"total_miss_roll_weight": flt(fr.total_miss_roll_weight),
+				"total_miss_ingot_pcs": flt(fr.total_miss_ingot_pcs),
+				"total_miss_ingot_weight": flt(fr.total_miss_ingot_weight),
 			}
 
 	# ── 3.a  Compute average Burning Loss % from Finish Weight records ──
@@ -158,6 +186,14 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 		fw_data = fw_map.get((pp, fi), {})
 		actual_qty = fw_data.get("actual_qty", 0)
 		burning_loss = fw_data.get("burning_loss", 0)
+		melting_weight = fw_data.get("melting_weight", 0)
+		finish_pcs = fw_data.get("finish_pcs", 0)
+		total_miss_roll_pcs = fw_data.get("total_miss_roll_pcs", 0)
+		total_miss_roll_weight = fw_data.get("total_miss_roll_weight", 0)
+		total_miss_ingot_pcs = fw_data.get("total_miss_ingot_pcs", 0)
+		total_miss_ingot_weight = fw_data.get("total_miss_ingot_weight", 0)
+		# Fetch length from Finish Weight, fallback to billet_length_full if not found
+		fg_length = fw_data.get("length", "") or row.fg_length or ""
 
 		# Sum Actual Qty (from Finish Weight) for Total Production
 		total_production += flt(actual_qty)
@@ -170,7 +206,18 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			"finished_item": fi,
 			"fg_planned_qty": flt(fg_planned_qty),
 			"actual_qty": flt(actual_qty),
-			"fg_length": flt(row.fg_length),
+			"melting_weight": flt(melting_weight),
+			"finish_pcs": flt(finish_pcs),
+			"total_miss_roll_pcs": flt(total_miss_roll_pcs),
+			"total_miss_roll_weight": flt(total_miss_roll_weight),
+			"total_miss_ingot_pcs": flt(total_miss_ingot_pcs),
+			"total_miss_ingot_weight": flt(total_miss_ingot_weight),
+			"billet_pcs": flt(row.billet_pcs) if row.billet_pcs else 0,
+			"description_of_cutting_billet": row.description_of_cutting_billet or "",
+			"total_raw_material_pcs": flt(row.total_raw_material_pcs) if row.total_raw_material_pcs else 0,
+			"miss_billet_pcs": flt(row.miss_billet_pcs) if row.miss_billet_pcs else 0,
+			"miss_billet_weight": flt(row.miss_billet_weight) if row.miss_billet_weight else 0,
+			"fg_length": fg_length,
 			"rm": row.rm or "",
 			"rm_consumption": flt(row.rm_consumption),
 			"burning_loss": flt(burning_loss, 2),

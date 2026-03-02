@@ -482,8 +482,14 @@ function render_table(state, rows) {
         + 'border-bottom:2px solid #343a40;white-space:nowrap;text-align:center !important;';
 
     const headerHtml = columns.map((c, idx) => {
-        // Add vertical border after Production Date (index 1) and Actual Qty (index 5)
-        const borderRight = (idx === 1 || idx === 5) ? ' border-right:2px solid #dee2e6;' : '';
+        // Add vertical border after Production Date (index 1) and between RM / FG sections
+        // For rolled_production: border after Miss Billet Weight (index 9) - end of RM section
+        // Columns (rolled): 0=PP,1=Date,2=RM,3=Actual RM Cons,4=Burning Loss %,5=Total Billet Pcs,
+        //                   6=Description of Cutting Billet,7=Total Raw Material Pcs,8=Miss Billet Pcs,9=Miss Billet Weight,
+        //                   10=Finished Item,11=FG Planned Qty,12=FG Length,13=Actual Qty,...
+        // For bright_production: border after Actual Qty (index 5)
+        const borderAfterQty = (tabId === 'rolled_production' && idx === 9) || (tabId === 'bright_production' && idx === 5);
+        const borderRight = (idx === 1 || borderAfterQty) ? ' border-right:2px solid #dee2e6;' : '';
         return `<th style="${thStyle}${borderRight}">${c.label}</th>`;
     }).join('');
 
@@ -532,6 +538,16 @@ function buildTableRow(tabId, row) {
     // Qty fields – format as INTEGER only (no decimals)
     const fgPlannedQty = format_qty_as_integer(row.fg_planned_qty);
     const actualQty    = format_qty_as_integer(row.actual_qty);
+    const meltingWeight = format_qty_as_integer(row.melting_weight);
+    const finishPcs = format_qty_as_integer(row.finish_pcs);
+    const totalMissRollPcs = format_qty_as_integer(row.total_miss_roll_pcs);
+    const totalMissRollWeight = format_qty_as_integer(row.total_miss_roll_weight);
+    const totalMissIngotPcs = format_qty_as_integer(row.total_miss_ingot_pcs);
+    const totalMissIngotWeight = format_qty_as_integer(row.total_miss_ingot_weight);
+    const billetPcs = format_qty_as_integer(row.billet_pcs);
+    const totalRawMaterialPcs = format_qty_as_integer(row.total_raw_material_pcs);
+    const missBilletPcs = format_qty_as_integer(row.miss_billet_pcs);
+    const missBilletWeight = format_qty_as_integer(row.miss_billet_weight);
     const rmConsumption = format_qty_as_integer(row.rm_consumption);
 
     // FG Length – display exactly as stored (preserve units like "5 MTR", "10 MM", etc.)
@@ -542,6 +558,11 @@ function buildTableRow(tabId, row) {
     // RM
     const rm = row.rm ? frappe.utils.escape_html(row.rm) : '';
 
+    // Description of Cutting Billet
+    const descriptionOfCuttingBillet = row.description_of_cutting_billet 
+        ? frappe.utils.escape_html(String(row.description_of_cutting_billet)) 
+        : '';
+
     // Last column differs per tab – format as percentage with exactly 2 decimal places
     let lastColValue = '';
     if (tabId === 'rolled_production') {
@@ -550,6 +571,38 @@ function buildTableRow(tabId, row) {
         lastColValue = format_percentage(row.wastage);
     }
 
+    // Build row with tab-specific layouts
+    if (tabId === 'rolled_production') {
+        // Rolled Production:
+        // RM section first (RM, Actual RM Consumption, Burning Loss %, Total Billet Pcs, Description of Cutting Billet, Total Raw Material Pcs, Miss Billet Pcs, Miss Billet Weight – inside border),
+        // then FG section
+        return `<tr style="border-bottom:1px solid #e9ecef;">
+        <td style="${tdStyle}">${ppLink}</td>
+        <td style="${tdStyle} border-right:2px solid #dee2e6;">${prodDate}</td>
+        <td style="${tdStyle}">${rm}</td>
+        <td style="${tdStyle}">${rmConsumption}</td>
+        <td style="${tdStyle}">${lastColValue}</td>
+        <td style="${tdStyle}">${billetPcs}</td>
+        <td style="${tdStyle}">${descriptionOfCuttingBillet}</td>
+        <td style="${tdStyle}">${totalRawMaterialPcs}</td>
+        <td style="${tdStyle}">${missBilletPcs}</td>
+        <td style="${tdStyle} border-right:2px solid #dee2e6;">${missBilletWeight}</td>
+        <td style="${tdStyle}">${finishedItem}</td>
+        <td style="${tdStyle}">${fgPlannedQty}</td>
+        <td style="${tdStyle}">${fgLength}</td>
+        <td style="${tdStyle}">${actualQty}</td>
+        <td style="${tdStyle}">${meltingWeight}</td>
+        <td style="${tdStyle}">${finishPcs}</td>
+        <td style="${tdStyle}">${totalMissRollPcs}</td>
+        <td style="${tdStyle}">${totalMissRollWeight}</td>
+        <td style="${tdStyle}">${totalMissIngotPcs}</td>
+        <td style="${tdStyle}">${totalMissIngotWeight}</td>
+    </tr>`;
+    }
+
+    // Bright Production – keep existing order:
+    // Production Plan, Production Date, Finished Item, FG Planned Qty, FG Length,
+    // Actual Qty (with border), RM, Actual RM Consumption, Wastage %.
     return `<tr style="border-bottom:1px solid #e9ecef;">
         <td style="${tdStyle}">${ppLink}</td>
         <td style="${tdStyle} border-right:2px solid #dee2e6;">${prodDate}</td>
@@ -565,16 +618,30 @@ function buildTableRow(tabId, row) {
 
 function getTableColumns(tabId) {
     if (tabId === 'rolled_production') {
+        // Rolled Production:
+        // RM section first (RM, Actual RM Consumption, Total Billet Pcs),
+        // then FG section starting with Finished Item, and Burning Loss % inside the Actual part.
         return [
             { label: __('Production Plan'), align: 'left' },
             { label: __('Production Date'), align: 'left' },
+            { label: __('RM'), align: 'left' },
+            { label: __('Actual RM Consumption'), align: 'left' },
+            { label: __('Burning Loss %'), align: 'left' },
+            { label: __('Total Billet Pcs'), align: 'left' },
+            { label: __('Description of Cutting Billet'), align: 'left' },
+            { label: __('Total Raw Material Pcs'), align: 'left' },
+            { label: __('Miss Billet Pcs'), align: 'left' },
+            { label: __('Miss Billet Weight'), align: 'left' },
             { label: __('Finished Item'), align: 'left' },
             { label: __('FG Planned Qty'), align: 'left' },
             { label: __('FG Length'), align: 'left' },
             { label: __('Actual Qty'), align: 'left' },
-            { label: __('RM'), align: 'left' },
-            { label: __('Actual RM Consumption'), align: 'left' },
-            { label: __('Burning Loss %'), align: 'left' },
+            { label: __('Melting Weight'), align: 'left' },
+            { label: __('Finish Pcs'), align: 'left' },
+            { label: __('Total Miss Roll (Pcs)'), align: 'left' },
+            { label: __('Total Miss Roll Weight'), align: 'left' },
+            { label: __('Total Miss Ingot'), align: 'left' },
+            { label: __('Total Miss Ingot'), align: 'left' },
         ];
     }
     // bright_production
