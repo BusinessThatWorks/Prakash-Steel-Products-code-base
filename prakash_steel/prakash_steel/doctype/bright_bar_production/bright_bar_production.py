@@ -117,6 +117,9 @@ class BrightBarProduction(Document):
 				stock_entry.reload()
 
 			# Update custom_stock_entry_id field with the created stock entry ID
+			# Set on the current document so it appears immediately after submit
+			self.custom_stock_entry_id = stock_entry.name
+			# Also persist explicitly in the database
 			frappe.db.set_value("Bright Bar Production", self.name, "custom_stock_entry_id", stock_entry.name)
 			frappe.db.commit()
 
