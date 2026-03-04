@@ -184,3 +184,10 @@ class BilletCutting(Document):
 					"Please cancel the linked Stock Entry {0} before cancelling this Billet Cutting document."
 				).format(frappe.bold(stock_entry_id))
 			)
+
+	def on_cancel(self):
+		"""Clear linked Stock Entry ID on cancel so amended docs don't copy old reference."""
+		if getattr(self, "custom_stock_entry_id", None):
+			# Clear in memory and in the database
+			self.custom_stock_entry_id = ""
+			frappe.db.set_value(self.doctype, self.name, "custom_stock_entry_id", "")
