@@ -410,9 +410,9 @@ def get_bend_weight_details(from_date=None, to_date=None, item_code=None, produc
 
 	Source: Finish Weight (submitted)
 	Fields:
+	  - name (Finish Weight ID)
 	  - bend_material_weight (Bend Material Weight)
 	  - item_code
-	  - billet_cutting_id (ID)
 	"""
 	conditions = "fw.docstatus = 1"
 	params = {}
@@ -433,9 +433,9 @@ def get_bend_weight_details(from_date=None, to_date=None, item_code=None, produc
 	rows = frappe.db.sql(
 		f"""
 		SELECT
+			fw.name AS finish_weight_id,
 			fw.bend_material_weight,
-			fw.item_code,
-			fw.billet_cutting_id
+			fw.item_code
 		FROM `tabFinish Weight` fw
 		WHERE {conditions}
 		ORDER BY fw.posting_date DESC, fw.name DESC
@@ -444,13 +444,13 @@ def get_bend_weight_details(from_date=None, to_date=None, item_code=None, produc
 		as_dict=True,
 	)
 
-	# Shape rows for frontend: expose ID as simple 'id' field
+	# Shape rows for frontend: expose Finish Weight ID as 'id'
 	result_rows = []
 	for r in rows:
 		result_rows.append({
 			"bend_material_weight": flt(r.bend_material_weight),
 			"item_code": r.item_code,
-			"id": r.billet_cutting_id,
+			"id": r.finish_weight_id,
 		})
 
 	return {

@@ -528,7 +528,7 @@ function render_table(state, rows) {
     }
 
     const $table = $(`
-        <div style="width:100%;margin-bottom:30px;overflow-x:auto;">
+        <div style="width:100%;margin-bottom:30px;overflow-x:auto;overflow-y:auto;height:500px;">
             <table style="width:100%;border-collapse:collapse;background:#fff;
                           border-radius:6px;overflow:hidden;
                           box-shadow:0 1px 3px rgba(0,0,0,.1);min-width:1000px;">
@@ -631,15 +631,15 @@ function buildTableRow(tabId, row) {
 
 	if (tabId === 'bend_weight_details') {
 		// Bend Weight Details: simple three-column layout
-		const bendWeight = format_number_with_decimals(row.bend_material_weight);
-		const itemCode = row.item_code ? frappe.utils.escape_html(String(row.item_code)) : '';
 		const id = row.id || row.name || '';
 		const safeId = id ? frappe.utils.escape_html(String(id)) : '';
+		const itemCode = row.item_code ? frappe.utils.escape_html(String(row.item_code)) : '';
+		const bendWeight = format_number_with_decimals(row.bend_material_weight);
 
 		return `<tr style="border-bottom:1px solid #e9ecef;">
-		<td style="${tdStyle}">${bendWeight}</td>
-		<td style="${tdStyle}">${itemCode}</td>
 		<td style="${tdStyle}">${safeId}</td>
+		<td style="${tdStyle}">${itemCode}</td>
+		<td style="${tdStyle}">${bendWeight}</td>
 	</tr>`;
 	}
 
@@ -693,9 +693,9 @@ function getTableColumns(tabId) {
 	if (tabId === 'bend_weight_details') {
 		// Bend Weight Details – simple three-column layout
 		return [
-			{ label: __('Bend Material Weight'), align: 'left' },
-			{ label: __('Item Code'), align: 'left' },
 			{ label: __('ID'), align: 'left' },
+			{ label: __('Item Code'), align: 'left' },
+			{ label: __('Bend Material Weight'), align: 'left' },
 		];
 	}
 	// bright_production
