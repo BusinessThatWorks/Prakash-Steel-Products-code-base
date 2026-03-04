@@ -369,19 +369,19 @@ function render_cards(state, totals) {
 
     // Tab-specific KPI cards
     if (tabId === 'rolled_production') {
-        // Total Hour = Total Hr Consumed / Total Production
-        let totalHour = 0;
+        // Average Production = Sum(Total Hr Consumed) / Total Production
+        let avgProduction = 0;
         const totalProd = parseFloat(totals.total_production) || 0;
         const totalHr = parseFloat(totals.total_hr_consumed) || 0;
         if (totalProd > 0) {
-            totalHour = totalHr / totalProd;
+            avgProduction = totalHr / totalProd;
         }
 
         cards.push({
-            value: totalHour,
-            label: __('Total Hour'),
+            value: avgProduction,
+            label: __('Average Production'),
             gradientClass: gradientClasses[2],
-            description: __('Total Hr Consumed / Total Production'),
+            description: __('Sum(Total Hr Consumed) / Total Production'),
         });
     } else if (tabId === 'bright_production') {
         // Average Wastage % from Bright Bar Production
@@ -701,7 +701,7 @@ function getTableColumns(tabId) {
 			{ label: __('Total Miss Roll (Pcs)'), align: 'left' },
 			{ label: __('Total Miss Roll Weight'), align: 'left' },
 			{ label: __('Total Miss Ingot'), align: 'left' },
-			{ label: __('Total Miss Ingot'), align: 'left' },
+			{ label: __('Total Miss Ingot / Billet Weight'), align: 'left' },
 		];
 	}
 	if (tabId === 'bend_weight_details') {
