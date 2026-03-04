@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format: {sub_group_name}",
+ "autoname": "[sub_group_name]",
  "creation": "2025-08-22 16:52:01.699141",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -14,7 +14,7 @@
  "fields": [
   {
    "fieldname": "sub_group_name",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "in_list_view": 1,
    "label": "Sub Group Name",
    "reqd": 1
@@ -37,11 +37,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-23 12:51:22.527642",
+ "modified": "2026-02-28 18:58:05.074445",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Sub Group",
- "naming_rule": "Expression",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
