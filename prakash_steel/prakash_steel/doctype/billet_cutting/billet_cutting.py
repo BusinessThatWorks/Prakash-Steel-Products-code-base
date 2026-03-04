@@ -136,6 +136,13 @@ class BilletCutting(Document):
 				frappe.db.commit()
 				stock_entry.reload()
 
+			# Update custom_stock_entry_id field with the created stock entry ID
+			# Set on the current document so it appears immediately after submit
+			self.custom_stock_entry_id = stock_entry.name
+			# Also persist explicitly in the database
+			frappe.db.set_value("Billet Cutting", self.name, "custom_stock_entry_id", stock_entry.name)
+			frappe.db.commit()
+
 			frappe.msgprint(
 				_("Stock Entry {0} created and submitted successfully").format(frappe.bold(stock_entry.name)),
 				indicator="green",
@@ -148,3 +155,42 @@ class BilletCutting(Document):
 				"Billet Cutting Stock Entry Creation Error",
 			)
 			frappe.throw(_("Error creating Stock Entry: {0}").format(str(e)))
+
+	def before_cancel(self):
+		"""Prevent cancellation if linked Stock Entry is not cancelled.
+
+		Note: When cancelling from the linked Stock Entry using
+		\"Cancel All Documents\", allow this document to be cancelled so
+		ERPNext's standard flow works without deadlock.
+		"""
+
+		# Skip validation when called via "Cancel All Documents" from Stock Entry
+		cmd = None
+		if hasattr(frappe.local, "form_dict"):
+			cmd = frappe.local.form_dict.get("cmd")
+		if cmd == "frappe.desk.form.linked_with.cancel_all_linked_docs":
+			return
+
+		stock_entry_id = getattr(self, "custom_stock_entry_id", None)
+
+		# If no linked stock entry, allow normal cancel
+		if not stock_entry_id:
+			return
+
+		# Get docstatus of linked Stock Entry (0 = Draft, 1 = Submitted, 2 = Cancelled)
+		docstatus = frappe.db.get_value("Stock Entry", stock_entry_id, "docstatus")
+
+		# If Stock Entry exists and is not cancelled, block cancellation of this document
+		if docstatus in (0, 1):
+			frappe.throw(
+				_(
+					"Please cancel the linked Stock Entry {0} before cancelling this Billet Cutting document."
+				).format(frappe.bold(stock_entry_id))
+			)
+
+	def on_cancel(self):
+		"""Clear linked Stock Entry ID on cancel so amended docs don't copy old reference."""
+		if getattr(self, "custom_stock_entry_id", None):
+			# Clear in memory and in the database
+			self.custom_stock_entry_id = ""
+			frappe.db.set_value(self.doctype, self.name, "custom_stock_entry_id", "")
