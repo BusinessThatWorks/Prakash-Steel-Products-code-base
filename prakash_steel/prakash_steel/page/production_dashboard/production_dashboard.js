@@ -502,19 +502,28 @@ function render_table(state, rows) {
     const columns = getTableColumns(tabId);
 
     // ── Header ──
-    const thStyle = 'background:#495057;padding:12px;font-weight:600;color:#ffffff;'
-        + 'border-bottom:2px solid #343a40;white-space:nowrap;text-align:center !important;';
+    // All header cells: sticky top (freeze header on vertical scroll)
+    const thBase = 'background:#495057;padding:12px;font-weight:600;color:#ffffff;'
+        + 'border-bottom:2px solid #343a40;white-space:nowrap;text-align:center !important;'
+        + 'position:sticky;top:0;z-index:2;';
+
+    // First two header columns: also sticky left (freeze on horizontal scroll)
+    // z-index:3 so they stay above both regular header cells and sticky body cells
+    const thCol0 = thBase.replace('z-index:2', 'z-index:3') + 'left:0;min-width:180px;';
+    const thCol1 = thBase.replace('z-index:2', 'z-index:3')
+        + 'left:180px;min-width:140px;border-right:2px solid #dee2e6;';
 
     const headerHtml = columns.map((c, idx) => {
-        // Add vertical border after Production Date (index 1) and between RM / FG sections
+        // Section divider borders
         // For rolled_production: border after Total Hr Consumed (index 11) - end of RM section
-        // Columns (rolled): 0=PP,1=Date,2=RM,3=Actual RM Cons,4=Burning Loss %,5=Total Billet Pcs,
-        //                   6=Description of Cutting Billet,7=Total Raw Material Pcs,8=Miss Billet Pcs,9=Miss Billet Weight,10=Heat No,
-        //                   11=Total Hr Consumed,12=Finished Item,13=FG Planned Qty,14=FG Length,15=Actual Qty,...
         // For bright_production: border after Actual Qty (index 5)
         const borderAfterQty = (tabId === 'rolled_production' && idx === 11) || (tabId === 'bright_production' && idx === 5);
-        const borderRight = (idx === 1 || borderAfterQty) ? ' border-right:2px solid #dee2e6;' : '';
-        return `<th style="${thStyle}${borderRight}">${c.label}</th>`;
+        const borderRight = borderAfterQty ? ' border-right:2px solid #dee2e6;' : '';
+        let style;
+        if (idx === 0) style = thCol0;
+        else if (idx === 1) style = thCol1;
+        else style = thBase;
+        return `<th style="${style}${borderRight}">${c.label}</th>`;
     }).join('');
 
     // ── Body ──
@@ -527,11 +536,13 @@ function render_table(state, rows) {
         bodyHtml = rows.map(row => buildTableRow(tabId, row)).join('');
     }
 
+    // border-collapse:separate + border-spacing:0 ensures each cell owns its own borders,
+    // so border-right on sticky columns stays visible during horizontal scroll.
     const $table = $(`
-        <div style="width:100%;margin-bottom:30px;overflow-x:auto;overflow-y:auto;height:500px;">
-            <table style="width:100%;border-collapse:collapse;background:#fff;
-                          border-radius:6px;overflow:hidden;
-                          box-shadow:0 1px 3px rgba(0,0,0,.1);min-width:1000px;">
+        <div style="width:100%;margin-bottom:30px;overflow:auto;max-height:70vh;
+                    border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
+            <table style="width:100%;border-collapse:separate;border-spacing:0;
+                          background:#fff;min-width:1000px;">
                 <thead><tr>${headerHtml}</tr></thead>
                 <tbody>${bodyHtml}</tbody>
             </table>
@@ -542,6 +553,9 @@ function render_table(state, rows) {
 
 function buildTableRow(tabId, row) {
     const tdStyle = 'padding:12px;border-bottom:1px solid #e9ecef;color:#495057;text-align:center !important;';
+    // Sticky body cells for first two columns – frozen on horizontal scroll
+    const tdCol0 = tdStyle + 'position:sticky;left:0;z-index:1;background:#fff;min-width:180px;';
+    const tdCol1 = tdStyle + 'position:sticky;left:180px;z-index:1;background:#fff;min-width:140px;border-right:2px solid #dee2e6;';
 
     // Production Plan (link)
     const ppLink = row.production_plan
@@ -604,8 +618,8 @@ function buildTableRow(tabId, row) {
         // Total Raw Material Pcs, Miss Billet Pcs, Miss Billet Weight, Heat No, Total Hr Consumed – inside border),
         // then FG section
         return `<tr style="border-bottom:1px solid #e9ecef;">
-        <td style="${tdStyle}">${ppLink}</td>
-        <td style="${tdStyle} border-right:2px solid #dee2e6;">${prodDate}</td>
+        <td style="${tdCol0}">${ppLink}</td>
+        <td style="${tdCol1}">${prodDate}</td>
         <td style="${tdStyle}">${rm}</td>
         <td style="${tdStyle}">${rmConsumption}</td>
         <td style="${tdStyle}">${lastColValue}</td>
@@ -637,8 +651,8 @@ function buildTableRow(tabId, row) {
 		const bendWeight = format_number_with_decimals(row.bend_material_weight);
 
 		return `<tr style="border-bottom:1px solid #e9ecef;">
-		<td style="${tdStyle}">${safeId}</td>
-		<td style="${tdStyle}">${itemCode}</td>
+		<td style="${tdCol0}">${safeId}</td>
+		<td style="${tdCol1}">${itemCode}</td>
 		<td style="${tdStyle}">${bendWeight}</td>
 	</tr>`;
 	}
@@ -647,8 +661,8 @@ function buildTableRow(tabId, row) {
 	// Production Plan, Production Date, Finished Item, FG Planned Qty, FG Length,
 	// Actual Qty (with border), RM, Actual RM Consumption, Wastage %.
 	return `<tr style="border-bottom:1px solid #e9ecef;">
-		<td style="${tdStyle}">${ppLink}</td>
-		<td style="${tdStyle} border-right:2px solid #dee2e6;">${prodDate}</td>
+		<td style="${tdCol0}">${ppLink}</td>
+		<td style="${tdCol1}">${prodDate}</td>
 		<td style="${tdStyle}">${finishedItem}</td>
 		<td style="${tdStyle}">${fgPlannedQty}</td>
 		<td style="${tdStyle}">${fgLength}</td>
