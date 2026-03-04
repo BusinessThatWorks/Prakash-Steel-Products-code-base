@@ -94,12 +94,12 @@ def get_data(filters=None):
 
 	Leaves other fields (consumption, sd, cov) empty.
 	"""
-	# Map of item_code -> total sales qty in horizon
-	sales_qty_map = _get_sales_qty_by_item()
-	# Map of item_code -> total consumption
-	consumption_map = _get_consumption_by_item()
 	# Number of days in horizon (based on ADU Horizon)
 	days = _get_horizon_days()
+	# Map of item_code -> total sales qty in horizon
+	sales_qty_map = _get_sales_qty_by_item()
+	# Map of item_code -> total consumption (filtered by same date range as sales)
+	consumption_map = _get_consumption_by_item(days)
 
 	items = frappe.db.get_all(
 		"Item",
@@ -126,12 +126,13 @@ def get_data(filters=None):
 		consumption_qty = flt(consumption_map.get(item_code, 0.0))
 		item["consumption"] = int(consumption_qty) if consumption_qty else 0
 
-		# 3) ADU: always recalculate from Sell / days (ceiled to whole number)
-		if days > 0 and sell_qty > 0:
-			adu_raw = sell_qty / days
-			item["custom_adu"] = int(math.ceil(adu_raw))
+		# 3) ADU: always recalculate from (Sell + Consumption) / days (ceiled to whole number)
+		total_usage = sell_qty + consumption_qty
+		if days > 0 and total_usage > 0:
+			adu_raw = total_usage / days
+			item["custom_adu"] = math.ceil(adu_raw)
 		else:
-			# If horizon not configured or no sales, set ADU to 0
+			# If horizon not configured or no sales/consumption, set ADU to 0
 			item["custom_adu"] = 0
 
 		# 4) SD / COV placeholders (not yet implemented)
@@ -184,36 +185,47 @@ def _get_sales_qty_by_item() -> dict[str, float]:
 	return {row["item_code"]: flt(row.get("total_qty", 0.0)) for row in rows}
 
 
-def _get_consumption_by_item() -> dict[str, float]:
+def _get_consumption_by_item(days: int) -> dict[str, float]:
 	"""
-	Return a mapping of item_code -> total consumption.
+	Return a mapping of item_code -> total consumption within the ADU horizon.
 
 	Logic:
-	- For items with item_type = "rb": sum finish_weight from Finish Weight doctype
+	- For items with item_type = "rb" or "bo": sum actual_rm_consumption from Bright Bar Production doctype
 	- For items with item_type = "rm" or "traded": sum billet_weight from Billet Cutting doctype
+	- Filtered by the same date range as sales (ADU horizon)
 	"""
 	consumption_map = {}
 
-	# Get consumption from Finish Weight for items with item_type = "rb"
-	finish_weight_rows = frappe.db.sql(
+	if days <= 0:
+		return consumption_map
+
+	end_date = today()
+	# Include "days" number of days including today
+	start_date = add_days(end_date, -(days - 1))
+
+	# Get consumption from Bright Bar Production for items with item_type = "rb" or "bo"
+
+	bright_bar_rows = frappe.db.sql(
 		"""
 		SELECT
-			fw.item_code,
-			COALESCE(SUM(fw.finish_weight), 0) AS total_finish_weight
-		FROM `tabFinish Weight` fw
-		INNER JOIN `tabItem` i ON i.name = fw.item_code
+			bbp.raw_material AS item_code,
+			COALESCE(SUM(bbp.actual_rm_consumption), 0) AS total_rm_consumption
+		FROM `tabBright Bar Production` bbp
+		INNER JOIN `tabItem` i ON i.name = bbp.raw_material
 		WHERE
-			fw.docstatus = 1
-			AND i.custom_item_type = 'rb'
-		GROUP BY fw.item_code
+			bbp.docstatus = 1
+			AND LOWER(i.custom_item_type) IN ('rb', 'bo')
+			AND bbp.production_date BETWEEN %s AND %s
+		GROUP BY bbp.raw_material
 		""",
+		(start_date, end_date),
 		as_dict=True,
 	)
 
-	for row in finish_weight_rows:
+	for row in bright_bar_rows:
 		item_code = row.get("item_code")
 		if item_code:
-			consumption_map[item_code] = flt(row.get("total_finish_weight", 0.0))
+			consumption_map[item_code] = flt(row.get("total_rm_consumption", 0.0))
 
 	# Get consumption from Billet Cutting for items with item_type = "rm" or "traded"
 	billet_cutting_rows = frappe.db.sql(
@@ -225,16 +237,18 @@ def _get_consumption_by_item() -> dict[str, float]:
 		INNER JOIN `tabItem` i ON i.name = bc.billet_size
 		WHERE
 			bc.docstatus = 1
-			AND i.custom_item_type IN ('rm', 'traded')
+			AND LOWER(i.custom_item_type) IN ('rm', 'traded')
+			AND bc.posting_date BETWEEN %s AND %s
 		GROUP BY bc.billet_size
 		""",
+		(start_date, end_date),
 		as_dict=True,
 	)
 
 	for row in billet_cutting_rows:
 		item_code = row.get("item_code")
 		if item_code:
-			# If item already has consumption from Finish Weight, add to it
+			# If item already has consumption from Bright Bar Production, add to it
 			# Otherwise, set it
 			current_consumption = consumption_map.get(item_code, 0.0)
 			consumption_map[item_code] = current_consumption + flt(row.get("total_billet_weight", 0.0))

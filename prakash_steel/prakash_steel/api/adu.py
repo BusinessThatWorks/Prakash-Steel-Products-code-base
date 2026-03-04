@@ -14,6 +14,58 @@ def _get_horizon_days() -> int:
     return weeks * 7
 
 
+def _get_item_consumption(item_code: str, start_date=None, end_date=None) -> float:
+    """Get total consumption for a single item within the date range."""
+    if not item_code:
+        return 0.0
+
+    consumption = 0.0
+
+    # Get item type to determine which consumption source to use
+    item_type = frappe.db.get_value("Item", item_code, "custom_item_type")
+    # Normalize to lowercase for case-insensitive comparison
+    item_type_lower = (item_type or "").lower()
+
+    if item_type_lower in ("rb", "bo"):
+        # For items with item_type = "rb" or "bo": sum actual_rm_consumption from Bright Bar Production doctype
+        # where this item is the raw_material
+        query = """
+            SELECT COALESCE(SUM(bbp.actual_rm_consumption), 0) AS total_rm_consumption
+            FROM `tabBright Bar Production` bbp
+            WHERE
+                bbp.raw_material = %s
+                AND bbp.docstatus = 1
+        """
+        params = [item_code]
+        
+        if start_date and end_date:
+            query += " AND bbp.production_date BETWEEN %s AND %s"
+            params.extend([start_date, end_date])
+        
+        row = frappe.db.sql(query, tuple(params), as_dict=True)
+        consumption = flt(row[0].get("total_rm_consumption", 0.0) if row else 0.0)
+
+    elif item_type_lower in ("rm", "traded"):
+        # For items with item_type = "rm" or "traded": sum billet_weight from Billet Cutting doctype
+        query = """
+            SELECT COALESCE(SUM(bc.billet_weight), 0) AS total_billet_weight
+            FROM `tabBillet Cutting` bc
+            WHERE
+                bc.billet_size = %s
+                AND bc.docstatus = 1
+        """
+        params = [item_code]
+        
+        if start_date and end_date:
+            query += " AND bc.posting_date BETWEEN %s AND %s"
+            params.extend([start_date, end_date])
+        
+        row = frappe.db.sql(query, tuple(params), as_dict=True)
+        consumption = flt(row[0].get("total_billet_weight", 0.0) if row else 0.0)
+
+    return consumption
+
+
 def _calculate_item_adu(item_code: str) -> int:
     """Calculate Average Daily Usage for a single item (ceiled to whole number)."""
     if not item_code:
@@ -27,6 +79,7 @@ def _calculate_item_adu(item_code: str) -> int:
     # Include "days" number of days including today
     start_date = add_days(end_date, -(days - 1))
 
+    # Get sales quantity
     row = frappe.db.sql(
         """
         SELECT COALESCE(SUM(sii.qty), 0) AS total_qty
@@ -41,14 +94,25 @@ def _calculate_item_adu(item_code: str) -> int:
         as_dict=True,
     )
 
-    total_qty = flt(row[0].get("total_qty") if row else 0.0)
+    sales_qty = flt(row[0].get("total_qty") if row else 0.0)
+    
+    # Get consumption quantity (filtered by same date range as sales)
+    # This matches the TOG calculation report logic
+    consumption_qty = _get_item_consumption(item_code, start_date, end_date)
+    
+    # Total usage = sales + consumption (matching TOG calculation report)
+    total_qty = sales_qty + consumption_qty
+    
     if days <= 0:
         return 0
 
-    # Ceil to whole number so 2132.143 → 2133
-    adu_raw = total_qty / days if days > 0 else 0
-    adu_ceiled = int(math.ceil(adu_raw)) if adu_raw > 0 else 0
-    return adu_ceiled
+    # Ceil to whole number so 1000.12 → 1001, 2132.143 → 2133
+    # This matches the TOG calculation report: math.ceil(adu_raw)
+    if days > 0 and total_qty > 0:
+        adu_raw = total_qty / days
+        return int(math.ceil(adu_raw))
+    else:
+        return 0
 
 
 def _update_item_adu(item_code: str) -> int:
@@ -140,7 +204,62 @@ def recalculate_adu_for_all_items() -> None:
 
     sales_map = {row.item_code: flt(row.total_qty) for row in rows}
 
-    # Get all stock items so we also reset ADU to 0 when there is no sales in horizon
+    # Get consumption for all items (filtered by same date range as sales)
+    consumption_map = {}
+    
+    # Get consumption from Bright Bar Production for items with item_type = "rb" or "bo"
+    # where the item is consumed as raw_material
+    bright_bar_rows = frappe.db.sql(
+        """
+        SELECT
+            bbp.raw_material AS item_code,
+            COALESCE(SUM(bbp.actual_rm_consumption), 0) AS total_rm_consumption
+        FROM `tabBright Bar Production` bbp
+        INNER JOIN `tabItem` i ON i.name = bbp.raw_material
+        WHERE
+            bbp.docstatus = 1
+            AND LOWER(i.custom_item_type) IN ('rb', 'bo')
+            AND i.is_stock_item = 1
+            AND bbp.production_date BETWEEN %s AND %s
+        GROUP BY bbp.raw_material
+        """,
+        (start_date, end_date),
+        as_dict=True,
+    )
+
+    for row in bright_bar_rows:
+        item_code = row.get("item_code")
+        if item_code:
+            consumption_map[item_code] = flt(row.get("total_rm_consumption", 0.0))
+
+    # Get consumption from Billet Cutting for items with item_type = "rm" or "traded"
+    billet_cutting_rows = frappe.db.sql(
+        """
+        SELECT
+            bc.billet_size AS item_code,
+            COALESCE(SUM(bc.billet_weight), 0) AS total_billet_weight
+        FROM `tabBillet Cutting` bc
+        INNER JOIN `tabItem` i ON i.name = bc.billet_size
+        WHERE
+            bc.docstatus = 1
+            AND LOWER(i.custom_item_type) IN ('rm', 'traded')
+            AND i.is_stock_item = 1
+            AND bc.posting_date BETWEEN %s AND %s
+        GROUP BY bc.billet_size
+        """,
+        (start_date, end_date),
+        as_dict=True,
+    )
+
+    for row in billet_cutting_rows:
+        item_code = row.get("item_code")
+        if item_code:
+            # If item already has consumption from Bright Bar Production, add to it
+            # Otherwise, set it
+            current_consumption = consumption_map.get(item_code, 0.0)
+            consumption_map[item_code] = current_consumption + flt(row.get("total_billet_weight", 0.0))
+
+    # Get all stock items so we also reset ADU to 0 when there is no sales/consumption in horizon
     all_items = frappe.get_all(
         "Item",
         filters={"is_stock_item": 1},
@@ -148,7 +267,11 @@ def recalculate_adu_for_all_items() -> None:
     )
 
     for item_code in all_items:
-        total_qty = sales_map.get(item_code, 0.0)
+        sales_qty = sales_map.get(item_code, 0.0)
+        consumption_qty = consumption_map.get(item_code, 0.0)
+        total_qty = sales_qty + consumption_qty
+        
+        # Ceil to whole number so 1000.12 → 1001, matching TOG calculation report
         if days > 0 and total_qty > 0:
             adu_raw = total_qty / days
             adu_ceiled = int(math.ceil(adu_raw))
