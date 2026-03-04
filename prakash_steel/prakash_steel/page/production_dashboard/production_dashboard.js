@@ -367,23 +367,33 @@ function render_cards(state, totals) {
         },
     ];
 
-    // Tab-specific KPI cards
-    if (tabId === 'rolled_production') {
-        // Average Production = Sum(Total Hr Consumed) / Total Production
-        let avgProduction = 0;
-        const totalProd = parseFloat(totals.total_production) || 0;
-        const totalHr = parseFloat(totals.total_hr_consumed) || 0;
-        if (totalProd > 0) {
-            avgProduction = totalHr / totalProd;
-        }
+   // Tab-specific KPI cards
+   if (tabId === 'rolled_production') {
+       const totalProd = parseFloat(totals.total_production) || 0;
+       const totalHr = parseFloat(totals.total_hr_consumed) || 0;
 
-        cards.push({
-            value: avgProduction,
-            label: __('Average Production'),
-            gradientClass: gradientClasses[2],
-            description: __('Sum(Total Hr Consumed) / Total Production'),
-        });
-    } else if (tabId === 'bright_production') {
+      // Total Hr = Sum of Total Hr Consumed
+      cards.push({
+          value: totalHr,
+          label: __('Total Hr'),
+          // Use a distinct color class so this stands out from the other KPIs
+          gradientClass: 'card-orange',
+          description: __('Sum of Total Hr Consumed'),
+      });
+
+       // Average Production = Total Production / Sum(Total Hr Consumed)
+       let avgProduction = 0;
+       if (totalHr > 0) {
+           avgProduction = totalProd / totalHr;
+       }
+
+       cards.push({
+           value: avgProduction,
+           label: __('Average Production'),
+           gradientClass: gradientClasses[3] || gradientClasses[2],
+           description: __('Total Production / Sum(Total Hr Consumed)'),
+       });
+   } else if (tabId === 'bright_production') {
         // Average Wastage % from Bright Bar Production
         cards.push({
             value: totals.wastage_per,
