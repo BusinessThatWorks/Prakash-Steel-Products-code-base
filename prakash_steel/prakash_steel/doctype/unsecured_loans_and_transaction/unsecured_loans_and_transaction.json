@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2026-02-25 15:21:41.454463",
+ "creation": "2026-03-02 14:33:52.403266",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
@@ -24,7 +24,9 @@
   "monthbased_on_financial_year_section",
   "month",
   "interest_details_section",
-  "interest_details"
+  "interest_details",
+  "section_break_sbga",
+  "total_interest_amount"
  ],
  "fields": [
   {
@@ -33,13 +35,13 @@
    "label": "Director"
   },
   {
+   "fieldname": "column_break_onkm",
+   "fieldtype": "Column Break"
+  },
+  {
    "fieldname": "relative_of_director",
    "fieldtype": "Data",
    "label": "Relative of Director"
-  },
-  {
-   "fieldname": "column_break_onkm",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "section_break_wpnl",
@@ -54,14 +56,15 @@
    "reqd": 1
   },
   {
-   "fieldname": "closing_balance",
-   "fieldtype": "Currency",
-   "label": "Closing Balance",
-   "read_only": 1
-  },
-  {
    "fieldname": "column_break_ozvz",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "closing_balance",
+   "fieldtype": "Currency",
+   "hidden": 1,
+   "label": "Closing Balance",
+   "read_only": 1
   },
   {
    "fieldname": "financial_year_section",
@@ -86,14 +89,14 @@
    "label": "From Date"
   },
   {
+   "fieldname": "column_break_pztt",
+   "fieldtype": "Column Break"
+  },
+  {
    "fetch_from": "financial_year.year_end_date",
    "fieldname": "to_date",
    "fieldtype": "Date",
    "label": "To Date"
-  },
-  {
-   "fieldname": "column_break_pztt",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "period_per_annum_interest__section",
@@ -109,13 +112,13 @@
   {
    "fieldname": "amount",
    "fieldtype": "Currency",
-   "label": "Amount",
-   "read_only": 1
+   "hidden": 1,
+   "label": "Amount"
   },
   {
    "fieldname": "monthbased_on_financial_year_section",
    "fieldtype": "Section Break",
-   "label": "Month(Based on Financial Year)"
+   "label": "Month (Based on Financial Year)"
   },
   {
    "fieldname": "month",
@@ -133,12 +136,22 @@
    "fieldtype": "Table",
    "label": "Interest Details",
    "options": "Interest Details"
+  },
+  {
+   "fieldname": "section_break_sbga",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "total_interest_amount",
+   "fieldtype": "Currency",
+   "label": "Total Interest Amount",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-25 16:01:37.955355",
+ "modified": "2026-03-02 15:49:07.758402",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Unsecured Loans and Transaction",

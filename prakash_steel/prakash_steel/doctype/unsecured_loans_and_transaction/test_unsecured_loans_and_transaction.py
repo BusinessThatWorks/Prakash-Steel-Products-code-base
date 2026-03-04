@@ -1,4 +1,4 @@
-# Copyright (c) 2026, beetashoke chakraborty and Contributors
+# Copyright (c) 2026, Beetashoke Chakraborty and Contributors
 # See license.txt
 
 # import frappe
