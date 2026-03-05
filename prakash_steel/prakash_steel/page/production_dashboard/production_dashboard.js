@@ -391,7 +391,7 @@ function render_cards(state, totals) {
            value: avgProduction,
            label: __('Average Production'),
            gradientClass: gradientClasses[3] || gradientClasses[2],
-           description: __('Total Production / Sum(Total Hr Consumed)'),
+           description: __('Total Production / Total Hr Consumed'),
        });
    } else if (tabId === 'bright_production') {
         // Average Wastage % from Bright Bar Production
@@ -511,6 +511,10 @@ function render_table(state, rows) {
 
     const columns = getTableColumns(tabId);
 
+    // ── Export toolbar (Excel / PDF) ──
+    const $exportBar = buildExportToolbar(state, tabId, columns, rows || []);
+    $container.append($exportBar);
+
     // ── Header ──
     // All header cells: sticky top (freeze header on vertical scroll)
     const thBase = 'background:#495057;padding:12px;font-weight:600;color:#ffffff;'
@@ -525,9 +529,13 @@ function render_table(state, rows) {
 
     const headerHtml = columns.map((c, idx) => {
         // Section divider borders
-        // For rolled_production: border after Total Hr Consumed (index 11) - end of RM section
+        // For rolled_production:
+        //   - border after "Heat No" (index 10) – end of RM / billet section
+        //   - border after "Total Miss Ingot / Billet Weight" (index 19) – end of miss section
         // For bright_production: border after Actual Qty (index 5)
-        const borderAfterQty = (tabId === 'rolled_production' && idx === 11) || (tabId === 'bright_production' && idx === 5);
+        const borderAfterQty =
+            (tabId === 'rolled_production' && (idx === 10 || idx === 19)) ||
+            (tabId === 'bright_production' && idx === 5);
         const borderRight = borderAfterQty ? ' border-right:2px solid #dee2e6;' : '';
         let style;
         if (idx === 0) style = thCol0;
@@ -596,6 +604,9 @@ function buildTableRow(tabId, row) {
     const totalRawMaterialPcs = format_qty_as_integer(row.total_raw_material_pcs);
     const missBilletPcs = format_qty_as_integer(row.miss_billet_pcs);
     const missBilletWeight = format_qty_as_integer(row.miss_billet_weight);
+    const totalRMWeight = format_qty_as_integer(
+        (parseFloat(row.rm_consumption) || 0) + (parseFloat(row.miss_billet_weight) || 0)
+    );
     const heatNo = row.heat_no ? frappe.utils.escape_html(String(row.heat_no)) : '';
     const totalHrConsumed = format_number_with_decimals(row.total_hr_consumed);
     const rmConsumption = format_qty_as_integer(row.rm_consumption);
@@ -632,24 +643,25 @@ function buildTableRow(tabId, row) {
         <td style="${tdCol1}">${prodDate}</td>
         <td style="${tdStyle}">${rm}</td>
         <td style="${tdStyle}">${rmConsumption}</td>
-        <td style="${tdStyle}">${lastColValue}</td>
         <td style="${tdStyle}">${billetPcs}</td>
         <td style="${tdStyle}">${descriptionOfCuttingBillet}</td>
         <td style="${tdStyle}">${totalRawMaterialPcs}</td>
+        <td style="${tdStyle}">${totalRMWeight}</td>
         <td style="${tdStyle}">${missBilletPcs}</td>
         <td style="${tdStyle}">${missBilletWeight}</td>
-        <td style="${tdStyle}">${heatNo}</td>
-        <td style="${tdStyle} border-right:2px solid #dee2e6;">${totalHrConsumed}</td>
+        <td style="${tdStyle} border-right:2px solid #dee2e6;">${heatNo}</td>
         <td style="${tdStyle}">${finishedItem}</td>
         <td style="${tdStyle}">${fgPlannedQty}</td>
-        <td style="${tdStyle}">${fgLength}</td>
         <td style="${tdStyle}">${actualQty}</td>
-        <td style="${tdStyle}">${meltingWeight}</td>
         <td style="${tdStyle}">${finishPcs}</td>
+        <td style="${tdStyle}">${fgLength}</td>
         <td style="${tdStyle}">${totalMissRollPcs}</td>
         <td style="${tdStyle}">${totalMissRollWeight}</td>
         <td style="${tdStyle}">${totalMissIngotPcs}</td>
-        <td style="${tdStyle}">${totalMissIngotWeight}</td>
+        <td style="${tdStyle} border-right:2px solid #dee2e6;">${totalMissIngotWeight}</td>
+        <td style="${tdStyle}">${meltingWeight}</td>
+        <td style="${tdStyle}">${lastColValue}</td>
+        <td style="${tdStyle}">${totalHrConsumed}</td>
     </tr>`;
 	}
 
@@ -694,24 +706,25 @@ function getTableColumns(tabId) {
 			{ label: __('Production Date'), align: 'left' },
 			{ label: __('RM'), align: 'left' },
 			{ label: __('Actual RM Consumption'), align: 'left' },
-			{ label: __('Burning Loss %'), align: 'left' },
 			{ label: __('Total Billet Pcs'), align: 'left' },
 			{ label: __('Description of Cutting Billet'), align: 'left' },
 			{ label: __('Total Raw Material Pcs'), align: 'left' },
+			{ label: __('Total RM Weight'), align: 'left' },
 			{ label: __('Miss Billet Pcs'), align: 'left' },
 			{ label: __('Miss Billet Weight'), align: 'left' },
 			{ label: __('Heat No'), align: 'left' },
-			{ label: __('Total Hr Consumed'), align: 'left' },
 			{ label: __('Finished Item'), align: 'left' },
 			{ label: __('FG Planned Qty'), align: 'left' },
-			{ label: __('FG Length'), align: 'left' },
 			{ label: __('Actual Qty'), align: 'left' },
-			{ label: __('Melting Weight'), align: 'left' },
 			{ label: __('Finish Pcs'), align: 'left' },
+			{ label: __('FG Length'), align: 'left' },
 			{ label: __('Total Miss Roll (Pcs)'), align: 'left' },
 			{ label: __('Total Miss Roll Weight'), align: 'left' },
 			{ label: __('Total Miss Ingot'), align: 'left' },
 			{ label: __('Total Miss Ingot / Billet Weight'), align: 'left' },
+			{ label: __('Melting Weight'), align: 'left' },
+			{ label: __('Burning Loss %'), align: 'left' },
+			{ label: __('Total Hr Consumed'), align: 'left' },
 		];
 	}
 	if (tabId === 'bend_weight_details') {
@@ -734,4 +747,202 @@ function getTableColumns(tabId) {
 		{ label: __('Actual RM Consumption'), align: 'left' },
 		{ label: __('Wastage %'), align: 'left' },
 	];
+}
+
+// ────────────────────────────────────────────────────────────────
+// Export Helpers (Excel & PDF)
+// ────────────────────────────────────────────────────────────────
+function buildExportToolbar(state, tabId, columns, rows) {
+    const $wrapper = $(`
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+            <div class="export-dropdown" style="position:relative;">
+                <button type="button"
+                        class="btn btn-sm"
+                        style="background-color:#28a745;color:#fff;border:none;
+                               padding:6px 14px;border-radius:4px;
+                               display:flex;align-items:center;gap:6px;">
+                    <span>${__('Export')}</span>
+                    <span style="font-size:0.8rem;">▾</span>
+                </button>
+                <div class="export-menu"
+                     style="display:none;position:absolute;right:0;top:100%;
+                            background:#fff;border:1px solid #ced4da;
+                            border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,0.15);
+                            min-width:160px;z-index:10;">
+                    <div class="export-option"
+                         data-format="excel"
+                         style="padding:8px 12px;cursor:pointer;font-size:0.9rem;">
+                        ${__('Export to Excel')}
+                    </div>
+                    <div class="export-option"
+                         data-format="pdf"
+                         style="padding:8px 12px;cursor:pointer;font-size:0.9rem;">
+                        ${__('Export to PDF')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    const $btn = $wrapper.find('button');
+    const $menu = $wrapper.find('.export-menu');
+
+    $btn.on('click', (e) => {
+        e.stopPropagation();
+        $menu.toggle();
+    });
+
+    $menu.find('.export-option[data-format="excel"]').on('click', (e) => {
+        e.stopPropagation();
+        exportTableToExcel(state, tabId);
+        $menu.hide();
+    });
+
+    $menu.find('.export-option[data-format="pdf"]').on('click', (e) => {
+        e.stopPropagation();
+        exportTableToPDF(tabId, columns, rows);
+        $menu.hide();
+    });
+
+    // Hide dropdown when clicking outside
+    $(document).on(`click.exportDropdown-${tabId}`, () => {
+        $menu.hide();
+    });
+
+    return $wrapper;
+}
+
+function exportTableToExcel(state, tabId) {
+    const filters = getFilters(state);
+
+    const from_date = filters.from_date || '';
+    const to_date = filters.to_date || (filters.from_date ? '' : frappe.datetime.get_today());
+
+    // Build a simple URL to the server-side XLSX exporter
+    const params = {
+        tab_id: tabId,
+        from_date: from_date,
+        to_date: to_date,
+        item_code: filters.item_code || '',
+        production_plan: filters.production_plan || '',
+    };
+
+    const query = Object.keys(params)
+        .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k] || '')}`)
+        .join('&');
+
+    const url = `/api/method/prakash_steel.api.production_dashboard.export_production_dashboard?${query}`;
+    window.open(url, '_blank');
+}
+
+function exportTableToPDF(tabId, columns, rows) {
+    if (!rows || !rows.length) {
+        frappe.show_alert({ message: __('No data to export'), indicator: 'orange' });
+        return;
+    }
+
+    const header = columns.map(c => frappe.utils.escape_html(c.label));
+    const dataRows = rows.map(r => mapRowForExport(tabId, r).map(val =>
+        frappe.utils.escape_html(val == null ? '' : String(val))
+    ));
+
+    const thead = `<tr>${header.map(h => `<th style="border:1px solid #000;padding:4px;">${h}</th>`).join('')}</tr>`;
+    const tbody = dataRows.map(rowArr =>
+        `<tr>${rowArr.map(v => `<td style="border:1px solid #000;padding:4px;">${v}</td>`).join('')}</tr>`
+    ).join('');
+
+    const html = `
+        <html>
+        <head>
+            <title>${__('Production Dashboard Export')}</title>
+        </head>
+        <body>
+            <h3>${__('Production Dashboard')} - ${__(tabId.replace(/_/g, ' '))}</h3>
+            <table style="border-collapse:collapse;width:100%;font-size:11px;">
+                <thead>${thead}</thead>
+                <tbody>${tbody}</tbody>
+            </table>
+        </body>
+        </html>
+    `;
+
+    const win = window.open('', '_blank');
+    if (!win) {
+        frappe.msgprint(__('Please allow popups to export PDF.'));
+        return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+}
+
+function buildCSVContent(rows) {
+    const escapeCell = (value) => {
+        if (value === undefined || value === null) return '';
+        const str = String(value);
+        if (/[",\n]/.test(str)) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
+    return rows.map(rowArr => rowArr.map(escapeCell).join(',')).join('\n');
+}
+
+function mapRowForExport(tabId, row) {
+    // Mirrors the visual table order defined in getTableColumns / buildTableRow
+    if (tabId === 'rolled_production') {
+        return [
+            row.production_plan || '',
+            row.production_date
+                ? frappe.format(row.production_date, { fieldtype: 'Date' })
+                : '',
+            row.rm || '',
+            row.rm_consumption || 0,
+            row.billet_pcs || 0,
+            row.description_of_cutting_billet || '',
+            row.total_raw_material_pcs || 0,
+			(row.rm_consumption || 0) + (row.miss_billet_weight || 0),
+            row.miss_billet_pcs || 0,
+            row.miss_billet_weight || 0,
+            row.heat_no || '',
+            row.finished_item || '',
+            row.fg_planned_qty || 0,
+            row.actual_qty || 0,
+            row.finish_pcs || 0,
+			row.fg_length || '',
+            row.total_miss_roll_pcs || 0,
+            row.total_miss_roll_weight || 0,
+            row.total_miss_ingot_pcs || 0,
+            row.total_miss_ingot_weight || 0,
+			row.melting_weight || 0,
+			row.burning_loss || 0,
+			row.total_hr_consumed || 0,
+        ];
+    }
+
+    if (tabId === 'bend_weight_details') {
+        return [
+            row.id || row.name || '',
+            row.item_code || '',
+            row.bend_material_weight || 0,
+        ];
+    }
+
+    // bright_production
+    return [
+        row.production_plan || '',
+        row.production_date
+            ? frappe.format(row.production_date, { fieldtype: 'Date' })
+            : '',
+        row.finished_item || '',
+        row.fg_planned_qty || 0,
+        row.fg_length || '',
+        row.actual_qty || 0,
+        row.rm || '',
+        row.rm_consumption || 0,
+        row.wastage || 0,
+    ];
 }

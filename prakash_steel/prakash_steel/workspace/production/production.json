@@ -1,6 +1,6 @@
 {
  "charts": [],
- "content": "[{\"id\":\"yUXt1udldz\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Production</span>\",\"col\":12}}]",
+ "content": "[{\"id\":\"yUXt1udldz\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Production</span>\",\"col\":12}},{\"id\":\"5cwmgMbdfM\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Billet Cutting\",\"col\":4}},{\"id\":\"-Scm_n5vpp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Hourly Production\",\"col\":4}},{\"id\":\"En0PrrQ0Rz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Finish Weight\",\"col\":4}}]",
  "creation": "2025-08-27 09:42:48.563133",
  "custom_blocks": [],
  "docstatus": 0,
@@ -12,8 +12,8 @@
  "is_hidden": 0,
  "label": "Production",
  "links": [],
- "modified": "2025-12-29 10:45:59.958554",
- "modified_by": "ritika@clapgrow.com",
+ "modified": "2026-03-05 16:21:49.853880",
+ "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Production",
  "number_cards": [],
@@ -23,6 +23,37 @@
  "quick_lists": [],
  "roles": [],
  "sequence_id": 21.0,
- "shortcuts": [],
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Billet Cutting",
+   "link_to": "Billet Cutting",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Finish Weight",
+   "link_to": "Finish Weight",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Hourly Production",
+   "link_to": "Hourly Production",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "doc_view": "List",
+   "label": "Bright Bar Production",
+   "link_to": "Bright Bar Production",
+   "type": "DocType"
+  }
+ ],
  "title": "Production"
 }
