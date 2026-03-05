@@ -511,6 +511,10 @@ function render_table(state, rows) {
 
     const columns = getTableColumns(tabId);
 
+    // ── Export toolbar (Excel / PDF) ──
+    const $exportBar = buildExportToolbar(tabId, columns, rows || []);
+    $container.append($exportBar);
+
     // ── Header ──
     // All header cells: sticky top (freeze header on vertical scroll)
     const thBase = 'background:#495057;padding:12px;font-weight:600;color:#ffffff;'
@@ -734,4 +738,202 @@ function getTableColumns(tabId) {
 		{ label: __('Actual RM Consumption'), align: 'left' },
 		{ label: __('Wastage %'), align: 'left' },
 	];
+}
+
+// ────────────────────────────────────────────────────────────────
+// Export Helpers (Excel & PDF)
+// ────────────────────────────────────────────────────────────────
+function buildExportToolbar(tabId, columns, rows) {
+    const $wrapper = $(`
+        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+            <div class="export-dropdown" style="position:relative;">
+                <button type="button"
+                        class="btn btn-sm"
+                        style="background-color:#28a745;color:#fff;border:none;
+                               padding:6px 14px;border-radius:4px;
+                               display:flex;align-items:center;gap:6px;">
+                    <span>${__('Export')}</span>
+                    <span style="font-size:0.8rem;">▾</span>
+                </button>
+                <div class="export-menu"
+                     style="display:none;position:absolute;right:0;top:100%;
+                            background:#fff;border:1px solid #ced4da;
+                            border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,0.15);
+                            min-width:160px;z-index:10;">
+                    <div class="export-option"
+                         data-format="excel"
+                         style="padding:8px 12px;cursor:pointer;font-size:0.9rem;">
+                        ${__('Export to Excel')}
+                    </div>
+                    <div class="export-option"
+                         data-format="pdf"
+                         style="padding:8px 12px;cursor:pointer;font-size:0.9rem;">
+                        ${__('Export to PDF')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `);
+
+    const $btn = $wrapper.find('button');
+    const $menu = $wrapper.find('.export-menu');
+
+    $btn.on('click', (e) => {
+        e.stopPropagation();
+        $menu.toggle();
+    });
+
+    $menu.find('.export-option[data-format="excel"]').on('click', (e) => {
+        e.stopPropagation();
+        exportTableToExcel(tabId, columns, rows);
+        $menu.hide();
+    });
+
+    $menu.find('.export-option[data-format="pdf"]').on('click', (e) => {
+        e.stopPropagation();
+        exportTableToPDF(tabId, columns, rows);
+        $menu.hide();
+    });
+
+    // Hide dropdown when clicking outside
+    $(document).on(`click.exportDropdown-${tabId}`, () => {
+        $menu.hide();
+    });
+
+    return $wrapper;
+}
+
+function exportTableToExcel(tabId, columns, rows) {
+    if (!rows || !rows.length) {
+        frappe.show_alert({ message: __('No data to export'), indicator: 'orange' });
+        return;
+    }
+
+    const header = columns.map(c => c.label);
+    const dataRows = rows.map(r => mapRowForExport(tabId, r));
+
+    const csvContent = buildCSVContent([header].concat(dataRows));
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const filename = `${tabId}_export_${frappe.datetime.nowdate()}.csv`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function exportTableToPDF(tabId, columns, rows) {
+    if (!rows || !rows.length) {
+        frappe.show_alert({ message: __('No data to export'), indicator: 'orange' });
+        return;
+    }
+
+    const header = columns.map(c => frappe.utils.escape_html(c.label));
+    const dataRows = rows.map(r => mapRowForExport(tabId, r).map(val =>
+        frappe.utils.escape_html(val == null ? '' : String(val))
+    ));
+
+    const thead = `<tr>${header.map(h => `<th style="border:1px solid #000;padding:4px;">${h}</th>`).join('')}</tr>`;
+    const tbody = dataRows.map(rowArr =>
+        `<tr>${rowArr.map(v => `<td style="border:1px solid #000;padding:4px;">${v}</td>`).join('')}</tr>`
+    ).join('');
+
+    const html = `
+        <html>
+        <head>
+            <title>${__('Production Dashboard Export')}</title>
+        </head>
+        <body>
+            <h3>${__('Production Dashboard')} - ${__(tabId.replace(/_/g, ' '))}</h3>
+            <table style="border-collapse:collapse;width:100%;font-size:11px;">
+                <thead>${thead}</thead>
+                <tbody>${tbody}</tbody>
+            </table>
+        </body>
+        </html>
+    `;
+
+    const win = window.open('', '_blank');
+    if (!win) {
+        frappe.msgprint(__('Please allow popups to export PDF.'));
+        return;
+    }
+    win.document.open();
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    win.print();
+}
+
+function buildCSVContent(rows) {
+    const escapeCell = (value) => {
+        if (value === undefined || value === null) return '';
+        const str = String(value);
+        if (/[",\n]/.test(str)) {
+            return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+    };
+
+    return rows.map(rowArr => rowArr.map(escapeCell).join(',')).join('\n');
+}
+
+function mapRowForExport(tabId, row) {
+    // Mirrors the visual table order defined in getTableColumns / buildTableRow
+    if (tabId === 'rolled_production') {
+        return [
+            row.production_plan || '',
+            row.production_date
+                ? frappe.format(row.production_date, { fieldtype: 'Date' })
+                : '',
+            row.rm || '',
+            row.rm_consumption || 0,
+            row.burning_loss || 0,
+            row.billet_pcs || 0,
+            row.description_of_cutting_billet || '',
+            row.total_raw_material_pcs || 0,
+            row.miss_billet_pcs || 0,
+            row.miss_billet_weight || 0,
+            row.heat_no || '',
+            row.total_hr_consumed || 0,
+            row.finished_item || '',
+            row.fg_planned_qty || 0,
+            row.fg_length || '',
+            row.actual_qty || 0,
+            row.melting_weight || 0,
+            row.finish_pcs || 0,
+            row.total_miss_roll_pcs || 0,
+            row.total_miss_roll_weight || 0,
+            row.total_miss_ingot_pcs || 0,
+            row.total_miss_ingot_weight || 0,
+        ];
+    }
+
+    if (tabId === 'bend_weight_details') {
+        return [
+            row.id || row.name || '',
+            row.item_code || '',
+            row.bend_material_weight || 0,
+        ];
+    }
+
+    // bright_production
+    return [
+        row.production_plan || '',
+        row.production_date
+            ? frappe.format(row.production_date, { fieldtype: 'Date' })
+            : '',
+        row.finished_item || '',
+        row.fg_planned_qty || 0,
+        row.fg_length || '',
+        row.actual_qty || 0,
+        row.rm || '',
+        row.rm_consumption || 0,
+        row.wastage || 0,
+    ];
 }
