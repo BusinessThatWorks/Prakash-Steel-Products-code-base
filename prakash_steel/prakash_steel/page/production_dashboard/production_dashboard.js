@@ -391,7 +391,7 @@ function render_cards(state, totals) {
            value: avgProduction,
            label: __('Average Production'),
            gradientClass: gradientClasses[3] || gradientClasses[2],
-           description: __('Total Production / Sum(Total Hr Consumed)'),
+           description: __('Total Production / Total Hr Consumed'),
        });
    } else if (tabId === 'bright_production') {
         // Average Wastage % from Bright Bar Production
@@ -646,10 +646,10 @@ function buildTableRow(tabId, row) {
         <td style="${tdStyle} border-right:2px solid #dee2e6;">${totalHrConsumed}</td>
         <td style="${tdStyle}">${finishedItem}</td>
         <td style="${tdStyle}">${fgPlannedQty}</td>
-        <td style="${tdStyle}">${fgLength}</td>
         <td style="${tdStyle}">${actualQty}</td>
-        <td style="${tdStyle}">${meltingWeight}</td>
         <td style="${tdStyle}">${finishPcs}</td>
+        <td style="${tdStyle}">${fgLength}</td>
+        <td style="${tdStyle}">${meltingWeight}</td>
         <td style="${tdStyle}">${totalMissRollPcs}</td>
         <td style="${tdStyle}">${totalMissRollWeight}</td>
         <td style="${tdStyle}">${totalMissIngotPcs}</td>
@@ -708,10 +708,10 @@ function getTableColumns(tabId) {
 			{ label: __('Total Hr Consumed'), align: 'left' },
 			{ label: __('Finished Item'), align: 'left' },
 			{ label: __('FG Planned Qty'), align: 'left' },
-			{ label: __('FG Length'), align: 'left' },
 			{ label: __('Actual Qty'), align: 'left' },
-			{ label: __('Melting Weight'), align: 'left' },
 			{ label: __('Finish Pcs'), align: 'left' },
+			{ label: __('FG Length'), align: 'left' },
+			{ label: __('Melting Weight'), align: 'left' },
 			{ label: __('Total Miss Roll (Pcs)'), align: 'left' },
 			{ label: __('Total Miss Roll Weight'), align: 'left' },
 			{ label: __('Total Miss Ingot'), align: 'left' },
@@ -902,10 +902,10 @@ function mapRowForExport(tabId, row) {
             row.total_hr_consumed || 0,
             row.finished_item || '',
             row.fg_planned_qty || 0,
-            row.fg_length || '',
             row.actual_qty || 0,
-            row.melting_weight || 0,
             row.finish_pcs || 0,
+			row.fg_length || '',
+			row.melting_weight || 0,
             row.total_miss_roll_pcs || 0,
             row.total_miss_roll_weight || 0,
             row.total_miss_ingot_pcs || 0,
