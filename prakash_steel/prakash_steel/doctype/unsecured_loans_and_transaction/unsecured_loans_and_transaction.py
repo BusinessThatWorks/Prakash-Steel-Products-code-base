@@ -74,16 +74,15 @@ class UnsecuredLoansandTransaction(Document):
         today_date = getdate(today())
         yesterday_date = add_days(today_date, -1)
 
-        # Month ka last day
+       
         days_in_month = calendar.monthrange(entry_year, month_number)[1]
         month_end_date = getdate(f"{entry_year}-{month_number:02d}-{days_in_month:02d}")
 
-        # Agar selected month future mein hai toh kuch nahi
+        
         if month_start_date > yesterday_date:
             return
 
-        # Loop end: agar current month chal raha hai toh yesterday tak,
-        # agar past month hai toh poore month ka last day tak
+        
         loop_end_date = min(yesterday_date, month_end_date)
 
         annual_percent = flt(self.interest_percent)
