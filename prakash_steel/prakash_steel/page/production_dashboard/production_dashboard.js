@@ -529,9 +529,13 @@ function render_table(state, rows) {
 
     const headerHtml = columns.map((c, idx) => {
         // Section divider borders
-        // For rolled_production: border after Total Hr Consumed (index 11) - end of RM section
+        // For rolled_production:
+        //   - border after "Heat No" (index 10) – end of RM / billet section
+        //   - border after "Total Miss Ingot / Billet Weight" (index 19) – end of miss section
         // For bright_production: border after Actual Qty (index 5)
-        const borderAfterQty = (tabId === 'rolled_production' && idx === 11) || (tabId === 'bright_production' && idx === 5);
+        const borderAfterQty =
+            (tabId === 'rolled_production' && (idx === 10 || idx === 19)) ||
+            (tabId === 'bright_production' && idx === 5);
         const borderRight = borderAfterQty ? ' border-right:2px solid #dee2e6;' : '';
         let style;
         if (idx === 0) style = thCol0;
@@ -600,6 +604,9 @@ function buildTableRow(tabId, row) {
     const totalRawMaterialPcs = format_qty_as_integer(row.total_raw_material_pcs);
     const missBilletPcs = format_qty_as_integer(row.miss_billet_pcs);
     const missBilletWeight = format_qty_as_integer(row.miss_billet_weight);
+    const totalRMWeight = format_qty_as_integer(
+        (parseFloat(row.rm_consumption) || 0) + (parseFloat(row.miss_billet_weight) || 0)
+    );
     const heatNo = row.heat_no ? frappe.utils.escape_html(String(row.heat_no)) : '';
     const totalHrConsumed = format_number_with_decimals(row.total_hr_consumed);
     const rmConsumption = format_qty_as_integer(row.rm_consumption);
@@ -636,24 +643,25 @@ function buildTableRow(tabId, row) {
         <td style="${tdCol1}">${prodDate}</td>
         <td style="${tdStyle}">${rm}</td>
         <td style="${tdStyle}">${rmConsumption}</td>
-        <td style="${tdStyle}">${lastColValue}</td>
         <td style="${tdStyle}">${billetPcs}</td>
         <td style="${tdStyle}">${descriptionOfCuttingBillet}</td>
         <td style="${tdStyle}">${totalRawMaterialPcs}</td>
+        <td style="${tdStyle}">${totalRMWeight}</td>
         <td style="${tdStyle}">${missBilletPcs}</td>
         <td style="${tdStyle}">${missBilletWeight}</td>
-        <td style="${tdStyle}">${heatNo}</td>
-        <td style="${tdStyle} border-right:2px solid #dee2e6;">${totalHrConsumed}</td>
+        <td style="${tdStyle} border-right:2px solid #dee2e6;">${heatNo}</td>
         <td style="${tdStyle}">${finishedItem}</td>
         <td style="${tdStyle}">${fgPlannedQty}</td>
         <td style="${tdStyle}">${actualQty}</td>
         <td style="${tdStyle}">${finishPcs}</td>
         <td style="${tdStyle}">${fgLength}</td>
-        <td style="${tdStyle}">${meltingWeight}</td>
         <td style="${tdStyle}">${totalMissRollPcs}</td>
         <td style="${tdStyle}">${totalMissRollWeight}</td>
         <td style="${tdStyle}">${totalMissIngotPcs}</td>
-        <td style="${tdStyle}">${totalMissIngotWeight}</td>
+        <td style="${tdStyle} border-right:2px solid #dee2e6;">${totalMissIngotWeight}</td>
+        <td style="${tdStyle}">${meltingWeight}</td>
+        <td style="${tdStyle}">${lastColValue}</td>
+        <td style="${tdStyle}">${totalHrConsumed}</td>
     </tr>`;
 	}
 
@@ -698,24 +706,25 @@ function getTableColumns(tabId) {
 			{ label: __('Production Date'), align: 'left' },
 			{ label: __('RM'), align: 'left' },
 			{ label: __('Actual RM Consumption'), align: 'left' },
-			{ label: __('Burning Loss %'), align: 'left' },
 			{ label: __('Total Billet Pcs'), align: 'left' },
 			{ label: __('Description of Cutting Billet'), align: 'left' },
 			{ label: __('Total Raw Material Pcs'), align: 'left' },
+			{ label: __('Total RM Weight'), align: 'left' },
 			{ label: __('Miss Billet Pcs'), align: 'left' },
 			{ label: __('Miss Billet Weight'), align: 'left' },
 			{ label: __('Heat No'), align: 'left' },
-			{ label: __('Total Hr Consumed'), align: 'left' },
 			{ label: __('Finished Item'), align: 'left' },
 			{ label: __('FG Planned Qty'), align: 'left' },
 			{ label: __('Actual Qty'), align: 'left' },
 			{ label: __('Finish Pcs'), align: 'left' },
 			{ label: __('FG Length'), align: 'left' },
-			{ label: __('Melting Weight'), align: 'left' },
 			{ label: __('Total Miss Roll (Pcs)'), align: 'left' },
 			{ label: __('Total Miss Roll Weight'), align: 'left' },
 			{ label: __('Total Miss Ingot'), align: 'left' },
 			{ label: __('Total Miss Ingot / Billet Weight'), align: 'left' },
+			{ label: __('Melting Weight'), align: 'left' },
+			{ label: __('Burning Loss %'), align: 'left' },
+			{ label: __('Total Hr Consumed'), align: 'left' },
 		];
 	}
 	if (tabId === 'bend_weight_details') {
@@ -892,24 +901,25 @@ function mapRowForExport(tabId, row) {
                 : '',
             row.rm || '',
             row.rm_consumption || 0,
-            row.burning_loss || 0,
             row.billet_pcs || 0,
             row.description_of_cutting_billet || '',
             row.total_raw_material_pcs || 0,
+			(row.rm_consumption || 0) + (row.miss_billet_weight || 0),
             row.miss_billet_pcs || 0,
             row.miss_billet_weight || 0,
             row.heat_no || '',
-            row.total_hr_consumed || 0,
             row.finished_item || '',
             row.fg_planned_qty || 0,
             row.actual_qty || 0,
             row.finish_pcs || 0,
 			row.fg_length || '',
-			row.melting_weight || 0,
             row.total_miss_roll_pcs || 0,
             row.total_miss_roll_weight || 0,
             row.total_miss_ingot_pcs || 0,
             row.total_miss_ingot_weight || 0,
+			row.melting_weight || 0,
+			row.burning_loss || 0,
+			row.total_hr_consumed || 0,
         ];
     }
 
