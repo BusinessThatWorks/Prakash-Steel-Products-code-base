@@ -1,11 +1,10 @@
-# Copyright (c) 2026
+# Copyright (c) 2026, Beetashoke Chakraborty and contributors
 # For license information, please see license.txt
 
 import frappe
 from frappe.model.document import Document
-from frappe.utils import getdate, flt, add_days
+from frappe.utils import getdate, today, flt, add_days
 import calendar
-
 
 class UnsecuredLoansandTransaction(Document):
 
@@ -13,6 +12,12 @@ class UnsecuredLoansandTransaction(Document):
         self.set_from_to_dates()
         self.populate_interest_details()
         self.calculate_total_interest()
+    
+    def calculate_total_interest(self):
+        self.total_interest_amount = round(
+            sum(flt(row.interest_amount) for row in self.interest_details),
+            2
+        )
 
     def set_from_to_dates(self):
         if self.financial_year:
@@ -20,59 +25,83 @@ class UnsecuredLoansandTransaction(Document):
             self.from_date = fy.year_start_date
             self.to_date = fy.year_end_date
 
-    def calculate_total_interest(self):
-        self.total_interest_amount = round(
-            sum(flt(row.interest_amount) for row in self.interest_details),
-            2
-        )
+    def get_interest_rate(self):
+        possible_fields = [
+            "interest_per_annum",
+            "interest__per_annum",
+            "interest_per_annum_",
+            "interest_percent_per_annum",
+            "rate_of_interest",
+            "interest_rate",
+            "annual_interest_rate",
+        ]
+        for field in possible_fields:
+            val = self.get(field)
+            if val is not None:
+                return flt(val)
+
+        meta = frappe.get_meta("Unsecured Loans and Transaction")
+        for df in meta.fields:
+            if "interest" in df.fieldname.lower() and "per" in (df.label or "").lower():
+                val = self.get(df.fieldname)
+                if val is not None:
+                    frappe.logger().info(f"[DEBUG] Interest field found: {df.fieldname} = {val}")
+                    return flt(val)
+
+        frappe.logger().warning("[Unsecured Loan] Interest % Per Annum field not found!")
+        return 0.0
 
     def populate_interest_details(self):
+        if not self.month:
+            return
+        if not self.unsecured_loan:
+            return
+        if not self.from_date:
+            return
 
-        if not (self.month and self.unsecured_loan and self.from_date and self.to_date and self.interest_percent):
+        annual_rate = self.get_interest_rate()
+        if not annual_rate:
             return
 
         month_number = get_month_number(self.month)
-        fy_start_date = getdate(self.from_date)
-        fy_end_date = getdate(self.to_date)
+        if not month_number:
+            return
 
-        # FY logic (April–March)
-        entry_year = fy_end_date.year if month_number <= 3 else fy_start_date.year
-
-        days_in_month = calendar.monthrange(entry_year, month_number)[1]
+        fy_start_year = getdate(self.from_date).year
+        entry_year = fy_start_year if month_number >= 4 else fy_start_year + 1
 
         month_start_date = getdate(f"{entry_year}-{month_number:02d}-01")
-        month_end_date = getdate(f"{entry_year}-{month_number:02d}-{days_in_month}")
+        today_date = getdate(today())
+        yesterday_date = add_days(today_date, -1)
+
+        # Month ka last day
+        days_in_month = calendar.monthrange(entry_year, month_number)[1]
+        month_end_date = getdate(f"{entry_year}-{month_number:02d}-{days_in_month:02d}")
+
+        # Agar selected month future mein hai toh kuch nahi
+        if month_start_date > yesterday_date:
+            return
+
+        # Loop end: agar current month chal raha hai toh yesterday tak,
+        # agar past month hai toh poore month ka last day tak
+        loop_end_date = min(yesterday_date, month_end_date)
 
         annual_percent = flt(self.interest_percent)
-
-        days_in_year = 366 if calendar.isleap(entry_year) else 365
+        monthly_percent = annual_percent / 12.0
+        day_interest_percent = round(monthly_percent / days_in_month, 3)
 
         self.interest_details = []
 
         current = month_start_date
-
-        while current <= month_end_date:
-
-            has_transaction = frappe.db.exists("GL Entry", {
-                "account": self.unsecured_loan,
-                "posting_date": current,
-                "is_cancelled": 0,
-                "docstatus": 1
-            })
-
-            if has_transaction:
-                closing_bal = get_cumulative_balance(self.unsecured_loan, current)
-
-                interest_amt = (closing_bal * annual_percent) / 100.0 / days_in_year
-            else:
-                closing_bal = 0.0
-                interest_amt = 0.0
+        while current <= loop_end_date:
+            closing_bal = get_closing_balance(self.unsecured_loan, current)
+            interest_amt = closing_bal * (day_interest_percent / 100)
 
             self.append("interest_details", {
                 "date": current,
-                "closing_balance": round(closing_bal),
-                "day_interest": round(annual_percent / days_in_year, 6),
-                "interest_amount": round(interest_amt,2)
+                "closing_balance": closing_bal,
+                "day_interest": day_interest_percent,
+                "interest_amount": round(interest_amt, 2)
             })
 
             current = add_days(current, 1)
@@ -80,33 +109,101 @@ class UnsecuredLoansandTransaction(Document):
 
 def get_month_number(month_name):
     months = {
-        "January": 1, "February": 2, "March": 3,
         "April": 4, "May": 5, "June": 6,
         "July": 7, "August": 8, "September": 9,
-        "October": 10, "November": 11, "December": 12
+        "October": 10, "November": 11, "December": 12,
+        "January": 1, "February": 2, "March": 3
     }
     return months.get(month_name)
 
 
-def get_cumulative_balance(account, date):
-
+def get_closing_balance(account, date):
     if not account:
         return 0.0
 
-    result = frappe.db.sql("""
-        SELECT 
-            COALESCE(SUM(credit),0) - COALESCE(SUM(debit),0) AS balance
-        FROM `tabGL Entry`
-        WHERE account = %(account)s
-        AND posting_date <= %(date)s
-        AND is_cancelled = 0
-        AND docstatus = 1
-    """, {
-        "account": account,
-        "date": str(date)
-    }, as_dict=True)
+    try:
+        result = frappe.db.sql("""
+            SELECT
+                SUM(credit) - SUM(debit) AS balance
+            FROM
+                `tabGL Entry`
+            WHERE
+                account = %(account)s
+                AND posting_date <= %(date)s
+                AND is_cancelled = 0
+                AND docstatus = 1
+        """, {
+            "account": account,
+            "date": str(date)
+        }, as_dict=True)
 
-    if result and result[0]["balance"] is not None:
-        return abs(flt(result[0]["balance"]))
+        if result and result[0].get("balance") is not None:
+            return abs(flt(result[0]["balance"]))
 
-    return 0.0
+        return 0.0
+
+    except Exception:
+        frappe.log_error(
+            message=frappe.get_traceback(),
+            title=f"GL Balance Fetch Error: {account} on {date}"
+        )
+        return 0.0
+
+
+def debug_fieldnames():
+    meta = frappe.get_meta("Unsecured Loans and Transaction")
+    print("\n=== ALL FIELDS IN UNSECURED LOANS AND TRANSACTION ===")
+    for df in meta.fields:
+        print(f"  fieldname: {df.fieldname!r:40s}  label: {df.label!r}")
+    print("===END ===\n")
+
+
+def fetch_daily_interest_for_all_active_docs():
+    today_date = getdate(today())
+
+    docs = frappe.get_all(
+        "Unsecured Loans and Transaction",
+        filters={"docstatus": ["in", [0, 1]]},
+        fields=["name", "month", "from_date", "to_date", "financial_year", "unsecured_loan"]
+    )
+
+    for doc_info in docs:
+        try:
+            if doc_info.from_date and doc_info.to_date:
+                if not (getdate(doc_info.from_date) <= today_date <= getdate(doc_info.to_date)):
+                    continue
+
+            if doc_info.month:
+                month_number = get_month_number(doc_info.month)
+                if month_number and today_date.month != month_number:
+                    continue
+
+            doc = frappe.get_doc("Unsecured Loans and Transaction", doc_info.name)
+
+            annual_rate = doc.get_interest_rate()
+            if not annual_rate:
+                continue
+
+            daily_rate = annual_rate / 100.0 / 12.0 / 30.0
+            existing_dates = {getdate(row.date) for row in doc.interest_details if row.date}
+
+            if today_date not in existing_dates:
+                closing_bal = get_closing_balance(doc.unsecured_loan, today_date)
+                doc.append("interest_details", {
+                    "date": today_date,
+                    "closing_balance": closing_bal,
+                    "day_interest": round(daily_rate * 100, 6),
+                    "interest_amount": round(flt(closing_bal) * daily_rate, 2)
+                })
+
+                doc.flags.ignore_validate = True
+                doc.flags.ignore_permissions = True
+                doc.save()
+                frappe.db.commit()
+
+        except Exception:
+            frappe.log_error(
+                message=frappe.get_traceback(),
+                title=f"Interest Fetch Error: {doc_info.name}"
+            )
+            frappe.db.rollback()
