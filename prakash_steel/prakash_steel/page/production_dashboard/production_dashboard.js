@@ -512,7 +512,7 @@ function render_table(state, rows) {
     const columns = getTableColumns(tabId);
 
     // ── Export toolbar (Excel / PDF) ──
-    const $exportBar = buildExportToolbar(tabId, columns, rows || []);
+    const $exportBar = buildExportToolbar(state, tabId, columns, rows || []);
     $container.append($exportBar);
 
     // ── Header ──
@@ -743,7 +743,7 @@ function getTableColumns(tabId) {
 // ────────────────────────────────────────────────────────────────
 // Export Helpers (Excel & PDF)
 // ────────────────────────────────────────────────────────────────
-function buildExportToolbar(tabId, columns, rows) {
+function buildExportToolbar(state, tabId, columns, rows) {
     const $wrapper = $(`
         <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
             <div class="export-dropdown" style="position:relative;">
@@ -785,7 +785,7 @@ function buildExportToolbar(tabId, columns, rows) {
 
     $menu.find('.export-option[data-format="excel"]').on('click', (e) => {
         e.stopPropagation();
-        exportTableToExcel(tabId, columns, rows);
+        exportTableToExcel(state, tabId);
         $menu.hide();
     });
 
@@ -803,28 +803,27 @@ function buildExportToolbar(tabId, columns, rows) {
     return $wrapper;
 }
 
-function exportTableToExcel(tabId, columns, rows) {
-    if (!rows || !rows.length) {
-        frappe.show_alert({ message: __('No data to export'), indicator: 'orange' });
-        return;
-    }
+function exportTableToExcel(state, tabId) {
+    const filters = getFilters(state);
 
-    const header = columns.map(c => c.label);
-    const dataRows = rows.map(r => mapRowForExport(tabId, r));
+    const from_date = filters.from_date || '';
+    const to_date = filters.to_date || (filters.from_date ? '' : frappe.datetime.get_today());
 
-    const csvContent = buildCSVContent([header].concat(dataRows));
+    // Build a simple URL to the server-side XLSX exporter
+    const params = {
+        tab_id: tabId,
+        from_date: from_date,
+        to_date: to_date,
+        item_code: filters.item_code || '',
+        production_plan: filters.production_plan || '',
+    };
 
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    const query = Object.keys(params)
+        .map(k => `${encodeURIComponent(k)}=${encodeURIComponent(params[k] || '')}`)
+        .join('&');
 
-    const filename = `${tabId}_export_${frappe.datetime.nowdate()}.csv`;
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    const url = `/api/method/prakash_steel.api.production_dashboard.export_production_dashboard?${query}`;
+    window.open(url, '_blank');
 }
 
 function exportTableToPDF(tabId, columns, rows) {

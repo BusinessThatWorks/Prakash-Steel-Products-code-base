@@ -4,6 +4,7 @@
 import frappe
 from frappe import _
 from frappe.utils import flt
+from frappe.utils.xlsxutils import make_xlsx
 
 
 @frappe.whitelist()
@@ -457,3 +458,128 @@ def get_bend_weight_details(from_date=None, to_date=None, item_code=None, produc
 		"rows": result_rows,
 		"totals": {},
 	}
+
+
+@frappe.whitelist()
+def export_production_dashboard(tab_id, from_date=None, to_date=None, item_code=None, production_plan=None):
+	"""
+	Build an Excel file (XLSX) for the Production Dashboard tables.
+
+	`tab_id` can be:
+	  - 'rolled_production'
+	  - 'bright_production'
+	  - 'bend_weight_details'
+	"""
+	# Get rows using the same logic as the dashboard
+	if tab_id == "rolled_production":
+		data = get_rolled_production_data(from_date, to_date, item_code, production_plan)
+		rows = data.get("rows", [])
+		header = [
+			_("Production Plan"),
+			_("Production Date"),
+			_("RM"),
+			_("Actual RM Consumption"),
+			_("Burning Loss %"),
+			_("Total Billet Pcs"),
+			_("Description of Cutting Billet"),
+			_("Total Raw Material Pcs"),
+			_("Miss Billet Pcs"),
+			_("Miss Billet Weight"),
+			_("Heat No"),
+			_("Total Hr Consumed"),
+			_("Finished Item"),
+			_("FG Planned Qty"),
+			_("FG Length"),
+			_("Actual Qty"),
+			_("Melting Weight"),
+			_("Finish Pcs"),
+			_("Total Miss Roll (Pcs)"),
+			_("Total Miss Roll Weight"),
+			_("Total Miss Ingot"),
+			_("Total Miss Ingot / Billet Weight"),
+		]
+
+		def map_row(r):
+			return [
+				r.get("production_plan") or "",
+				r.get("production_date") or "",
+				r.get("rm") or "",
+				flt(r.get("rm_consumption")) or 0,
+				flt(r.get("burning_loss")) or 0,
+				flt(r.get("billet_pcs")) or 0,
+				r.get("description_of_cutting_billet") or "",
+				flt(r.get("total_raw_material_pcs")) or 0,
+				flt(r.get("miss_billet_pcs")) or 0,
+				flt(r.get("miss_billet_weight")) or 0,
+				r.get("heat_no") or "",
+				flt(r.get("total_hr_consumed")) or 0,
+				r.get("finished_item") or "",
+				flt(r.get("fg_planned_qty")) or 0,
+				r.get("fg_length") or "",
+				flt(r.get("actual_qty")) or 0,
+				flt(r.get("melting_weight")) or 0,
+				flt(r.get("finish_pcs")) or 0,
+				flt(r.get("total_miss_roll_pcs")) or 0,
+				flt(r.get("total_miss_roll_weight")) or 0,
+				flt(r.get("total_miss_ingot_pcs")) or 0,
+				flt(r.get("total_miss_ingot_weight")) or 0,
+			]
+
+	elif tab_id == "bright_production":
+		data = get_bright_production_data(from_date, to_date, item_code, production_plan)
+		rows = data.get("rows", [])
+		header = [
+			_("Production Plan"),
+			_("Production Date"),
+			_("Finished Item"),
+			_("FG Planned Qty"),
+			_("FG Length"),
+			_("Actual Qty"),
+			_("RM"),
+			_("Actual RM Consumption"),
+			_("Wastage %"),
+		]
+
+		def map_row(r):
+			return [
+				r.get("production_plan") or "",
+				r.get("production_date") or "",
+				r.get("finished_item") or "",
+				flt(r.get("fg_planned_qty")) or 0,
+				r.get("fg_length") or "",
+				flt(r.get("actual_qty")) or 0,
+				r.get("rm") or "",
+				flt(r.get("rm_consumption")) or 0,
+				flt(r.get("wastage")) or 0,
+			]
+
+	elif tab_id == "bend_weight_details":
+		data = get_bend_weight_details(from_date, to_date, item_code, production_plan)
+		rows = data.get("rows", [])
+		header = [
+			_("ID"),
+			_("Item Code"),
+			_("Bend Material Weight"),
+		]
+
+		def map_row(r):
+			return [
+				r.get("id") or r.get("name") or "",
+				r.get("item_code") or "",
+				flt(r.get("bend_material_weight")) or 0,
+			]
+	else:
+		frappe.throw(_("Invalid tab selected for export."))
+
+	data_rows = [map_row(r) for r in rows]
+	table_data = [header] + data_rows
+
+	file_name = f"{tab_id}_export.xlsx"
+	xlsx_file = make_xlsx(table_data, _("Production Dashboard"))
+
+	frappe.response["filename"] = file_name
+	frappe.response["filecontent"] = xlsx_file.getvalue()
+	frappe.response["type"] = "binary"
+	frappe.response[
+		"content_type"
+	] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
