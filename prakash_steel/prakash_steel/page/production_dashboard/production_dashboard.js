@@ -385,6 +385,19 @@ function render_cards(state, totals) {
           description: __('Sum of Total Hr Consumed'),
       });
 
+      // Average Production = Total Production / Sum(Total Hr Consumed)
+      let avgProduction = 0;
+      if (totalHr > 0) {
+          avgProduction = totalProd / totalHr;
+      }
+
+      cards.push({
+          value: avgProduction,
+          label: __('Average Production'),
+          gradientClass: 'card-red',
+          description: __('Total Production / Total Hr Consumed'),
+      });
+
        // Total Melting Weight = Sum of Melting Weight across all rows
        cards.push({
            value: totalMeltingWeight,
@@ -397,7 +410,7 @@ function render_cards(state, totals) {
        // Total Miss Billet Weight
        cards.push({
            value: totalMissBilletWeight,
-           label: __('Total Miss Billet Weight'),
+           label: __('Total Miss Billet Weight(RM)'),
            gradientClass: 'card-pink',
            description: __('Sum of Miss Billet Weight across all rows'),
            isQty: true,
@@ -406,7 +419,7 @@ function render_cards(state, totals) {
        // Total Miss Roll Weight
        cards.push({
            value: totalMissRollWeight,
-           label: __('Total Miss Roll Weight'),
+           label: __('Total Miss Roll Weight(FG)'),
            gradientClass: 'card-orange',
            description: __('Sum of Total Miss Roll Weight across all rows'),
            isQty: true,
@@ -415,23 +428,10 @@ function render_cards(state, totals) {
        // Total Miss Ingot / Billet Weight
        cards.push({
            value: totalMissIngotWeight,
-           label: __('Total Miss Ingot / Billet Weight'),
+           label: __('Total Miss Ingot / Billet Weight(FG)'),
            gradientClass: 'card-purple',
            description: __('Sum of Total Miss Ingot / Billet Weight across all rows'),
            isQty: true,
-       });
-
-       // Average Production = Total Production / Sum(Total Hr Consumed)
-       let avgProduction = 0;
-       if (totalHr > 0) {
-           avgProduction = totalProd / totalHr;
-       }
-
-       cards.push({
-           value: avgProduction,
-           label: __('Average Production'),
-          gradientClass: 'card-red',
-           description: __('Total Production / Total Hr Consumed'),
        });
    } else if (tabId === 'bright_production') {
         // Average Wastage % from Bright Bar Production
