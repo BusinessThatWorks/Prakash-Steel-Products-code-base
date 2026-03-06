@@ -344,24 +344,25 @@ function render_cards(state, totals) {
 		return;
 	}
 
-    // Use teal and light pink (plus purple) for Rolled Production,
-    // and light yellow + green (plus orange) for Bright Production
+    // Color palettes per tab
+    // Rolled Production will use one distinct color per card (no repeats)
+    // Bright Production uses a smaller distinct palette.
     const gradientClasses = tabId === 'rolled_production'
-        ? ['card-teal', 'card-pink', 'card-purple']
+        ? [] // we will assign explicit colors below
         : ['card-yellow', 'card-green', 'card-orange'];
 
     const cards = [
         {
             value: totals.total_production,
             label: __('Total Production (kg)'),
-            gradientClass: gradientClasses[0],
+            gradientClass: tabId === 'rolled_production' ? 'card-blue' : gradientClasses[0],
             description: __('Sum of Actual Qty across all rows'),
             isQty: true, // Qty field - format as integer
         },
         {
             value: totals.rm_consumption,
             label: __('RM Consumption'),
-            gradientClass: gradientClasses[1],
+            gradientClass: tabId === 'rolled_production' ? 'card-teal' : gradientClasses[1],
             description: __('Sum of RM Consumption across all rows'),
             isQty: true, // Qty field - format as integer
         },
@@ -371,27 +372,66 @@ function render_cards(state, totals) {
    if (tabId === 'rolled_production') {
        const totalProd = parseFloat(totals.total_production) || 0;
        const totalHr = parseFloat(totals.total_hr_consumed) || 0;
+       const totalMeltingWeight = parseFloat(totals.total_melting_weight) || 0;
+       const totalMissBilletWeight = parseFloat(totals.total_miss_billet_weight) || 0;
+       const totalMissRollWeight = parseFloat(totals.total_miss_roll_weight) || 0;
+       const totalMissIngotWeight = parseFloat(totals.total_miss_ingot_weight) || 0;
 
       // Total Hr = Sum of Total Hr Consumed
       cards.push({
           value: totalHr,
           label: __('Total Hr'),
-          // Use a distinct color class so this stands out from the other KPIs
-          gradientClass: 'card-orange',
+          gradientClass: 'card-yellow',
           description: __('Sum of Total Hr Consumed'),
       });
 
-       // Average Production = Total Production / Sum(Total Hr Consumed)
-       let avgProduction = 0;
-       if (totalHr > 0) {
-           avgProduction = totalProd / totalHr;
-       }
+      // Average Production = Total Production / Sum(Total Hr Consumed)
+      let avgProduction = 0;
+      if (totalHr > 0) {
+          avgProduction = totalProd / totalHr;
+      }
 
+      cards.push({
+          value: avgProduction,
+          label: __('Average Production'),
+          gradientClass: 'card-red',
+          description: __('Total Production / Total Hr Consumed'),
+      });
+
+       // Total Melting Weight = Sum of Melting Weight across all rows
        cards.push({
-           value: avgProduction,
-           label: __('Average Production'),
-           gradientClass: gradientClasses[3] || gradientClasses[2],
-           description: __('Total Production / Total Hr Consumed'),
+           value: totalMeltingWeight,
+           label: __('Total Melting Weight'),
+           gradientClass: 'card-green',
+           description: __('Sum of Melting Weight across all rows'),
+           isQty: true,
+       });
+
+       // Total Miss Billet Weight
+       cards.push({
+           value: totalMissBilletWeight,
+           label: __('Total Miss Billet Weight(RM)'),
+           gradientClass: 'card-pink',
+           description: __('Sum of Miss Billet Weight across all rows'),
+           isQty: true,
+       });
+
+       // Total Miss Roll Weight
+       cards.push({
+           value: totalMissRollWeight,
+           label: __('Total Miss Roll Weight(FG)'),
+           gradientClass: 'card-orange',
+           description: __('Sum of Total Miss Roll Weight across all rows'),
+           isQty: true,
+       });
+
+       // Total Miss Ingot / Billet Weight
+       cards.push({
+           value: totalMissIngotWeight,
+           label: __('Total Miss Ingot / Billet Weight(FG)'),
+           gradientClass: 'card-purple',
+           description: __('Sum of Total Miss Ingot / Billet Weight across all rows'),
+           isQty: true,
        });
    } else if (tabId === 'bright_production') {
         // Average Wastage % from Bright Bar Production
@@ -472,15 +512,15 @@ function buildCardHtml(card) {
     return $(`
         <div class="number-card ${gradientClass}"
              style="background:${gradient} !important;background-image:${gradient} !important;
-                    border-radius:12px;padding:18px;
-                    box-shadow:none;
+                    border-radius:10px;padding:14px 18px;
+                    box-shadow:none;min-height:110px;
                     position:relative;overflow:hidden;
                     transition:transform .2s,box-shadow .2s;
                     color:#000;border:none;">
             <div style="text-align:center;">
-                <div style="font-size:2.4rem;font-weight:700;color:#000;
-                            margin-bottom:8px;line-height:1.1;">${display}</div>
-                <div style="font-size:1rem;color:#000;font-weight:500;opacity:0.95;">
+                <div style="font-size:1.9rem;font-weight:700;color:#000;
+                            margin-bottom:6px;line-height:1.1;">${display}</div>
+                <div style="font-size:0.95rem;color:#000;font-weight:500;opacity:0.95;">
                     ${frappe.utils.escape_html(card.label || '')}</div>
                 ${desc}
             </div>
