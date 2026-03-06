@@ -41,40 +41,94 @@ frappe.ui.form.on("Purchase Order", {
                 return proceed_with_standard_cancel();
             }
 
-            const dialog = new frappe.ui.Dialog({
-                title: __("Cancel Reason Required"),
+            // First dialog: Show 4 options
+            const reasonOptionsDialog = new frappe.ui.Dialog({
+                title: __("Select Cancel Reason"),
                 fields: [
                     {
-                        fieldname: "cancel_reason",
+                        fieldname: "cancel_reason_option",
                         label: __("Cancel Reason"),
-                        fieldtype: "Small Text",
+                        fieldtype: "Select",
+                        options: [
+                            "Wrong Qty",
+                            "Wrong Item",
+                            "Wrong Supplier",
+                            "Others",
+                        ],
                         reqd: 1,
                     },
                 ],
                 primary_action_label: __("Continue"),
                 primary_action(values) {
-                    if (!values || !values.cancel_reason) {
+                    if (!values || !values.cancel_reason_option) {
                         return;
                     }
 
-                    frappe.call({
-                        method: "prakash_steel.utils.purchase_order_cancel.set_purchase_order_cancel_reason",
-                        args: {
-                            name: frm.doc.name,
-                            reason: values.cancel_reason,
-                        },
-                        freeze: true,
-                        freeze_message: __("Saving Cancel Reason..."),
-                        callback() {
-                            dialog.hide();
-                            proceed_with_standard_cancel();
-                        },
-                        error: on_error,
-                    });
+                    const selectedOption = values.cancel_reason_option;
+
+                    // If "Others" is selected, show the text input dialog
+                    if (selectedOption === "Others") {
+                        reasonOptionsDialog.hide();
+                        showCustomReasonDialog(frm, proceed_with_standard_cancel, on_error);
+                    } else {
+                        // For options A, B, C: Save the reason directly and proceed
+                        reasonOptionsDialog.hide();
+                        frappe.call({
+                            method: "prakash_steel.utils.purchase_order_cancel.set_purchase_order_cancel_reason",
+                            args: {
+                                name: frm.doc.name,
+                                reason: selectedOption,
+                            },
+                            freeze: true,
+                            freeze_message: __("Saving Cancel Reason..."),
+                            callback() {
+                                proceed_with_standard_cancel();
+                            },
+                            error: on_error,
+                        });
+                    }
                 },
             });
 
-            dialog.show();
+            // Function to show the custom reason dialog (for "Others" option)
+            function showCustomReasonDialog(frm, proceedCallback, onError) {
+                const customReasonDialog = new frappe.ui.Dialog({
+                    title: __("Cancel Reason Required"),
+                    fields: [
+                        {
+                            fieldname: "cancel_reason",
+                            label: __("Cancel Reason"),
+                            fieldtype: "Small Text",
+                            reqd: 1,
+                        },
+                    ],
+                    primary_action_label: __("Continue"),
+                    primary_action(values) {
+                        if (!values || !values.cancel_reason) {
+                            return;
+                        }
+
+                        frappe.call({
+                            method: "prakash_steel.utils.purchase_order_cancel.set_purchase_order_cancel_reason",
+                            args: {
+                                name: frm.doc.name,
+                                reason: values.cancel_reason,
+                            },
+                            freeze: true,
+                            freeze_message: __("Saving Cancel Reason..."),
+                            callback() {
+                                customReasonDialog.hide();
+                                proceedCallback();
+                            },
+                            error: onError,
+                        });
+                    },
+                });
+
+                customReasonDialog.show();
+            }
+
+            reasonOptionsDialog.show();
         };
     },
 
@@ -93,51 +147,113 @@ frappe.ui.form.on("Purchase Order", {
             // Unfreeze UI so user can type in our dialog
             frappe.dom.unfreeze();
 
-            const dialog = new frappe.ui.Dialog({
-                title: __("Cancel Reason Required"),
+            // First dialog: Show 4 options
+            const reasonOptionsDialog = new frappe.ui.Dialog({
+                title: __("Select Cancel Reason"),
                 fields: [
                     {
-                        fieldname: "cancel_reason",
+                        fieldname: "cancel_reason_option",
                         label: __("Cancel Reason"),
-                        fieldtype: "Small Text",
+                        fieldtype: "Select",
+                        options: [
+                            "Rate Mistake",
+                            "Size Mistake",
+                            "Data Entry Mistake",
+                            "Others",
+                        ],
                         reqd: 1,
                     },
                 ],
                 primary_action_label: __("Continue"),
                 primary_action(values) {
-                    if (!values || !values.cancel_reason) {
+                    if (!values || !values.cancel_reason_option) {
                         return;
                     }
 
-                    frappe.call({
-                        method: "prakash_steel.utils.purchase_order_cancel.set_purchase_order_cancel_reason",
-                        args: {
-                            name: frm.doc.name,
-                            reason: values.cancel_reason,
-                        },
-                        freeze: true,
-                        freeze_message: __("Saving Cancel Reason..."),
-                        callback() {
-                            dialog.hide();
-                            resolve();
-                        },
-                        error(err) {
-                            dialog.hide();
-                            frappe.dom.unfreeze();
-                            reject(err);
-                        },
-                    });
+                    const selectedOption = values.cancel_reason_option;
+
+                    // If "Others" is selected, show the text input dialog
+                    if (selectedOption === "Others") {
+                        reasonOptionsDialog.hide();
+                        showCustomReasonDialog(frm, resolve, reject);
+                    } else {
+                        // For options A, B, C: Save the reason directly and resolve
+                        reasonOptionsDialog.hide();
+                        frappe.call({
+                            method: "prakash_steel.utils.purchase_order_cancel.set_purchase_order_cancel_reason",
+                            args: {
+                                name: frm.doc.name,
+                                reason: selectedOption,
+                            },
+                            freeze: true,
+                            freeze_message: __("Saving Cancel Reason..."),
+                            callback() {
+                                resolve();
+                            },
+                            error(err) {
+                                frappe.dom.unfreeze();
+                                reject(err);
+                            },
+                        });
+                    }
                 },
             });
 
-            dialog.set_secondary_action(() => {
-                dialog.hide();
-                // Unfreeze since workflow.js froze the UI before calling before_workflow_action
+            // Function to show the custom reason dialog (for "Others" option)
+            function showCustomReasonDialog(frm, resolveCallback, rejectCallback) {
+                const customReasonDialog = new frappe.ui.Dialog({
+                    title: __("Cancel Reason Required"),
+                    fields: [
+                        {
+                            fieldname: "cancel_reason",
+                            label: __("Cancel Reason"),
+                            fieldtype: "Small Text",
+                            reqd: 1,
+                        },
+                    ],
+                    primary_action_label: __("Continue"),
+                    primary_action(values) {
+                        if (!values || !values.cancel_reason) {
+                            return;
+                        }
+
+                        frappe.call({
+                            method: "prakash_steel.utils.purchase_order_cancel.set_purchase_order_cancel_reason",
+                            args: {
+                                name: frm.doc.name,
+                                reason: values.cancel_reason,
+                            },
+                            freeze: true,
+                            freeze_message: __("Saving Cancel Reason..."),
+                            callback() {
+                                customReasonDialog.hide();
+                                resolveCallback();
+                            },
+                            error(err) {
+                                customReasonDialog.hide();
+                                frappe.dom.unfreeze();
+                                rejectCallback(err);
+                            },
+                        });
+                    },
+                });
+
+                customReasonDialog.set_secondary_action(() => {
+                    customReasonDialog.hide();
+                    frappe.dom.unfreeze();
+                    rejectCallback();
+                });
+
+                customReasonDialog.show();
+            }
+
+            reasonOptionsDialog.set_secondary_action(() => {
+                reasonOptionsDialog.hide();
                 frappe.dom.unfreeze();
                 reject();
             });
 
-            dialog.show();
+            reasonOptionsDialog.show();
         });
     },
 
