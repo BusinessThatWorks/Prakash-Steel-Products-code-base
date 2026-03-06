@@ -16,7 +16,7 @@ frappe.ui.form.on("Item", {
         handle_min_order_qty_batch_size_exclusivity(frm);
 
         // Recalculate ADU on form load so Item ADU always matches current Sales Invoices + ADU Horizon
-        refresh_item_adu(frm);
+        // refresh_item_adu(frm);
     },
 
     custom_store_item: function (frm) {
