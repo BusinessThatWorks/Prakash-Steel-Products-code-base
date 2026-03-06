@@ -122,11 +122,11 @@ function fetch_total_billet_cutting_pcs(frm) {
         return;
     }
 
-    // Fetch total_billet_cutting_pcs from Billet Cutting document
-    frappe.db.get_value('Billet Cutting', frm.doc.billet_cutting_id, 'total_billet_cutting_pcs')
+    // Fetch total_raw_material_pcs from Billet Cutting document
+    frappe.db.get_value('Billet Cutting', frm.doc.billet_cutting_id, 'total_raw_material_pcs')
         .then(r => {
-            if (r && r.message && r.message.total_billet_cutting_pcs !== undefined) {
-                const total_from_billet_cutting = parseFloat(r.message.total_billet_cutting_pcs) || 0;
+            if (r && r.message && r.message.total_raw_material_pcs !== undefined) {
+                const total_from_billet_cutting = parseFloat(r.message.total_raw_material_pcs) || 0;
 
                 // Get current document name (if it exists, exclude it from the sum)
                 const current_doc_name = frm.doc.name || null;
