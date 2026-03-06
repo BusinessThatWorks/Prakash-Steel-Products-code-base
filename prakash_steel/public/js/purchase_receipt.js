@@ -21,39 +21,92 @@ frappe.ui.form.on('Purchase Receipt', {
             return;
         }
 
-        const dialog = new frappe.ui.Dialog({
-            title: __("Cancel Reason Required"),
+        // First dialog: Show 4 options
+        const reasonOptionsDialog = new frappe.ui.Dialog({
+            title: __("Select Cancel Reason"),
             fields: [
                 {
-                    fieldname: "cancel_reason",
+                    fieldname: "cancel_reason_option",
                     label: __("Cancel Reason"),
-                    fieldtype: "Small Text",
+                    fieldtype: "Select",
+                    options: [
+                        "Rate Mistake",
+                        "Size Mistake",
+                        "Data Entry Mistake",
+                        "Others",
+                    ],
                     reqd: 1,
                 },
             ],
-            primary_action_label: __("Cancel Purchase Receipt"),
+            primary_action_label: __("Continue"),
             primary_action(values) {
-                if (!values || !values.cancel_reason) {
+                if (!values || !values.cancel_reason_option) {
                     return;
                 }
 
-                frappe.call({
-                    method: "prakash_steel.utils.purchase_receipt_cancel.cancel_purchase_receipt_with_reason",
-                    args: {
-                        name: frm.doc.name,
-                        reason: values.cancel_reason,
-                    },
-                    freeze: true,
-                    freeze_message: __("Cancelling Purchase Receipt..."),
-                    callback() {
-                        dialog.hide();
-                        frm.reload_doc();
-                    },
-                });
+                const selectedOption = values.cancel_reason_option;
+
+                // If "Others" is selected, show the text input dialog
+                if (selectedOption === "Others") {
+                    reasonOptionsDialog.hide();
+                    showCustomReasonDialog(frm);
+                } else {
+                    // For options A, B, C: Save the reason directly and cancel
+                    reasonOptionsDialog.hide();
+                    frappe.call({
+                        method: "prakash_steel.utils.purchase_receipt_cancel.cancel_purchase_receipt_with_reason",
+                        args: {
+                            name: frm.doc.name,
+                            reason: selectedOption,
+                        },
+                        freeze: true,
+                        freeze_message: __("Cancelling Purchase Receipt..."),
+                        callback() {
+                            frm.reload_doc();
+                        },
+                    });
+                }
             },
         });
 
-        dialog.show();
+        // Function to show the custom reason dialog (for "Others" option)
+        function showCustomReasonDialog(frm) {
+            const customReasonDialog = new frappe.ui.Dialog({
+                title: __("Cancel Reason Required"),
+                fields: [
+                    {
+                        fieldname: "cancel_reason",
+                        label: __("Cancel Reason"),
+                        fieldtype: "Small Text",
+                        reqd: 1,
+                    },
+                ],
+                primary_action_label: __("Cancel Purchase Receipt"),
+                primary_action(values) {
+                    if (!values || !values.cancel_reason) {
+                        return;
+                    }
+
+                    frappe.call({
+                        method: "prakash_steel.utils.purchase_receipt_cancel.cancel_purchase_receipt_with_reason",
+                        args: {
+                            name: frm.doc.name,
+                            reason: values.cancel_reason,
+                        },
+                        freeze: true,
+                        freeze_message: __("Cancelling Purchase Receipt..."),
+                        callback() {
+                            customReasonDialog.hide();
+                            frm.reload_doc();
+                        },
+                    });
+                },
+            });
+
+            customReasonDialog.show();
+        }
+
+        reasonOptionsDialog.show();
 
         // Prevent the standard cancel; our server method will perform the cancel
         frappe.validated = false;

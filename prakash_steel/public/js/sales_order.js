@@ -35,34 +35,77 @@ frappe.ui.form.on("Sales Order", {
                 return;
             }
 
-            const dialog = new frappe.ui.Dialog({
-                title: __("Cancel Reason Required"),
+            // First dialog: Show 4 options
+            const reasonOptionsDialog = new frappe.ui.Dialog({
+                title: __("Select Cancel Reason"),
                 fields: [
                     {
-                        fieldname: "cancel_reason",
+                        fieldname: "cancel_reason_option",
                         label: __("Cancel Reason"),
-                        fieldtype: "Small Text",
+                        fieldtype: "Select",
+                        options: [
+                            "Party Name Mistake",
+                            "Rate Mistake",
+                            "Size Mistake",
+                            "Others",
+                        ],
                         reqd: 1,
                     },
                 ],
-                primary_action_label: __("Cancel Sales Order"),
+                primary_action_label: __("Continue"),
                 primary_action(values) {
-                    if (!values || !values.cancel_reason) {
+                    if (!values || !values.cancel_reason_option) {
                         return;
                     }
 
-                    dialog.hide();
-                    run_cancel_with_reason(values.cancel_reason);
+                    const selectedOption = values.cancel_reason_option;
+
+                    // If "Others" or "Party Name Mistake" is selected, show the text input dialog
+                    if (selectedOption === "Others" || selectedOption === "Party Name Mistake") {
+                        reasonOptionsDialog.hide();
+                        showCustomReasonDialog(frm, run_cancel_with_reason, selectedOption);
+                    } else {
+                        // For other options: save the reason label directly and cancel
+                        reasonOptionsDialog.hide();
+                        run_cancel_with_reason(selectedOption);
+                    }
                 },
             });
 
-            dialog.show();
+            // Function to show the custom reason dialog (for "Others" / Party Name Mistake)
+            function showCustomReasonDialog(frm, runCancelCallback, selectedOption) {
+                const customReasonDialog = new frappe.ui.Dialog({
+                    title: __("Cancel Reason Required"),
+                    fields: [
+                        {
+                            fieldname: "cancel_reason",
+                            label: __("Cancel Reason"),
+                            fieldtype: "Small Text",
+                            reqd: 1,
+                        },
+                    ],
+                    primary_action_label: __("Cancel Sales Order"),
+                    primary_action(values) {
+                        if (!values || !values.cancel_reason) {
+                            return;
+                        }
+
+                        customReasonDialog.hide();
+                        const finalReason = `${selectedOption}, ${values.cancel_reason}`;
+                        runCancelCallback(finalReason);
+                    },
+                });
+
+                customReasonDialog.show();
+            }
+
+            reasonOptionsDialog.show();
         };
     },
 });
 
 frappe.ui.form.on("Sales Order Item", {
-    item_code: function(frm, cdt, cdn) {
+    item_code: function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
 
         if (row.item_code) {
@@ -71,7 +114,7 @@ frappe.ui.form.on("Sales Order Item", {
                 args: {
                     item_code: row.item_code,
                 },
-                callback: function(r) {
+                callback: function (r) {
                     frappe.model.set_value(cdt, cdn, "custom_last_rate", r.message || 0);
                 }
             });
@@ -80,7 +123,7 @@ frappe.ui.form.on("Sales Order Item", {
                 args: {
                     item_code: row.item_code,
                 },
-                callback: function(r) {
+                callback: function (r) {
                     frappe.model.set_value(cdt, cdn, "custom_last_sold_qty", r.message || 0);
                 }
             });

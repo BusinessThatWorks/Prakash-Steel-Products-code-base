@@ -216,14 +216,15 @@
   {
    "fieldname": "total_billet_cutting_pcs",
    "fieldtype": "Int",
-   "label": "Total Billet Cutting (Pcs)"
+   "label": "Total Billet Cutting (Pcs)",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-01-16 12:22:11.620393",
+ "modified": "2026-03-06 13:32:33.595453",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Hourly Production",
