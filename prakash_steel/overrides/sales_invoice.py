@@ -14,272 +14,46 @@ class CustomSalesInvoice(SalesInvoice):
 	for items with insufficient stock when custom_stock_in_for_weight_variance is checked.
 	"""
 
+	def before_insert(self):
+		"""On amendment, clear fields that should not carry forward from the original."""
+		if getattr(self, "amended_from", None):
+			self.custom_stock_entry_id = None
+			self.custom_cancel_reason = None
+
+		try:
+			super().before_insert()
+		except AttributeError:
+			pass
+
+	def validate(self):
+		"""Run parent validate, then re-clear amendment fields in case parent restored them."""
+		super().validate()
+		# ERPNext's validate chain may re-copy values from amended_from; clear them again here.
+		if self.is_new() and getattr(self, "amended_from", None):
+			self.custom_stock_entry_id = None
+			self.custom_cancel_reason = None
+
 	def on_submit(self):
-		"""Run standard submit, then complete extra-qty Sales Orders and update ADU (custom)."""
-		# Call parent on_submit to continue with normal submit process
+		"""Run standard submit, then update ADU (custom)."""
 		super().on_submit()
 
-		# Force-complete any extra Sales Orders created during before_submit
-		for so_name in (getattr(self, "_extra_sales_orders", []) or []):
-			try:
-				frappe.db.set_value("Sales Order", so_name, "per_billed", 100)
-				frappe.db.set_value("Sales Order", so_name, "per_delivered", 100)
-				frappe.db.set_value("Sales Order", so_name, "status", "Completed")
-				# Optional detail fields used in newer versions
-				frappe.db.set_value("Sales Order", so_name, "billing_status", "Fully Billed")
-				frappe.db.set_value("Sales Order", so_name, "delivery_status", "Completed")
-			except Exception:
-				# If this fails, we at least keep the Sales Order usable
-				pass
-
-		# Recalculate ADU for all items in this invoice based on ADU Horizon setting
 		try:
 			update_adu_for_sales_invoice(self)
 		except Exception:
-			# Do not block invoice submission if ADU calculation fails
 			frappe.log_error(
 				title=_("Error updating ADU for Sales Invoice {0}").format(self.name),
 				message=frappe.get_traceback(),
 			)
 
 	def before_submit(self):
-		"""Run stock-entry (conditional) and always run extra-qty Sales Order logic before submit."""
+		"""Run stock-entry (conditional) before submit."""
 		custom_field_value = self.get("custom_stock_in_for_weight_variance")
 
-		# 1) Stock entry only depends on the checkbox + update_stock
 		if custom_field_value and custom_field_value not in [None, "", 0, "0", "No"]:
 			if self.update_stock:
 				self.create_material_receipt_for_insufficient_stock()
 
-		# 2) Always handle extra quantity vs Sales Order and create a new Sales Order
-		#    (independent of the checkbox)
-		self.split_extra_qty_and_create_sales_order()
-
-		# Preserve any parent before_submit behaviour
 		super().before_submit()
-
-	def split_extra_qty_and_create_sales_order(self):
-		"""Split invoice items that exceed their linked Sales Order qty and
-		create a new Sales Order for the extra quantity.
-
-		Example:
-		- Item A: SO qty 300, Invoice qty 400  ->  300 (old SO), 100 (new SO)
-		- Item B: SO qty 200, Invoice qty 300  ->  200 (old SO), 100 (new SO)
-		New SO will have Item A 100 and Item B 100, and the extra rows in Sales Invoice
-		will be linked to this new Sales Order.
-		"""
-		if not self.items:
-			return
-
-		extra_mappings = []
-
-		for item in self.get("items"):
-			# Only consider rows that are linked to a Sales Order line
-			if not (getattr(item, "sales_order", None) and getattr(item, "so_detail", None)):
-				continue
-
-			if not item.item_code:
-				continue
-
-			# Work in stock UOM to be safe with UOM conversions
-			inv_cf = flt(getattr(item, "conversion_factor", 1.0)) or 1.0
-			inv_qty = flt(getattr(item, "qty", 0) or 0, item.precision("qty"))
-			inv_stock_qty = flt(getattr(item, "stock_qty", 0) or 0, item.precision("stock_qty")) or inv_qty * inv_cf
-
-			if inv_stock_qty <= 0:
-				continue
-
-			# Get the linked Sales Order Item quantities
-			so_item = frappe.db.get_value(
-				"Sales Order Item",
-				item.so_detail,
-				["qty", "stock_qty", "conversion_factor", "uom", "stock_uom"],
-				as_dict=True,
-			)
-
-			if not so_item:
-				# Safety: if SO item cannot be found, do not attempt to split
-				continue
-
-			so_cf = flt(so_item.conversion_factor or 1.0) or 1.0
-			so_qty = flt(so_item.qty or 0)
-			so_stock_qty = flt(so_item.stock_qty or 0) or so_qty * so_cf
-
-			# No extra if invoice stock qty is within Sales Order stock qty (with tiny tolerance)
-			if inv_stock_qty <= so_stock_qty + 0.0001:
-				continue
-
-			extra_stock_qty = inv_stock_qty - so_stock_qty
-			original_stock_qty = inv_stock_qty - extra_stock_qty
-
-			# Convert back to invoice UOM
-			original_qty = original_stock_qty / inv_cf
-			extra_qty = extra_stock_qty / inv_cf
-
-			if extra_qty <= 0:
-				continue
-
-			# Update the existing item row to hold only the original Sales Order qty
-			item.stock_qty = original_stock_qty
-			item.qty = original_qty
-
-			# Track data needed to create new SO + extra SI rows
-			extra_mappings.append(
-				{
-					"si_item": item,
-					"item_code": item.item_code,
-					"item_name": getattr(item, "item_name", None),
-					"description": getattr(item, "description", None),
-					"uom": item.uom,
-					"stock_uom": getattr(item, "stock_uom", None),
-					"conversion_factor": inv_cf,
-					"warehouse": getattr(item, "warehouse", None),
-					"income_account": getattr(item, "income_account", None),
-					"expense_account": getattr(item, "expense_account", None),
-					"cost_center": getattr(item, "cost_center", None) or getattr(self, "cost_center", None),
-					"rate": flt(getattr(item, "rate", 0)),
-					"net_rate": flt(getattr(item, "net_rate", 0)),
-					"discount_percentage": flt(getattr(item, "discount_percentage", 0)),
-					"pricing_rule": getattr(item, "pricing_rule", None),
-					"extra_qty": extra_qty,
-					"extra_stock_qty": extra_stock_qty,
-				}
-			)
-
-		# If no extras, nothing to do
-		if not extra_mappings:
-			return
-
-		# Create a single new Sales Order that will hold all the extra quantities
-		try:
-			new_so = frappe.new_doc("Sales Order")
-			new_so.customer = self.customer
-			new_so.company = self.company
-			new_so.transaction_date = self.posting_date or nowdate()
-
-			# Try to copy important header fields from one of the source Sales Orders
-			source_so_name = None
-			for mapping in extra_mappings:
-				so_name = getattr(mapping["si_item"], "sales_order", None)
-				if so_name:
-					source_so_name = so_name
-					break
-
-			if source_so_name:
-				try:
-					source_so = frappe.get_doc("Sales Order", source_so_name)
-					for fname in ("custom_loading_and_cutting", "custom_special_condition"):
-						if hasattr(source_so, fname):
-							setattr(new_so, fname, getattr(source_so, fname))
-				except Exception:
-					# If copying fails, we still proceed and let normal validation handle it
-					pass
-
-			# Use due_date / posting_date as delivery reference
-			delivery_date = getattr(self, "due_date", None) or self.posting_date or nowdate()
-			# Try to preserve order_type when available
-			if hasattr(self, "order_type") and self.order_type:
-				new_so.order_type = self.order_type
-
-			# Map each extra mapping to an item row in the new Sales Order
-			for mapping in extra_mappings:
-				so_item_row = new_so.append(
-					"items",
-					{
-						"item_code": mapping["item_code"],
-						"item_name": mapping["item_name"],
-						"description": mapping["description"],
-						"qty": mapping["extra_qty"],
-						"uom": mapping["uom"],
-						"conversion_factor": mapping["conversion_factor"],
-						"stock_uom": mapping["stock_uom"],
-						"warehouse": mapping["warehouse"],
-						"delivery_date": delivery_date,
-						"rate": mapping["rate"],
-						"net_rate": mapping["net_rate"],
-						"discount_percentage": mapping["discount_percentage"],
-						"pricing_rule": mapping["pricing_rule"],
-						"income_account": mapping["income_account"],
-						"expense_account": mapping["expense_account"],
-						"cost_center": mapping["cost_center"],
-					},
-				)
-				# Remember the linked Sales Order Item row for this mapping
-				mapping["new_so_detail"] = so_item_row.name
-
-			# Insert and submit the new Sales Order
-			new_so.flags.ignore_permissions = True
-			new_so.insert()
-			new_so.submit()
-
-			# Remember this Sales Order so we can force-complete it after submit
-			extra_list = (getattr(self, "_extra_sales_orders", []) or [])
-			extra_list.append(new_so.name)
-			self._extra_sales_orders = extra_list
-
-			# Create the extra item rows in the Sales Invoice linked to the new Sales Order
-			for mapping in extra_mappings:
-				orig = mapping["si_item"]
-				extra_row = self.append("items", {})
-
-				# Copy over relevant fields from the original item
-				for fieldname in [
-					"item_code",
-					"item_name",
-					"description",
-					"uom",
-					"stock_uom",
-					"conversion_factor",
-					"warehouse",
-					"income_account",
-					"expense_account",
-					"cost_center",
-					"rate",
-					"net_rate",
-					"discount_percentage",
-					"pricing_rule",
-					"batch_no",
-					"serial_no",
-					"item_group",
-				]:
-					if hasattr(orig, fieldname):
-						extra_row.set(fieldname, getattr(orig, fieldname))
-
-				extra_row.qty = mapping["extra_qty"]
-				extra_row.stock_qty = mapping["extra_stock_qty"]
-
-				# Link to the newly created Sales Order + its item row
-				extra_row.sales_order = new_so.name
-				extra_row.so_detail = mapping.get("new_so_detail")
-
-			# Recalculate totals now that quantities/rows changed,
-			# so that the parent SalesInvoice on_submit logic sees correct values.
-			if hasattr(self, "calculate_taxes_and_totals"):
-				self.calculate_taxes_and_totals()
-
-			# Inform the user which Sales Order was created
-			frappe.msgprint(
-				_(
-					"New Sales Order {0} created automatically for extra quantities "
-					"entered in Sales Invoice {1}."
-				).format(frappe.bold(new_so.name), frappe.bold(self.name)),
-				indicator="green",
-				alert=True,
-			)
-
-		except Exception:
-			# If anything goes wrong here, fail the submission – this flow is critical.
-			frappe.log_error(
-				title=_("Error creating extra-quantity Sales Order for Sales Invoice {0}").format(self.name),
-				message=frappe.get_traceback(),
-			)
-			frappe.throw(
-				_(
-					"Failed to create Sales Order for extra quantity entered against Sales Orders "
-					"in this Sales Invoice. Please contact your System Administrator."
-				),
-				title=_("Sales Order Creation Failed"),
-			)
 
 	def before_cancel(self):
 		"""Ensure cancel reason is provided before allowing cancellation."""
@@ -382,7 +156,7 @@ class CustomSalesInvoice(SalesInvoice):
 
 							# We can serve it, but only stock-in up to the shortage OR max_extra_stock_in, whichever is smaller
 							actual_stock_in_qty = min(shortage_qty, max_extra_stock_in)
-							
+
 							# Only add to receipt list if we need to stock-in something
 							if actual_stock_in_qty > 0:
 								items_to_receipt.append(
