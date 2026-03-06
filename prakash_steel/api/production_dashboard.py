@@ -201,6 +201,10 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 	total_production = 0
 	total_rm_consumption = 0
 	total_hours_overall = 0
+	total_melting_weight_overall = 0
+	total_miss_billet_weight_overall = 0
+	total_miss_roll_weight_overall = 0
+	total_miss_ingot_weight_overall = 0
 
 	for row in billet_cutting_data:
 		pp = row.production_plan or ""
@@ -223,6 +227,10 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 		total_production += flt(actual_qty)
 
 		total_rm_consumption += flt(row.rm_consumption)
+		total_melting_weight_overall += flt(melting_weight)
+		total_miss_billet_weight_overall += flt(row.miss_billet_weight)
+		total_miss_roll_weight_overall += flt(total_miss_roll_weight)
+		total_miss_ingot_weight_overall += flt(total_miss_ingot_weight)
 
 		total_hr_consumed = hours_map.get(row.billet_cutting_name, 0)
 		total_hours_overall += flt(total_hr_consumed)
@@ -258,6 +266,10 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			"total_production": flt(total_production),
 			"rm_consumption": flt(total_rm_consumption),
 			"total_hr_consumed": flt(total_hours_overall, 2),
+			"total_melting_weight": flt(total_melting_weight_overall),
+			"total_miss_billet_weight": flt(total_miss_billet_weight_overall),
+			"total_miss_roll_weight": flt(total_miss_roll_weight_overall),
+			"total_miss_ingot_weight": flt(total_miss_ingot_weight_overall),
 			# Average Burning Loss % from all Finish Weight records that match
 			# the current filters (date, item, production plan).
 			"burning_loss_per": flt(avg_burning_loss_per, 2),
