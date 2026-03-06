@@ -4,6 +4,16 @@ frappe.ui.form.on("Sales Invoice", {
     },
     refresh(frm) {
         setup_sales_order_row_guard(frm);
+
+        // When a new amendment is opened, clear fields that must not carry over
+        if (frm.is_new() && frm.doc.amended_from) {
+            if (frm.doc.custom_stock_entry_id) {
+                frm.set_value("custom_stock_entry_id", "");
+            }
+            if (frm.doc.custom_cancel_reason) {
+                frm.set_value("custom_cancel_reason", "");
+            }
+        }
     },
     before_cancel(frm) {
         // If a cancel reason is already set, allow normal cancellation
