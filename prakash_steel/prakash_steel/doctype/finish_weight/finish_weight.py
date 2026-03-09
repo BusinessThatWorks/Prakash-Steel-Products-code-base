@@ -1,41 +1,31 @@
-# Copyright (c) 2025, beetashoke chakraborty and contributors
-# For license information, please see license.txt
-
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt
+from frappe.utils import flt, now_datetime
+from datetime import datetime
 
 
 class FinishWeight(Document):
 	def on_submit(self):
-		"""Create Stock Entry on submit"""
+
 		try:
-			# Validate required fields
 			if not self.item_code:
 				frappe.throw(_("Item Code is required to create Stock Entry"))
-
 			if not self.finish_weight or self.finish_weight <= 0:
 				frappe.throw(_("Finish Weight must be greater than 0"))
-
 			if not self.fg_target_warehouse:
 				frappe.throw(_("FG Target Warehouse is required to create Stock Entry"))
 
-			# Get company from warehouse
 			warehouse_doc = frappe.get_doc("Warehouse", self.fg_target_warehouse)
 			company = warehouse_doc.company
-
-			# Get item details for UOM
 			item_doc = frappe.get_doc("Item", self.item_code)
 			stock_uom = item_doc.stock_uom or "Nos"
 
-			# Get posting_date from Production Plan
 			posting_date = self.posting_date or frappe.utils.today()
 			if self.production_plan:
-				production_plan_doc = frappe.get_doc("Production Plan", self.production_plan)
-				posting_date = production_plan_doc.posting_date or self.posting_date or frappe.utils.today()
+				pp_doc = frappe.get_doc("Production Plan", self.production_plan)
+				posting_date = pp_doc.posting_date or posting_date
 
-			# Build items list
 			items = [
 				{
 					"item_code": self.item_code,
@@ -47,95 +37,69 @@ class FinishWeight(Document):
 				}
 			]
 
-			# Add melting item if melting_item and miss_roll_item are provided
 			if getattr(self, "melting_item", None) and getattr(self, "miss_roll_item", None):
-				# Validate that melting_item equals miss_roll_item
 				if self.melting_item != self.miss_roll_item:
 					frappe.throw(
-						_("Melting Item ({0}) must be equal to Miss Roll Item ({1})").format(
+						_("Melting Item ({0}) must equal Miss Roll Item ({1})").format(
 							self.melting_item, self.miss_roll_item
 						)
 					)
-
-				# Calculate quantity: total_miss_roll_weight + melting_weight
-				total_miss_roll_weight = flt(getattr(self, "total_miss_roll_weight", 0) or 0)
-				melting_weight = flt(getattr(self, "melting_weight", 0) or 0)
-				melting_qty = total_miss_roll_weight + melting_weight
-
-				# Only add item if total_miss_roll_weight > 0
+				total_miss_roll_weight = flt(getattr(self, "total_miss_roll_weight", 0))
+				melting_qty = total_miss_roll_weight + flt(getattr(self, "melting_weight", 0))
 				if total_miss_roll_weight > 0:
-					# Get UOM from melting_item
-					melting_item_doc = frappe.get_doc("Item", self.melting_item)
-					melting_stock_uom = melting_item_doc.stock_uom or "Kg"
-
+					m_doc = frappe.get_doc("Item", self.melting_item)
 					items.append(
 						{
 							"item_code": self.melting_item,
 							"qty": melting_qty,
 							"t_warehouse": self.fg_target_warehouse,
-							"stock_uom": melting_stock_uom,
-							"uom": melting_stock_uom,
+							"stock_uom": m_doc.stock_uom or "Kg",
+							"uom": m_doc.stock_uom or "Kg",
 							"conversion_factor": 1.0,
 						}
 					)
 
-			# Add miss billet item if miss_billet_item and total_miss_ingot_weight are provided
 			if getattr(self, "miss_billet_item", None):
-				total_miss_ingot_weight = flt(getattr(self, "total_miss_ingot_weight", 0) or 0)
-
-				if total_miss_ingot_weight > 0:
-					# Get UOM from miss_billet_item
-					miss_billet_item_doc = frappe.get_doc("Item", self.miss_billet_item)
-					miss_billet_stock_uom = miss_billet_item_doc.stock_uom or "Kg"
-
+				total_miss_ingot = flt(getattr(self, "total_miss_ingot_weight", 0))
+				if total_miss_ingot > 0:
+					mb_doc = frappe.get_doc("Item", self.miss_billet_item)
 					items.append(
 						{
 							"item_code": self.miss_billet_item,
-							"qty": total_miss_ingot_weight,
+							"qty": total_miss_ingot,
 							"t_warehouse": self.fg_target_warehouse,
-							"stock_uom": miss_billet_stock_uom,
-							"uom": miss_billet_stock_uom,
+							"stock_uom": mb_doc.stock_uom or "Kg",
+							"uom": mb_doc.stock_uom or "Kg",
 							"conversion_factor": 1.0,
 						}
 					)
 
-			# Create Stock Entry
 			stock_entry = frappe.get_doc(
 				{
 					"doctype": "Stock Entry",
 					"stock_entry_type": "Material Receipt",
 					"company": company,
-					"set_posting_time": 1,  # Enable custom posting date/time
+					"set_posting_time": 1,
 					"posting_date": posting_date,
 					"posting_time": frappe.utils.nowtime(),
 					"items": items,
 				}
 			)
-
-			# Explicitly set set_posting_time and posting_date to ensure they're not overridden
 			stock_entry.set_posting_time = 1
 			stock_entry.posting_date = posting_date
 			stock_entry.insert()
-
-			# Submit the stock entry
-			# Ensure set_posting_time and posting_date are set before submit
 			stock_entry.set_posting_time = 1
 			stock_entry.posting_date = posting_date
 			stock_entry.submit()
-			
-			# Final check - if posting_date was changed, force set it via SQL
+
 			if stock_entry.posting_date != posting_date:
 				frappe.db.sql(
-					"UPDATE `tabStock Entry` SET posting_date = %s WHERE name = %s",
-					(posting_date, stock_entry.name)
+					"UPDATE `tabStock Entry` SET posting_date=%s WHERE name=%s",
+					(posting_date, stock_entry.name),
 				)
 				frappe.db.commit()
-				stock_entry.reload()
 
-			# Update custom_stock_entry_id field with the created stock entry ID
-			# Set on the current document so it appears immediately after submit
 			self.custom_stock_entry_id = stock_entry.name
-			# Also persist explicitly in the database
 			frappe.db.set_value("Finish Weight", self.name, "custom_stock_entry_id", stock_entry.name)
 			frappe.db.commit()
 
@@ -147,46 +111,53 @@ class FinishWeight(Document):
 
 		except Exception as e:
 			frappe.log_error(
-				f"Error creating Stock Entry from Finish Weight {self.name}: {str(e)}",
-				"Finish Weight Stock Entry Creation Error",
+				f"Stock Entry creation failed for Finish Weight {self.name}: {e}",
+				"Finish Weight Stock Entry Error",
 			)
 			frappe.throw(_("Error creating Stock Entry: {0}").format(str(e)))
 
+		try:
+			if getattr(self, "cooling_pit", None) == "Transferred":
+				now = now_datetime()
+				p_date = str(self.posting_date)
+				time_part = now.strftime("%H:%M:%S")
+				mat_in = datetime.strptime(f"{p_date} {time_part}", "%Y-%m-%d %H:%M:%S")
+
+				cp = frappe.new_doc("Cooling PIT")
+				cp.item_code = self.item_code
+				cp.finish_weight = self.name
+				cp.material_in_time = mat_in
+
+				cp.insert(ignore_permissions=True)
+				frappe.db.commit()
+
+				frappe.msgprint(
+					_("Cooling PIT {0} ").format(frappe.bold(cp.name)), indicator="blue", alert=True
+				)
+
+		except Exception as e:
+			frappe.log_error(
+				frappe.get_traceback(),
+				f"Cooling PIT creation failed for Finish Weight {self.name}: {e}",
+			)
+			frappe.msgprint(_("Warning:  Error: {0}").format(str(e)), indicator="orange", alert=True)
+
 	def before_cancel(self):
-		"""Prevent cancellation if linked Stock Entry is not cancelled.
-
-		Note: When cancelling from the linked Stock Entry using
-		\"Cancel All Documents\", allow this document to be cancelled so
-		ERPNext's standard flow works without deadlock.
-		"""
-
-		# Skip validation when called via "Cancel All Documents" from Stock Entry
-		cmd = None
-		if hasattr(frappe.local, "form_dict"):
-			cmd = frappe.local.form_dict.get("cmd")
+		"""Block cancel if linked Stock Entry is still active."""
+		cmd = getattr(frappe.local, "form_dict", {}).get("cmd")
 		if cmd == "frappe.desk.form.linked_with.cancel_all_linked_docs":
 			return
-
-		stock_entry_id = getattr(self, "custom_stock_entry_id", None)
-
-		# If no linked stock entry, allow normal cancel
-		if not stock_entry_id:
+		se_id = getattr(self, "custom_stock_entry_id", None)
+		if not se_id:
 			return
-
-		# Get docstatus of linked Stock Entry (0 = Draft, 1 = Submitted, 2 = Cancelled)
-		docstatus = frappe.db.get_value("Stock Entry", stock_entry_id, "docstatus")
-
-		# If Stock Entry exists and is not cancelled, block cancellation of this document
+		docstatus = frappe.db.get_value("Stock Entry", se_id, "docstatus")
 		if docstatus in (0, 1):
 			frappe.throw(
-				_(
-					"Please cancel the linked Stock Entry {0} before cancelling this Finish Weight document."
-				).format(frappe.bold(stock_entry_id))
+				_("Please cancel Stock Entry {0} before cancelling this document.").format(frappe.bold(se_id))
 			)
 
 	def on_cancel(self):
-		"""Clear linked Stock Entry ID on cancel so amended docs don't copy old reference."""
+
 		if getattr(self, "custom_stock_entry_id", None):
-			# Clear in memory and in the database
 			self.custom_stock_entry_id = ""
 			frappe.db.set_value(self.doctype, self.name, "custom_stock_entry_id", "")
