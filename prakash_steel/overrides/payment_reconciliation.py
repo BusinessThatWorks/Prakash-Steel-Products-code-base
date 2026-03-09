@@ -40,8 +40,7 @@ class CustomPaymentReconciliation(PaymentReconciliation):
 			inv.amount = flt(entry.get("invoice_amount"))
 			inv.currency = entry.get("currency")
 			inv.outstanding_amount = flt(entry.get("outstanding_amount"))
-			
+
 			# Populate custom_supplier_invoice_no from Purchase Invoice bill_no
 			if entry.get("voucher_type") == "Purchase Invoice":
 				inv.custom_supplier_invoice_no = bill_no_map.get(entry.get("voucher_no"))
-

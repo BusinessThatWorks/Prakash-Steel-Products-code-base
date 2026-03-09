@@ -97,6 +97,7 @@ def get_data(conditions, filters):
             soi.parent = so.name
             and so.status not in ('Stopped', 'On Hold')
             and so.docstatus = 1
+            and IFNULL(soi.custom_closed, 0) = 0
             {conditions}
         GROUP BY soi.name
         ORDER BY

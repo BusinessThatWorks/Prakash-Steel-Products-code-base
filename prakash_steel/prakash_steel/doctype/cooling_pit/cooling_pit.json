@@ -58,8 +58,7 @@
   {
    "fieldname": "material_out_time",
    "fieldtype": "Datetime",
-   "label": "Material Out Time",
-   "reqd": 1
+   "label": "Material Out Time"
   },
   {
    "fieldname": "section_break_rpbj",
@@ -67,9 +66,8 @@
   },
   {
    "fieldname": "duration",
-   "fieldtype": "Time",
-   "label": "Duration",
-   "read_only": 1
+   "fieldtype": "Duration",
+   "label": "Duration"
   },
   {
    "fieldname": "column_break_owrb",
@@ -84,7 +82,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-04 17:13:30.695710",
+ "modified": "2026-03-07 13:51:10.335221",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Cooling PIT",
