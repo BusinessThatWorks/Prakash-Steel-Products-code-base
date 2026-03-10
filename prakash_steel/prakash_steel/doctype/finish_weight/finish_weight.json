@@ -316,6 +316,7 @@
    "fieldname": "miss_billet_item",
    "fieldtype": "Link",
    "label": "Miss Billet Item",
+   "mandatory_depends_on": "eval:doc.total_miss_ingot_pcs > 0",
    "options": "Item"
   },
   {
@@ -335,7 +336,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-02-20 15:55:35.272657",
+ "modified": "2026-03-09 16:56:12.444151",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight",

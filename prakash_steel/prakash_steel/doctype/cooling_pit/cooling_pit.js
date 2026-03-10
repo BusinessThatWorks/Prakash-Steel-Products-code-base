@@ -49,8 +49,7 @@ function calculate_duration(frm) {
     console.log('material_out_time:', material_out);
 
     if (!material_in || !material_out) {
-        console.log('One or both times missing, clearing duration');
-        frm.set_value('duration', 0);
+        console.log('One or both times missing, leaving duration unchanged');
         return;
     }
 

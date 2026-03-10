@@ -5,9 +5,6 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "director",
-  "column_break_onkm",
-  "relative_of_director",
   "section_break_wpnl",
   "unsecured_loan",
   "column_break_ozvz",
@@ -26,33 +23,22 @@
   "interest_details_section",
   "interest_details",
   "section_break_sbga",
-  "total_interest_amount"
+  "total_interest_amount",
+  "section_break_jcde",
+  "total_tds_amount",
+  "section_break_ezwd",
+  "grand_total_amount"
  ],
  "fields": [
-  {
-   "fieldname": "director",
-   "fieldtype": "Data",
-   "label": "Director"
-  },
-  {
-   "fieldname": "column_break_onkm",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "relative_of_director",
-   "fieldtype": "Data",
-   "label": "Relative of Director"
-  },
   {
    "fieldname": "section_break_wpnl",
    "fieldtype": "Section Break"
   },
   {
    "fieldname": "unsecured_loan",
-   "fieldtype": "Link",
+   "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Unsecured Loan",
-   "options": "Account",
    "reqd": 1
   },
   {
@@ -146,12 +132,32 @@
    "fieldtype": "Currency",
    "label": "Total Interest Amount",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_jcde",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "total_tds_amount",
+   "fieldtype": "Currency",
+   "label": "Total TDS Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_ezwd",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "grand_total_amount",
+   "fieldtype": "Currency",
+   "label": "Grand Total Amount",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-02 15:49:07.758402",
+ "modified": "2026-03-09 20:20:34.880215",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Unsecured Loans and Transaction",
