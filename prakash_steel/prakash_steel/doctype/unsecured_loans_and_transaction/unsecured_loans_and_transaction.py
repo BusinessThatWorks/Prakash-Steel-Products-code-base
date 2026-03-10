@@ -11,13 +11,28 @@ class UnsecuredLoansandTransaction(Document):
     def validate(self):
         self.set_from_to_dates()
         self.populate_interest_details()
-        self.calculate_total_interest()
+        self.calculate_totals()
     
-    def calculate_total_interest(self):
-        self.total_interest_amount = round(
-            sum(flt(row.interest_amount) for row in self.interest_details),
-            2
-        )
+    def calculate_totals(self):
+        total_interest = 0
+        total_tds = 0
+        grand_total = 0
+
+        for row in self.interest_details:
+            interest_amt = flt(row.interest_amount)
+            tds_amt = round(interest_amt * 0.10, 2)
+            total_amt = round(interest_amt - tds_amt, 2)
+
+            row.tds_10 = tds_amt
+            row.total_amount = total_amt
+
+            total_interest += interest_amt
+            total_tds += tds_amt
+            grand_total += total_amt
+
+        self.total_interest_amount = round(total_interest, 2)
+        self.total_tds_amount = round(total_tds, 2)
+        self.grand_total_amount = round(grand_total, 2)
 
     def set_from_to_dates(self):
         if self.financial_year:
@@ -74,34 +89,44 @@ class UnsecuredLoansandTransaction(Document):
         today_date = getdate(today())
         yesterday_date = add_days(today_date, -1)
 
-       
         days_in_month = calendar.monthrange(entry_year, month_number)[1]
         month_end_date = getdate(f"{entry_year}-{month_number:02d}-{days_in_month:02d}")
 
-        
         if month_start_date > yesterday_date:
             return
 
-        
-        loop_end_date = min(yesterday_date, month_end_date)
+        current_month = today_date.month
+        current_year = today_date.year
+        is_current_month = (entry_year == current_year and month_number == current_month)
+
+        if is_current_month:
+            loop_end_date = min(yesterday_date, month_end_date)
+        else:
+            loop_end_date = month_end_date
 
         annual_percent = flt(self.interest_percent)
         monthly_percent = annual_percent / 12.0
         day_interest_percent = round(monthly_percent / days_in_month, 3)
 
-        self.interest_details = []
+        self.interest_details = [
+            row for row in self.interest_details
+            if getdate(row.date) >= month_start_date and getdate(row.date) <= month_end_date
+        ]
+
+        existing_dates = {getdate(row.date) for row in self.interest_details if row.date}
 
         current = month_start_date
         while current <= loop_end_date:
-            closing_bal = get_closing_balance(self.unsecured_loan, current)
-            interest_amt = closing_bal * (day_interest_percent / 100)
+            if current not in existing_dates:
+                closing_bal = get_closing_balance(self.unsecured_loan, current)
+                interest_amt = round(closing_bal * (day_interest_percent / 100), 2)
 
-            self.append("interest_details", {
-                "date": current,
-                "closing_balance": closing_bal,
-                "day_interest": day_interest_percent,
-                "interest_amount": round(interest_amt, 2)
-            })
+                self.append("interest_details", {
+                    "date": current,
+                    "closing_balance": closing_bal,
+                    "day_interest": day_interest_percent,
+                    "interest_amount": interest_amt,
+                })
 
             current = add_days(current, 1)
 
@@ -151,10 +176,8 @@ def get_closing_balance(account, date):
 
 def debug_fieldnames():
     meta = frappe.get_meta("Unsecured Loans and Transaction")
-    print("\n=== ALL FIELDS IN UNSECURED LOANS AND TRANSACTION ===")
     for df in meta.fields:
-        print(f"  fieldname: {df.fieldname!r:40s}  label: {df.label!r}")
-    print("===END ===\n")
+        pass
 
 
 def fetch_daily_interest_for_all_active_docs():
@@ -188,11 +211,17 @@ def fetch_daily_interest_for_all_active_docs():
 
             if today_date not in existing_dates:
                 closing_bal = get_closing_balance(doc.unsecured_loan, today_date)
+                interest_amt = round(flt(closing_bal) * daily_rate, 2)
+                tds_amt = round(interest_amt * 0.10, 2)
+                total_amt = round(interest_amt - tds_amt, 2)
+
                 doc.append("interest_details", {
                     "date": today_date,
                     "closing_balance": closing_bal,
                     "day_interest": round(daily_rate * 100, 6),
-                    "interest_amount": round(flt(closing_bal) * daily_rate, 2)
+                    "interest_amount": interest_amt,
+                    "tds_10": tds_amt,
+                    "total_amount": total_amt
                 })
 
                 doc.flags.ignore_validate = True
