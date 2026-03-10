@@ -27,7 +27,7 @@ doctype_js = {
 	"Purchase Receipt": "public/js/purchase_receipt.js",
 	"Sales Invoice": "public/js/sales_invoice.js",
 	"Production Plan": "public/js/production_plan.js",
-	"Payment Reconciliation": "public/js/payment_reconciliation.js",
+	# "Payment Reconciliation": "public/js/payment_reconciliation.js",
 }
 
 # ------------------------------------------------------------------------------
@@ -96,7 +96,7 @@ scheduler_events = {
 	"daily": [
 		"prakash_steel.prakash_steel.api.adu.recalculate_adu_for_all_items",
         # "prakash_steel.prakash_steel.doctype.unsecured_loans_and_transaction.unsecured_loans_and_transaction.fetch_daily_interest_for_all_active_docs",
-        "prakash_steel.prakash_steel.doctype.unsecured_loans_and_transaction.unsecured_loans_and_transaction.fetch_daily_interest_for_all_active_docs",
+        # "prakash_steel.prakash_steel.doctype.unsecured_loans_and_transaction.unsecured_loans_and_transaction.fetch_daily_interest_for_all_active_docs",
 
 
 	],
