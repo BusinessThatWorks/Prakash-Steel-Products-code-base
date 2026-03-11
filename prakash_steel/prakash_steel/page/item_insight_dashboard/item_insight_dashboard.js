@@ -887,25 +887,26 @@ function renderTable(state, data) {
 	// Table wrapper + thead (static — computed once)
 	htmlParts.push(
 		'<div class="item-insight-table-wrapper" style="background:white;border-radius:8px;border:1px solid #000000;">',
-		'<table class="item-insight-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1680px;table-layout:fixed;">',
+		'<table class="item-insight-table" style="width:100%;border-collapse:separate;border-spacing:0;min-width:1830px;table-layout:fixed;">',
 		'<thead>',
 		'<tr>',
-		'<th colspan="1" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Item Details')), '</th>',
+		'<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Item Details')), '</th>',
 		'<th colspan="2" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Production')), '</th>',
 		'<th colspan="5" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Sales')), '</th>',
 		'<th colspan="5" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Purchase')), '</th>',
 		'<th colspan="4" style="background:#d2b48c;padding:12px;text-align:center;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;">', esc(__('Warehouse Stock')), '</th>',
 		'</tr>',
 		'<tr>',
-		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:150px;min-width:150px;">', esc(__('Item Code')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:150px;min-width:150px;">', esc(__('Item Code')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:150px;min-width:150px;">', esc(__('Category Name')), '</th>',
 		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Production Date')), '</th>',
 		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Production Qty')), '</th>',
-		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">', esc(__('Last Sales Order Party')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;overflow:hidden;word-break:break-word;">', esc(__('Last Sales Order Party')), '</th>',
 		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Sales Order Date')), '</th>',
 		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">', esc(__('Last Sales Order Qty')), '</th>',
 		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">', esc(__('Last Sales Order Rate')), '</th>',
 		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:2px solid #000000;border-bottom:1px solid #000000;width:130px;min-width:130px;">', esc(__('Pending Sales Order Qty')), '</th>',
-		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;">', esc(__('Last Purchase Party')), '</th>',
+		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:180px;min-width:180px;overflow:hidden;word-break:break-word;">', esc(__('Last Purchase Party')), '</th>',
 		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Purchase Order Date')), '</th>',
 		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Purchase Order Qty')), '</th>',
 		'<th style="background:#faf0e6;padding:10px;text-align:left;font-weight:600;color:#000000;border-right:1px solid #000000;border-bottom:1px solid #000000;width:140px;min-width:140px;">', esc(__('Last Purchase Order Rate')), '</th>',
@@ -937,18 +938,19 @@ function renderTable(state, data) {
 		htmlParts.push(
 			'<tr class="item-row ', itemBgClass, mainLastClass, '" data-row-id="row-', index, '" data-item-index="', index, '">',
 			// Item Details
-			'<td style="', P, BR2, CLR, LEFT, 'width:150px;min-width:150px;">', esc(row.item_code || ''), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:150px;min-width:150px;">', esc(row.item_code || ''), '</td>',
+			'<td style="', P, BR2, CLR, LEFT, 'width:150px;min-width:150px;">', esc(row.category_name || '-'), '</td>',
 			// Production
 			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtDate(row.last_production_date), '</td>',
 			'<td style="', P, BR2, CLR, LEFT, 'width:140px;min-width:140px;">', fmtFloat(row.last_production_quantity), '</td>',
 			// Sales
-			'<td style="', P, BR1, CLR, LEFT, 'width:180px;min-width:180px;">', esc(row.last_sales_party || '-'), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:180px;min-width:180px;overflow:hidden;word-break:break-word;">', esc(row.last_sales_party || '-'), '</td>',
 			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtDate(row.last_sales_date), '</td>',
 			'<td style="', P, BR1, CLR, LEFT, 'width:130px;min-width:130px;">', fmtFloat(row.last_sales_quantity), '</td>',
 			'<td style="', P, BR1, CLR, LEFT, 'width:130px;min-width:130px;">', fmtCurrency(row.last_sales_rate), '</td>',
 			'<td style="', P, BR2, CLR, LEFT, 'width:130px;min-width:130px;">', fmtFloat(row.pending_sales_order_qty), '</td>',
 			// Purchase
-			'<td style="', P, BR1, CLR, LEFT, 'width:180px;min-width:180px;">', esc(row.last_purchase_party || '-'), '</td>',
+			'<td style="', P, BR1, CLR, LEFT, 'width:180px;min-width:180px;overflow:hidden;word-break:break-word;">', esc(row.last_purchase_party || '-'), '</td>',
 			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtDate(row.last_purchase_date), '</td>',
 			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtFloat(row.last_purchase_quantity), '</td>',
 			'<td style="', P, BR1, CLR, LEFT, 'width:140px;min-width:140px;">', fmtCurrency(row.last_purchase_rate), '</td>',
@@ -972,6 +974,7 @@ function renderTable(state, data) {
 
 				htmlParts.push(
 					'<tr class="', whClass, '" data-parent-row="row-', index, '" data-item-index="', index, '">',
+					'<td style="', P, BR1, LEFT, 'width:150px;min-width:150px;"></td>',
 					'<td style="', P, BR2, LEFT, 'width:150px;min-width:150px;"></td>',
 					'<td style="', P, BR1, LEFT, '"></td>',
 					'<td style="', P, BR2, LEFT, '"></td>',
