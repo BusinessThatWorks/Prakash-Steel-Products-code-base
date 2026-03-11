@@ -25,6 +25,7 @@
   "section_break_rgxz",
   "die_number",
   "column_break_gxlf",
+  "machine_name",
   "column_break_akac",
   "column_break_ihke",
   "finished_goods_details_section",
@@ -251,13 +252,20 @@
    "label": "End Cutting Item",
    "options": "Item",
    "reqd": 1
+  },
+  {
+   "fieldname": "machine_name",
+   "fieldtype": "Link",
+   "label": "Machine Name",
+   "options": "Machine Master",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-02-19 16:38:22.124471",
+ "modified": "2026-03-11 14:44:39.360345",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Bright Bar Production",
