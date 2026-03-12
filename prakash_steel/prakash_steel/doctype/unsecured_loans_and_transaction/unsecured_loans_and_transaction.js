@@ -64,15 +64,15 @@ async function load_unsecured_loan_options(frm) {
         let options = [""];
 
         if (directors.length > 0) {
-            options.push("--- Loan From Director ---");
+            
             directors.forEach(acc => options.push(acc.name));
         }
         if (shareholders.length > 0) {
-            options.push("--- Loan From Shareholders ---");
+           
             shareholders.forEach(acc => options.push(acc.name));
         }
         if (unsecured.length > 0) {
-            options.push("--- Unsecured Loan ---");
+            
             unsecured.forEach(acc => options.push(acc.name));
         }
 
