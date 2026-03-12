@@ -1,7 +1,7 @@
 // Copyright (c) 2026, Beetashoke Chakraborty and contributors
 // For license information, please see license.txt
 
-frappe.query_reports["Unsecured Loans Interest Report"] = {
+frappe.query_reports["PSP Unsecured Loans and Transaction Report"] = {
 	filters: [
 		{
 			fieldname: "financial_year",
@@ -10,7 +10,7 @@ frappe.query_reports["Unsecured Loans Interest Report"] = {
 			options: "Fiscal Year",
 			reqd: 1,
 			on_change: function () {
-					frappe.query_report.set_filter_value("month", "");
+				frappe.query_report.set_filter_value("month", "");
 				frappe.query_report.set_filter_value("account_head", "");
 				frappe.query_report.refresh();
 			},
@@ -21,9 +21,6 @@ frappe.query_reports["Unsecured Loans Interest Report"] = {
 			fieldtype: "Select",
 			options: [
 				"",
-				"January",
-				"February",
-				"March",
 				"April",
 				"May",
 				"June",
@@ -33,6 +30,9 @@ frappe.query_reports["Unsecured Loans Interest Report"] = {
 				"October",
 				"November",
 				"December",
+				"January",
+				"February",
+				"March",
 			].join("\n"),
 			on_change: function () {
 				frappe.query_report.refresh();
@@ -42,30 +42,19 @@ frappe.query_reports["Unsecured Loans Interest Report"] = {
 			fieldname: "account_head",
 			label: __("Account Head"),
 			fieldtype: "Link",
-			options: "Unsecured Loans and Transaction",
+			options: "Account",
 			get_query: function () {
 				return {
-					filters: {}
+					filters: [
+						["parent_account", "in", [
+							"Loan From Director - PSPL",
+							"Loan From Shareholders - PSPL",
+							"Unsecured Loan - PSPL"
+						]],
+						["is_group", "=", 0]
+					]
 				};
 			},
-			on_change: function () {
-				frappe.query_report.refresh();
-			},
-		},
-		{
-			fieldname: "from_date",
-			label: __("From Date"),
-			fieldtype: "Date",
-			default: frappe.datetime.get_today(),
-			on_change: function () {
-				frappe.query_report.refresh();
-			},
-		},
-		{
-			fieldname: "to_date",
-			label: __("To Date"),
-			fieldtype: "Date",
-			default: frappe.datetime.get_today(),
 			on_change: function () {
 				frappe.query_report.refresh();
 			},

@@ -90,16 +90,6 @@ def get_data(filters):
         conditions.append("financial_year = %(financial_year)s")
         values["financial_year"] = filters["financial_year"]
 
-    # From Date Filter
-    if filters.get("from_date"):
-        conditions.append("from_date >= %(from_date)s")
-        values["from_date"] = filters["from_date"]
-
-    # To Date Filter
-    if filters.get("to_date"):
-        conditions.append("to_date <= %(to_date)s")
-        values["to_date"] = filters["to_date"]
-
     where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
 
     records = frappe.db.sql(
