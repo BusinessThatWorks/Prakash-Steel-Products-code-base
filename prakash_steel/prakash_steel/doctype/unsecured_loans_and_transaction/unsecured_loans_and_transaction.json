@@ -7,8 +7,6 @@
  "field_order": [
   "section_break_wpnl",
   "unsecured_loan",
-  "column_break_ozvz",
-  "closing_balance",
   "financial_year_section",
   "financial_year",
   "section_break_ztbj",
@@ -17,17 +15,7 @@
   "to_date",
   "period_per_annum_interest__section",
   "interest_percent",
-  "amount",
-  "monthbased_on_financial_year_section",
-  "month",
-  "interest_details_section",
-  "interest_details",
-  "section_break_sbga",
-  "total_interest_amount",
-  "section_break_jcde",
-  "total_tds_amount",
-  "section_break_ezwd",
-  "grand_total_amount"
+  "amount"
  ],
  "fields": [
   {
@@ -40,17 +28,6 @@
    "in_list_view": 1,
    "label": "Unsecured Loan",
    "reqd": 1
-  },
-  {
-   "fieldname": "column_break_ozvz",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "closing_balance",
-   "fieldtype": "Currency",
-   "hidden": 1,
-   "label": "Closing Balance",
-   "read_only": 1
   },
   {
    "fieldname": "financial_year_section",
@@ -100,64 +77,12 @@
    "fieldtype": "Currency",
    "hidden": 1,
    "label": "Amount"
-  },
-  {
-   "fieldname": "monthbased_on_financial_year_section",
-   "fieldtype": "Section Break",
-   "label": "Month (Based on Financial Year)"
-  },
-  {
-   "fieldname": "month",
-   "fieldtype": "Select",
-   "label": "Month",
-   "options": "April\nMay\nJune\nJuly\nAugust\nSeptember\nOctober\nNovember\nDecember\nJanuary\nFebruary\nMarch"
-  },
-  {
-   "fieldname": "interest_details_section",
-   "fieldtype": "Section Break",
-   "label": "Interest Details"
-  },
-  {
-   "fieldname": "interest_details",
-   "fieldtype": "Table",
-   "label": "Interest Details",
-   "options": "Interest Details"
-  },
-  {
-   "fieldname": "section_break_sbga",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "total_interest_amount",
-   "fieldtype": "Currency",
-   "label": "Total Interest Amount",
-   "read_only": 1
-  },
-  {
-   "fieldname": "section_break_jcde",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "total_tds_amount",
-   "fieldtype": "Currency",
-   "label": "Total TDS Amount",
-   "read_only": 1
-  },
-  {
-   "fieldname": "section_break_ezwd",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "grand_total_amount",
-   "fieldtype": "Currency",
-   "label": "Grand Total Amount",
-   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-09 20:20:34.880215",
+ "modified": "2026-03-10 15:16:05.921877",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Unsecured Loans and Transaction",
