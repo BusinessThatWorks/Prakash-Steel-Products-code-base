@@ -14,7 +14,7 @@
   "column_break_ifrr",
   "amended_from",
   "section_break_hwgd",
-  "table_muwy"
+  "work_item_table"
  ],
  "fields": [
   {
@@ -65,22 +65,22 @@
    "fieldtype": "Section Break"
   },
   {
-   "fieldname": "table_muwy",
-   "fieldtype": "Table",
-   "options": "JOB Work Item table"
-  },
-  {
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
    "options": "\nPending\nMaterial Transferred\nIn-Process\nPartially Received\nCompleted"
+  },
+  {
+   "fieldname": "work_item_table",
+   "fieldtype": "Table",
+   "options": "JOB Work Item table"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-12 12:18:48.025044",
+ "modified": "2026-03-12 16:17:16.990311",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "JOB Work Order",
