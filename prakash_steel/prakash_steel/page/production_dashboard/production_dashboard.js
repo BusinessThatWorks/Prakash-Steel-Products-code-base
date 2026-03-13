@@ -450,35 +450,22 @@ function render_cards(state, totals) {
             isQty: true,
         });
 
-        // Burning Loss %
-        const totalRmConsumption = parseFloat(totals.rm_consumption) || 0;
-        let burningLossPer = 0;
-        if (totalRmConsumption > 0) {
-            burningLossPer = ((totalRmConsumption - totalProd) / totalRmConsumption) * 100;
-        }
-
+        // Burning Loss % — Average from Finish Weight records (backend calculated)
         cards.push({
-            value: burningLossPer,
+            value: totals.burning_loss_per,
             label: __('Burning Loss %'),
             gradientClass: 'card-red',
-            description: __('(RM Consumption - Total Production) / RM Consumption × 100'),
+            description: __('Average Burning Loss % (from Finish Weight)'),
             isPercentage: true,
         });
 
     } else if (tabId === 'bright_production') {
-        // Wastage % = (Total RM Consumption - Total Production) / Total RM Consumption × 100
-        const brightRm   = parseFloat(totals.rm_consumption) || 0;
-        const brightProd = parseFloat(totals.total_production) || 0;
-        let wastagePer = 0;
-        if (brightRm > 0) {
-            wastagePer = ((brightRm - brightProd) / brightRm) * 100;
-        }
-
+        // Wastage % — Average from Bright Bar Production records (backend calculated)
         cards.push({
-            value: wastagePer,
+            value: totals.wastage_per,
             label: __('Wastage %'),
             gradientClass: gradientClasses[2],
-            description: __('(RM Consumption - Total Production) / RM Consumption × 100'),
+            description: __('Average Wastage % (from Bright Bar Production)'),
             isPercentage: true,
         });
     }
@@ -739,7 +726,7 @@ function buildTableRow(tabId, row) {
     // ── Bright Production ──
     const machineName      = row.machine_name ? frappe.utils.escape_html(String(row.machine_name)) : '';
     const finishLength     = row.finish_length ? frappe.utils.escape_html(String(row.finish_length)) : '';
-    const tolerance        = row.tolerance ? frappe.utils.escape_html(String(row.tolerance)) : '';
+    const tolerance        = format_percentage(row.tolerance);
 
     return `<tr style="border-bottom:1px solid #e9ecef;">
         <td style="${tdCol0}">${ppLink}</td>
