@@ -169,6 +169,7 @@ def _calculate_lead_time_recursive(item_code, visited_items, item_groups_cache=N
 		return 0
 
 
+@frappe.whitelist()
 def get_default_bom(item_code):
 	"""
 	Get the default BOM for an item.
@@ -200,6 +201,30 @@ def get_default_bom(item_code):
 		)
 
 	return bom
+
+
+@frappe.whitelist()
+def get_bom_details(bom_name):
+	"""
+	Get BOM details needed for job work RM qty calculation.
+
+	Returns:
+		dict with raw_material (first item), bom_fg_qty, bom_rm_qty
+	"""
+	if not bom_name:
+		return None
+
+	bom_doc = frappe.get_doc("BOM", bom_name)
+
+	if not bom_doc.items:
+		return None
+
+	first_item = bom_doc.items[0]
+	return {
+		"raw_material": first_item.item_code,
+		"bom_fg_qty": flt(bom_doc.quantity),
+		"bom_rm_qty": flt(first_item.qty),
+	}
 
 
 def update_decoupled_lead_time_for_item(item_code):

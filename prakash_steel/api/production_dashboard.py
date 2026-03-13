@@ -8,7 +8,7 @@ from frappe.utils.xlsxutils import make_xlsx
 
 
 @frappe.whitelist()
-def get_rolled_production_data(from_date=None, to_date=None, item_code=None, production_plan=None):
+def get_rolled_production_data(from_date=None, to_date=None, item_code=None, production_plan=None, machine_name=None):
 	"""
 	Fetch Rolled Production data for the Production Dashboard.
 
@@ -91,11 +91,9 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			planned_qty_map[(pr.production_plan, pr.item_code)] = flt(pr.planned_qty)
 
 	# ── 3.  Batch-fetch Actual Qty, Burning Loss, Length, Melting Weight, Finish Pcs, and Miss Roll/Ingot fields from Finish Weight
-	#         Aggregate per (production_plan, item_code) for row-level data.
-	fw_map = {}  # key: (production_plan, item_code) → {actual_qty, burning_loss, length, melting_weight, finish_pcs, miss_roll_pcs, miss_roll_weight, miss_ingot_pcs, miss_ingot_weight}
+	fw_map = {}
 	if pp_names:
 		pp_list = list(pp_names)
-		# Get aggregated data (actual_qty and burning_loss) along with length, melting_weight, finish_pcs, and miss roll/ingot fields
 		fw_rows = frappe.db.sql(
 			"""
 			SELECT
@@ -140,15 +138,12 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			}
 
 	# ── 3.a  Compute average Burning Loss % from Finish Weight records ──
-	# Calculate the average of burning_loss_per values from all Finish Weight
-	# records that match the current filters (date, item, production plan).
 	avg_burning_loss_per = 0.0
 	if pp_names:
 		conditions_fw = ["fw.docstatus = 1", "fw.production_plan IN %(pp_list)s"]
 		params_fw = {"pp_list": list(pp_names)}
 
 		if from_date:
-			# Use posting_date on Finish Weight to align with the date filters.
 			conditions_fw.append("fw.posting_date >= %(from_date)s")
 			params_fw["from_date"] = from_date
 		if to_date:
@@ -176,7 +171,7 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			avg_burning_loss_per = flt(fw_avg_rows[0].get("avg_burning_loss"), 2)
 
 	# ── 3.b  Compute Total Hr Consumed from Hourly Production (per Billet Cutting) ──
-	hours_map = {}  # key: billet_cutting_name → total_hours
+	hours_map = {}
 	if billet_cutting_data:
 		bc_names = [row.billet_cutting_name for row in billet_cutting_data if row.get("billet_cutting_name")]
 		if bc_names:
@@ -220,12 +215,9 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 		total_miss_roll_weight = fw_data.get("total_miss_roll_weight", 0)
 		total_miss_ingot_pcs = fw_data.get("total_miss_ingot_pcs", 0)
 		total_miss_ingot_weight = fw_data.get("total_miss_ingot_weight", 0)
-		# Fetch length from Finish Weight, fallback to billet_length_full if not found
 		fg_length = fw_data.get("length", "") or row.fg_length or ""
 
-		# Sum Actual Qty (from Finish Weight) for Total Production
 		total_production += flt(actual_qty)
-
 		total_rm_consumption += flt(row.rm_consumption)
 		total_melting_weight_overall += flt(melting_weight)
 		total_miss_billet_weight_overall += flt(row.miss_billet_weight)
@@ -270,15 +262,13 @@ def get_rolled_production_data(from_date=None, to_date=None, item_code=None, pro
 			"total_miss_billet_weight": flt(total_miss_billet_weight_overall),
 			"total_miss_roll_weight": flt(total_miss_roll_weight_overall),
 			"total_miss_ingot_weight": flt(total_miss_ingot_weight_overall),
-			# Average Burning Loss % from all Finish Weight records that match
-			# the current filters (date, item, production plan).
 			"burning_loss_per": flt(avg_burning_loss_per, 2),
 		},
 	}
 
 
 @frappe.whitelist()
-def get_bright_production_data(from_date=None, to_date=None, item_code=None, production_plan=None):
+def get_bright_production_data(from_date=None, to_date=None, item_code=None, production_plan=None, machine_name=None):
 	"""
 	Fetch Bright Production data for the Production Dashboard.
 
@@ -304,19 +294,25 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 	if production_plan:
 		conditions += " AND bbp.production_plan = %(production_plan)s"
 		params["production_plan"] = production_plan
+	if machine_name:
+		conditions += " AND bbp.machine_name = %(machine_name)s"
+		params["machine_name"] = machine_name
 
 	bright_data = frappe.db.sql(
 		f"""
 		SELECT
-			bbp.name                AS bright_bar_name,
+			bbp.name                  AS bright_bar_name,
 			bbp.production_plan,
 			bbp.production_date,
-			bbp.finished_good       AS finished_item,
-			bbp.fg_weight           AS actual_qty,
-			bbp.finish_length       AS fg_length,
-			bbp.raw_material        AS rm,
+			bbp.finished_good         AS finished_item,
+			bbp.fg_weight             AS actual_qty,
+			bbp.finish_length         AS fg_length,
+			bbp.raw_material          AS rm,
 			bbp.actual_rm_consumption AS rm_consumption,
-			bbp.wastage_per         AS wastage
+			bbp.wastage_per           AS wastage,
+			bbp.machine_name          AS machine_name,
+			bbp.finish_length         AS finish_length,
+			bbp.tolerance             AS tolerance
 		FROM `tabBright Bar Production` bbp
 		WHERE {conditions}
 		ORDER BY bbp.production_date DESC, bbp.name DESC
@@ -338,7 +334,7 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 				pp_item_pairs.add((row.production_plan, row.finished_item))
 
 	# ── 2.  Batch-fetch FG Planned Qty from Production Plan Item ───
-	planned_qty_map = {}  # key: (production_plan, item_code)
+	planned_qty_map = {}
 	if pp_names:
 		pp_list = list(pp_names)
 		planned_rows = frappe.db.sql(
@@ -372,17 +368,8 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 		rm_consumption = flt(row.rm_consumption)
 		actual_qty = flt(row.actual_qty)
 
-		# Sum Actual Qty (fg_weight from Bright Bar Production) for Total Production
 		total_production += actual_qty
-
 		total_rm_consumption += rm_consumption
-		# For correct overall wastage %, aggregate via quantities rather than
-		# simply averaging the per-row percentage:
-		#   wastage_per (per row) = |(fg_weight / actual_rm) * 100 - 100|
-		# In the normal case fg_weight <= actual_rm, this is:
-		#   (actual_rm - fg_weight) / actual_rm * 100
-		# So overall wastage % is:
-		#   (Σ(actual_rm - fg_weight) / Σ(actual_rm)) * 100
 		total_fg_weight += actual_qty
 		total_rm_for_wastage += rm_consumption
 
@@ -396,9 +383,12 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 			"rm": row.rm or "",
 			"rm_consumption": rm_consumption,
 			"wastage": flt(row.wastage, 2),
+			"machine_name": row.machine_name or "",
+			"finish_length": row.finish_length or "",
+			"tolerance": row.tolerance or "",
 		})
 
-	# Average Wastage % for KPI card - calculate average of wastage_per from rows
+	# Average Wastage % for KPI card
 	avg_wastage_per = 0.0
 	wastage_values = [flt(row.get("wastage", 0)) for row in bright_data if row.get("wastage") is not None]
 	if wastage_values:
@@ -409,23 +399,17 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 		"totals": {
 			"total_production": flt(total_production),
 			"rm_consumption": flt(total_rm_consumption),
-			# Average Wastage % from all Bright Bar Production rows that
-			# match the current filters (date, item, production plan).
 			"wastage_per": flt(avg_wastage_per, 2),
 		},
 	}
 
 
 @frappe.whitelist()
-def get_bend_weight_details(from_date=None, to_date=None, item_code=None, production_plan=None):
+def get_bend_weight_details(from_date=None, to_date=None, item_code=None, production_plan=None, machine_name=None):
 	"""
 	Fetch Bend Weight Details for the Production Dashboard.
 
 	Source: Finish Weight (submitted)
-	Fields:
-	  - name (Finish Weight ID)
-	  - bend_material_weight (Bend Material Weight)
-	  - item_code
 	"""
 	conditions = "fw.docstatus = 1"
 	params = {}
@@ -457,7 +441,6 @@ def get_bend_weight_details(from_date=None, to_date=None, item_code=None, produc
 		as_dict=True,
 	)
 
-	# Shape rows for frontend: expose Finish Weight ID as 'id'
 	result_rows = []
 	for r in rows:
 		result_rows.append({
@@ -473,18 +456,12 @@ def get_bend_weight_details(from_date=None, to_date=None, item_code=None, produc
 
 
 @frappe.whitelist()
-def export_production_dashboard(tab_id, from_date=None, to_date=None, item_code=None, production_plan=None):
+def export_production_dashboard(tab_id, from_date=None, to_date=None, item_code=None, production_plan=None, machine_name=None):
 	"""
 	Build an Excel file (XLSX) for the Production Dashboard tables.
-
-	`tab_id` can be:
-	  - 'rolled_production'
-	  - 'bright_production'
-	  - 'bend_weight_details'
 	"""
-	# Get rows using the same logic as the dashboard
 	if tab_id == "rolled_production":
-		data = get_rolled_production_data(from_date, to_date, item_code, production_plan)
+		data = get_rolled_production_data(from_date, to_date, item_code, production_plan, machine_name)
 		rows = data.get("rows", [])
 		header = [
 			_("Production Plan"),
@@ -521,7 +498,6 @@ def export_production_dashboard(tab_id, from_date=None, to_date=None, item_code=
 				flt(r.get("billet_pcs")) or 0,
 				r.get("description_of_cutting_billet") or "",
 				flt(r.get("total_raw_material_pcs")) or 0,
-				# Total RM Weight = Actual RM Consumption + Miss Billet Weight
 				(flt(r.get("rm_consumption")) or 0) + (flt(r.get("miss_billet_weight")) or 0),
 				flt(r.get("miss_billet_pcs")) or 0,
 				flt(r.get("miss_billet_weight")) or 0,
@@ -541,17 +517,19 @@ def export_production_dashboard(tab_id, from_date=None, to_date=None, item_code=
 			]
 
 	elif tab_id == "bright_production":
-		data = get_bright_production_data(from_date, to_date, item_code, production_plan)
+		data = get_bright_production_data(from_date, to_date, item_code, production_plan, machine_name)
 		rows = data.get("rows", [])
 		header = [
 			_("Production Plan"),
 			_("Production Date"),
-			_("Finished Item"),
-			_("FG Planned Qty"),
-			_("FG Length"),
-			_("Actual Qty"),
 			_("RM"),
 			_("Actual RM Consumption"),
+			_("Machine Name"),
+			_("Finished Item"),
+			_("FG Planned Qty"),
+			_("Actual Qty"),
+			_("Finish Length"),
+			_("Tolerance"),
 			_("Wastage %"),
 		]
 
@@ -559,12 +537,14 @@ def export_production_dashboard(tab_id, from_date=None, to_date=None, item_code=
 			return [
 				r.get("production_plan") or "",
 				r.get("production_date") or "",
-				r.get("finished_item") or "",
-				flt(r.get("fg_planned_qty")) or 0,
-				r.get("fg_length") or "",
-				flt(r.get("actual_qty")) or 0,
 				r.get("rm") or "",
 				flt(r.get("rm_consumption")) or 0,
+				r.get("machine_name") or "",
+				r.get("finished_item") or "",
+				flt(r.get("fg_planned_qty")) or 0,
+				flt(r.get("actual_qty")) or 0,
+				r.get("finish_length") or "",
+				r.get("tolerance") or "",
 				flt(r.get("wastage")) or 0,
 			]
 
@@ -595,6 +575,4 @@ def export_production_dashboard(tab_id, from_date=None, to_date=None, item_code=
 	frappe.response["filename"] = file_name
 	frappe.response["filecontent"] = xlsx_file.getvalue()
 	frappe.response["type"] = "binary"
-	frappe.response[
-		"content_type"
-	] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	frappe.response["content_type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
