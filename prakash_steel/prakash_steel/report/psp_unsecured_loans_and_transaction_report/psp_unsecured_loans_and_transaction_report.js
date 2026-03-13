@@ -43,6 +43,7 @@ frappe.query_reports["PSP Unsecured Loans and Transaction Report"] = {
 			label: __("Account Head"),
 			fieldtype: "Link",
 			options: "Account",
+			reqd: 1,
 			get_query: function () {
 				return {
 					filters: [
@@ -60,4 +61,21 @@ frappe.query_reports["PSP Unsecured Loans and Transaction Report"] = {
 			},
 		},
 	],
+
+	// Ensure Total row only shows totals for specific columns
+	formatter: function (value, row, column, data, default_formatter) {
+		// Let Frappe format everything first
+		let formatted_value = default_formatter(value, row, column, data);
+
+		// If this is the auto "Total" row, blank out all columns
+		// except Interest Amount, TDS (10%), and Total Amount
+		if (data && data.name === "Total") {
+			const allowed_fields = ["interest_amount", "tds_10", "total_amount"];
+			if (!allowed_fields.includes(column.fieldname)) {
+				return "";
+			}
+		}
+
+		return formatted_value;
+	},
 };

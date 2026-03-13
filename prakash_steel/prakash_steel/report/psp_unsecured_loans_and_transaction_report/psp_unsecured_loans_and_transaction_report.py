@@ -10,6 +10,28 @@ def execute(filters=None):
     filters = filters or {}
     columns = get_columns()
     data = get_data(filters)
+
+    # Manually append a Total row that only sums selected columns
+    if data:
+        total_interest_amount = sum((row.get("interest_amount") or 0) for row in data)
+        total_tds_10 = sum((row.get("tds_10") or 0) for row in data)
+        total_total_amount = sum((row.get("total_amount") or 0) for row in data)
+
+        total_row = {
+            "month": "Total",
+            "detail_date": None,
+            "unsecured_loan": "",
+            "interest_percent": None,
+            "closing_balance": None,
+            "day_interest": None,
+            "interest_amount": total_interest_amount,
+            "tds_10": total_tds_10,
+            "total_amount": total_total_amount,
+            "name": "",
+        }
+
+        data.append(total_row)
+
     return columns, data
 
 
@@ -18,9 +40,27 @@ def get_columns():
         {"label": "Month", "fieldname": "month", "fieldtype": "Data", "width": 110},
         {"label": "Date", "fieldname": "detail_date", "fieldtype": "Date", "width": 110},
         {"label": "Account Head", "fieldname": "unsecured_loan", "fieldtype": "Data", "width": 250},
-        {"label": "Interest % Per Annum", "fieldname": "interest_percent", "fieldtype": "Float", "width": 150},
-        {"label": "Closing Balance", "fieldname": "closing_balance", "fieldtype": "Currency", "width": 150},
-        {"label": "Interest per Day", "fieldname": "day_interest", "fieldtype": "Float", "width": 130},
+        {
+            "label": "Interest % Per Annum",
+            "fieldname": "interest_percent",
+            "fieldtype": "Float",
+            "width": 150,
+            "no_total": 1,
+        },
+        {
+            "label": "Closing Balance",
+            "fieldname": "closing_balance",
+            "fieldtype": "Currency",
+            "width": 150,
+            "no_total": 1,
+        },
+        {
+            "label": "Interest per Day",
+            "fieldname": "day_interest",
+            "fieldtype": "Float",
+            "width": 130,
+            "no_total": 1,
+        },
         {"label": "Interest Amount", "fieldname": "interest_amount", "fieldtype": "Currency", "width": 150},
         {"label": "TDS (10%)", "fieldname": "tds_10", "fieldtype": "Currency", "width": 120},
         {"label": "Total Amount", "fieldname": "total_amount", "fieldtype": "Currency", "width": 150},
