@@ -67,12 +67,14 @@ function render_filters(state) {
     const $toDateWrap   = $('<div style="flex:1;min-width:200px;"></div>');
     const $itemWrap     = $('<div style="flex:1;min-width:250px;"></div>');
     const $ppWrap       = $('<div style="flex:1;min-width:250px;"></div>');
+    const $machineWrap  = $('<div style="flex:1;min-width:250px;"></div>');
 
     $filterControls
         .append($fromDateWrap)
         .append($toDateWrap)
         .append($itemWrap)
-        .append($ppWrap);
+        .append($ppWrap)
+        .append($machineWrap);
 
     $filterBar.append($filterControls);
     $(state.page.main).append($filterBar);
@@ -114,10 +116,24 @@ function render_filters(state) {
         render_input: true,
     });
 
+    // ── Machine Name ──
+    state.controls.machine_name = frappe.ui.form.make_control({
+        parent: $machineWrap.get(0),
+        df: {
+            fieldtype: 'Link',
+            label: __('Machine Name'),
+            fieldname: 'machine_name',
+            options: 'Machine Master',
+            reqd: 0,
+        },
+        render_input: true,
+    });
+
     // ── Style inputs ──
     setTimeout(() => {
         [state.controls.from_date, state.controls.to_date,
-         state.controls.item_code, state.controls.production_plan].forEach(c => {
+         state.controls.item_code, state.controls.production_plan,
+         state.controls.machine_name].forEach(c => {
             if (c && c.$input) {
                 $(c.$input).css({
                     border: '1px solid #000', 'border-radius': '4px',
@@ -128,11 +144,12 @@ function render_filters(state) {
     }, 100);
 }
 
+
 function getProductionPlanQuery(state) {
     const filters = { docstatus: 1 };
     if (state.currentTab === 'rolled_production') {
         filters['name'] = ['like', '%Rolled%'];
-	} else if (state.currentTab === 'bright_production') {
+    } else if (state.currentTab === 'bright_production') {
         filters['name'] = ['like', '%Bright%'];
     }
     return { filters };
@@ -144,6 +161,7 @@ function getFilters(state) {
         to_date: state.controls.to_date ? state.controls.to_date.get_value() : null,
         item_code: state.controls.item_code ? state.controls.item_code.get_value() : null,
         production_plan: state.controls.production_plan ? state.controls.production_plan.get_value() : null,
+        machine_name: state.controls.machine_name ? state.controls.machine_name.get_value() : null,
     };
 }
 
@@ -157,8 +175,8 @@ function createTabbedInterface(state) {
 
     const tabs = [
         { id: 'rolled_production', label: __('Rolled Production'), icon: 'fa fa-industry' },
-		{ id: 'bright_production', label: __('Bright Production'), icon: 'fa fa-cog' },
-		{ id: 'bend_weight_details', label: __('Bend Weight Details'), icon: 'fa fa-balance-scale' },
+        { id: 'bright_production', label: __('Bright Production'), icon: 'fa fa-cog' },
+        { id: 'bend_weight_details', label: __('Bend Weight Details'), icon: 'fa fa-balance-scale' },
     ];
 
     tabs.forEach((tab, idx) => {
@@ -196,17 +214,17 @@ function createContentContainers(state) {
         if (!state.$cards) state.$cards = {};
         state.$cards[tabId] = $cards;
 
-		// Table
-		let title;
-		if (tabId === 'rolled_production') {
-			title = __('Rolled Production Details');
-		} else if (tabId === 'bright_production') {
-			title = __('Bright Production Details');
-		} else if (tabId === 'bend_weight_details') {
-			title = __('Bend Weight Details');
-		} else {
-			title = '';
-		}
+        // Table
+        let title;
+        if (tabId === 'rolled_production') {
+            title = __('Rolled Production Details');
+        } else if (tabId === 'bright_production') {
+            title = __('Bright Production Details');
+        } else if (tabId === 'bend_weight_details') {
+            title = __('Bend Weight Details');
+        } else {
+            title = '';
+        }
 
         const $tableSection = $(`
             <div class="detailed-data-section">
@@ -230,7 +248,8 @@ function bindEventHandlers(state) {
     const handler = () => refreshDashboard(state);
 
     [state.controls.from_date, state.controls.to_date,
-     state.controls.item_code, state.controls.production_plan].forEach(c => {
+     state.controls.item_code, state.controls.production_plan,
+     state.controls.machine_name].forEach(c => {
         if (!c) return;
         c.df.change = handler;
         c.df.onchange = handler;
@@ -243,7 +262,6 @@ function bindEventHandlers(state) {
         }
     });
 
-    // ── Refresh button ──
     // ── Tab switching ──
     Object.keys(state.$tabs).forEach(tabId => {
         state.$tabs[tabId].$item.find('button').on('click', () => {
@@ -290,14 +308,14 @@ function refreshDashboard(state) {
 
     state.page.set_indicator(__('Loading…'), 'blue');
 
-	let apiMethod;
-	if (tabId === 'rolled_production') {
-		apiMethod = 'prakash_steel.api.production_dashboard.get_rolled_production_data';
-	} else if (tabId === 'bright_production') {
-		apiMethod = 'prakash_steel.api.production_dashboard.get_bright_production_data';
-	} else if (tabId === 'bend_weight_details') {
-		apiMethod = 'prakash_steel.api.production_dashboard.get_bend_weight_details';
-	}
+    let apiMethod;
+    if (tabId === 'rolled_production') {
+        apiMethod = 'prakash_steel.api.production_dashboard.get_rolled_production_data';
+    } else if (tabId === 'bright_production') {
+        apiMethod = 'prakash_steel.api.production_dashboard.get_bright_production_data';
+    } else if (tabId === 'bend_weight_details') {
+        apiMethod = 'prakash_steel.api.production_dashboard.get_bend_weight_details';
+    }
 
     // If no date filters are set, fetch data till today (but keep UI filters empty)
     const from_date = filters.from_date || '';
@@ -310,6 +328,7 @@ function refreshDashboard(state) {
             to_date: to_date,
             item_code: filters.item_code || '',
             production_plan: filters.production_plan || '',
+            machine_name: filters.machine_name || '',
         },
         callback: function (r) {
             if (state._refreshGen !== thisGen) return; // stale
@@ -339,14 +358,11 @@ function render_cards(state, totals) {
 
     totals = totals || {};
 
-	// For Bend Weight Details, skip KPI cards for now
-	if (tabId === 'bend_weight_details') {
-		return;
-	}
+    // For Bend Weight Details, skip KPI cards for now
+    if (tabId === 'bend_weight_details') {
+        return;
+    }
 
-    // Color palettes per tab
-    // Rolled Production will use one distinct color per card (no repeats)
-    // Bright Production uses a smaller distinct palette.
     const gradientClasses = tabId === 'rolled_production'
         ? [] // we will assign explicit colors below
         : ['card-yellow', 'card-green', 'card-orange'];
@@ -357,90 +373,113 @@ function render_cards(state, totals) {
             label: __('Total Production (kg)'),
             gradientClass: tabId === 'rolled_production' ? 'card-blue' : gradientClasses[0],
             description: __('Sum of Actual Qty across all rows'),
-            isQty: true, // Qty field - format as integer
+            isQty: true,
         },
         {
             value: totals.rm_consumption,
             label: __('RM Consumption'),
             gradientClass: tabId === 'rolled_production' ? 'card-teal' : gradientClasses[1],
             description: __('Sum of RM Consumption across all rows'),
-            isQty: true, // Qty field - format as integer
+            isQty: true,
         },
     ];
 
-   // Tab-specific KPI cards
-   if (tabId === 'rolled_production') {
-       const totalProd = parseFloat(totals.total_production) || 0;
-       const totalHr = parseFloat(totals.total_hr_consumed) || 0;
-       const totalMeltingWeight = parseFloat(totals.total_melting_weight) || 0;
-       const totalMissBilletWeight = parseFloat(totals.total_miss_billet_weight) || 0;
-       const totalMissRollWeight = parseFloat(totals.total_miss_roll_weight) || 0;
-       const totalMissIngotWeight = parseFloat(totals.total_miss_ingot_weight) || 0;
+    // Tab-specific KPI cards
+    if (tabId === 'rolled_production') {
+        const totalProd = parseFloat(totals.total_production) || 0;
+        const totalHr = parseFloat(totals.total_hr_consumed) || 0;
+        const totalMeltingWeight = parseFloat(totals.total_melting_weight) || 0;
+        const totalMissBilletWeight = parseFloat(totals.total_miss_billet_weight) || 0;
+        const totalMissRollWeight = parseFloat(totals.total_miss_roll_weight) || 0;
+        const totalMissIngotWeight = parseFloat(totals.total_miss_ingot_weight) || 0;
 
-      // Total Hr = Sum of Total Hr Consumed
-      cards.push({
-          value: totalHr,
-          label: __('Total Hr'),
-          gradientClass: 'card-yellow',
-          description: __('Sum of Total Hr Consumed'),
-      });
-
-      // Average Production = Total Production / Sum(Total Hr Consumed)
-      let avgProduction = 0;
-      if (totalHr > 0) {
-          avgProduction = totalProd / totalHr;
-      }
-
-      cards.push({
-          value: avgProduction,
-          label: __('Average Production'),
-          gradientClass: 'card-red',
-          description: __('Total Production / Total Hr Consumed'),
-      });
-
-       // Total Melting Weight = Sum of Melting Weight across all rows
-       cards.push({
-           value: totalMeltingWeight,
-           label: __('Total Melting Weight'),
-           gradientClass: 'card-green',
-           description: __('Sum of Melting Weight across all rows'),
-           isQty: true,
-       });
-
-       // Total Miss Billet Weight
-       cards.push({
-           value: totalMissBilletWeight,
-           label: __('Total Miss Billet Weight(RM)'),
-           gradientClass: 'card-pink',
-           description: __('Sum of Miss Billet Weight across all rows'),
-           isQty: true,
-       });
-
-       // Total Miss Roll Weight
-       cards.push({
-           value: totalMissRollWeight,
-           label: __('Total Miss Roll Weight(FG)'),
-           gradientClass: 'card-orange',
-           description: __('Sum of Total Miss Roll Weight across all rows'),
-           isQty: true,
-       });
-
-       // Total Miss Ingot / Billet Weight
-       cards.push({
-           value: totalMissIngotWeight,
-           label: __('Total Miss Ingot / Billet Weight(FG)'),
-           gradientClass: 'card-purple',
-           description: __('Sum of Total Miss Ingot / Billet Weight across all rows'),
-           isQty: true,
-       });
-   } else if (tabId === 'bright_production') {
-        // Average Wastage % from Bright Bar Production
+        // Total Hr = Sum of Total Hr Consumed
         cards.push({
-            value: totals.wastage_per,
+            value: totalHr,
+            label: __('Total Hr'),
+            gradientClass: 'card-yellow',
+            description: __('Sum of Total Hr Consumed'),
+        });
+
+        // Average Production = Total Production / Sum(Total Hr Consumed)
+        let avgProduction = 0;
+        if (totalHr > 0) {
+            avgProduction = totalProd / totalHr;
+        }
+
+        cards.push({
+            value: avgProduction,
+            label: __('Average Production'),
+            gradientClass: 'card-red',
+            description: __('Total Production / Total Hr Consumed'),
+        });
+
+        // Total Melting Weight
+        cards.push({
+            value: totalMeltingWeight,
+            label: __('Total Melting Weight'),
+            gradientClass: 'card-green',
+            description: __('Sum of Melting Weight across all rows'),
+            isQty: true,
+        });
+
+        // Total Miss Billet Weight
+        cards.push({
+            value: totalMissBilletWeight,
+            label: __('Total Miss Billet Weight(RM)'),
+            gradientClass: 'card-pink',
+            description: __('Sum of Miss Billet Weight across all rows'),
+            isQty: true,
+        });
+
+        // Total Miss Roll Weight
+        cards.push({
+            value: totalMissRollWeight,
+            label: __('Total Miss Roll Weight(FG)'),
+            gradientClass: 'card-orange',
+            description: __('Sum of Total Miss Roll Weight across all rows'),
+            isQty: true,
+        });
+
+        // Total Miss Ingot / Billet Weight
+        cards.push({
+            value: totalMissIngotWeight,
+            label: __('Total Miss Ingot / Billet Weight(FG)'),
+            gradientClass: 'card-purple',
+            description: __('Sum of Total Miss Ingot / Billet Weight across all rows'),
+            isQty: true,
+        });
+
+        // Burning Loss %
+        const totalRmConsumption = parseFloat(totals.rm_consumption) || 0;
+        let burningLossPer = 0;
+        if (totalRmConsumption > 0) {
+            burningLossPer = ((totalRmConsumption - totalProd) / totalRmConsumption) * 100;
+        }
+
+        cards.push({
+            value: burningLossPer,
+            label: __('Burning Loss %'),
+            gradientClass: 'card-red',
+            description: __('(RM Consumption - Total Production) / RM Consumption × 100'),
+            isPercentage: true,
+        });
+
+    } else if (tabId === 'bright_production') {
+        // Wastage % = (Total RM Consumption - Total Production) / Total RM Consumption × 100
+        const brightRm   = parseFloat(totals.rm_consumption) || 0;
+        const brightProd = parseFloat(totals.total_production) || 0;
+        let wastagePer = 0;
+        if (brightRm > 0) {
+            wastagePer = ((brightRm - brightProd) / brightRm) * 100;
+        }
+
+        cards.push({
+            value: wastagePer,
             label: __('Wastage %'),
             gradientClass: gradientClasses[2],
-            description: __('Average Wastage % (from Bright Bar Production)'),
-            isPercentage: true, // format as percentage with 2 decimals
+            description: __('(RM Consumption - Total Production) / RM Consumption × 100'),
+            isPercentage: true,
         });
     }
 
@@ -458,9 +497,7 @@ function format_qty_as_integer(value) {
     if (isNaN(num)) {
         return '--';
     }
-    // Truncate (not round) towards zero to integer
     const truncated = Math.trunc(num);
-    // Format without decimals
     return format_number(truncated, null, 0);
 }
 
@@ -473,11 +510,10 @@ function format_number_with_decimals(value) {
     if (isNaN(num)) {
         return '--';
     }
-    // Keep decimal values as is - use format_number with default decimals
     return format_number(num);
 }
 
-// Helper function to format percentage values: show exactly 2 decimal places (e.g., 2.03)
+// Helper function to format percentage values: show exactly 2 decimal places
 function format_percentage(value) {
     if (value === undefined || value === null || value === '') {
         return '--';
@@ -486,13 +522,11 @@ function format_percentage(value) {
     if (isNaN(num)) {
         return '--';
     }
-    // Format with exactly 2 decimal places
     return num.toFixed(2);
 }
 
 function buildCardHtml(card) {
     const raw = card.value;
-    // Use integer formatting for Qty fields, percentage formatting for percentages, decimal formatting for others
     let display;
     if (card.isQty) {
         display = format_qty_as_integer(raw);
@@ -556,26 +590,18 @@ function render_table(state, rows) {
     $container.append($exportBar);
 
     // ── Header ──
-    // All header cells: sticky top (freeze header on vertical scroll)
     const thBase = 'background:#495057;padding:12px;font-weight:600;color:#ffffff;'
         + 'border-bottom:2px solid #343a40;white-space:nowrap;text-align:center !important;'
         + 'position:sticky;top:0;z-index:2;';
 
-    // First two header columns: also sticky left (freeze on horizontal scroll)
-    // z-index:3 so they stay above both regular header cells and sticky body cells
     const thCol0 = thBase.replace('z-index:2', 'z-index:3') + 'left:0;min-width:180px;';
     const thCol1 = thBase.replace('z-index:2', 'z-index:3')
         + 'left:180px;min-width:140px;border-right:2px solid #dee2e6;';
 
     const headerHtml = columns.map((c, idx) => {
-        // Section divider borders
-        // For rolled_production:
-        //   - border after "Heat No" (index 10) – end of RM / billet section
-        //   - border after "Total Miss Ingot / Billet Weight" (index 19) – end of miss section
-        // For bright_production: border after Actual Qty (index 5)
         const borderAfterQty =
             (tabId === 'rolled_production' && (idx === 10 || idx === 19)) ||
-            (tabId === 'bright_production' && idx === 5);
+            (tabId === 'bright_production' && idx === 4);
         const borderRight = borderAfterQty ? ' border-right:2px solid #dee2e6;' : '';
         let style;
         if (idx === 0) style = thCol0;
@@ -594,8 +620,6 @@ function render_table(state, rows) {
         bodyHtml = rows.map(row => buildTableRow(tabId, row)).join('');
     }
 
-    // border-collapse:separate + border-spacing:0 ensures each cell owns its own borders,
-    // so border-right on sticky columns stays visible during horizontal scroll.
     const $table = $(`
         <div style="width:100%;margin-bottom:30px;overflow:auto;max-height:70vh;
                     border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,.1);">
@@ -611,7 +635,6 @@ function render_table(state, rows) {
 
 function buildTableRow(tabId, row) {
     const tdStyle = 'padding:12px;border-bottom:1px solid #e9ecef;color:#495057;text-align:center !important;';
-    // Sticky body cells for first two columns – frozen on horizontal scroll
     const tdCol0 = tdStyle + 'position:sticky;left:0;z-index:1;background:#fff;min-width:180px;';
     const tdCol1 = tdStyle + 'position:sticky;left:180px;z-index:1;background:#fff;min-width:140px;border-right:2px solid #dee2e6;';
 
@@ -631,40 +654,32 @@ function buildTableRow(tabId, row) {
         ? frappe.utils.escape_html(row.finished_item)
         : '';
 
-    // Qty fields – format as INTEGER only (no decimals)
-    const fgPlannedQty = format_qty_as_integer(row.fg_planned_qty);
-    const actualQty    = format_qty_as_integer(row.actual_qty);
-    const meltingWeight = format_qty_as_integer(row.melting_weight);
-    const finishPcs = format_qty_as_integer(row.finish_pcs);
-    const totalMissRollPcs = format_qty_as_integer(row.total_miss_roll_pcs);
+    // Qty fields
+    const fgPlannedQty        = format_qty_as_integer(row.fg_planned_qty);
+    const actualQty           = format_qty_as_integer(row.actual_qty);
+    const meltingWeight       = format_qty_as_integer(row.melting_weight);
+    const finishPcs           = format_qty_as_integer(row.finish_pcs);
+    const totalMissRollPcs    = format_qty_as_integer(row.total_miss_roll_pcs);
     const totalMissRollWeight = format_qty_as_integer(row.total_miss_roll_weight);
-    const totalMissIngotPcs = format_qty_as_integer(row.total_miss_ingot_pcs);
-    const totalMissIngotWeight = format_qty_as_integer(row.total_miss_ingot_weight);
-    const billetPcs = format_qty_as_integer(row.billet_pcs);
+    const totalMissIngotPcs   = format_qty_as_integer(row.total_miss_ingot_pcs);
+    const totalMissIngotWeight= format_qty_as_integer(row.total_miss_ingot_weight);
+    const billetPcs           = format_qty_as_integer(row.billet_pcs);
     const totalRawMaterialPcs = format_qty_as_integer(row.total_raw_material_pcs);
-    const missBilletPcs = format_qty_as_integer(row.miss_billet_pcs);
-    const missBilletWeight = format_qty_as_integer(row.miss_billet_weight);
-    const totalRMWeight = format_qty_as_integer(
+    const missBilletPcs       = format_qty_as_integer(row.miss_billet_pcs);
+    const missBilletWeight    = format_qty_as_integer(row.miss_billet_weight);
+    const totalRMWeight       = format_qty_as_integer(
         (parseFloat(row.rm_consumption) || 0) + (parseFloat(row.miss_billet_weight) || 0)
     );
-    const heatNo = row.heat_no ? frappe.utils.escape_html(String(row.heat_no)) : '';
+    const heatNo          = row.heat_no ? frappe.utils.escape_html(String(row.heat_no)) : '';
     const totalHrConsumed = format_number_with_decimals(row.total_hr_consumed);
-    const rmConsumption = format_qty_as_integer(row.rm_consumption);
-
-    // FG Length – display exactly as stored (preserve units like "5 MTR", "10 MM", etc.)
-    const fgLength = row.fg_length ? frappe.utils.escape_html(String(row.fg_length)) : '';
-
-    // Other fields – keep decimal values as is (no rounding)
-
-    // RM
-    const rm = row.rm ? frappe.utils.escape_html(row.rm) : '';
-
-    // Description of Cutting Billet
-    const descriptionOfCuttingBillet = row.description_of_cutting_billet 
-        ? frappe.utils.escape_html(String(row.description_of_cutting_billet)) 
+    const rmConsumption   = format_qty_as_integer(row.rm_consumption);
+    const fgLength        = row.fg_length ? frappe.utils.escape_html(String(row.fg_length)) : '';
+    const rm              = row.rm ? frappe.utils.escape_html(row.rm) : '';
+    const descriptionOfCuttingBillet = row.description_of_cutting_billet
+        ? frappe.utils.escape_html(String(row.description_of_cutting_billet))
         : '';
 
-    // Last column differs per tab – format as percentage with exactly 2 decimal places
+    // Last column – percentage
     let lastColValue = '';
     if (tabId === 'rolled_production') {
         lastColValue = format_percentage(row.burning_loss);
@@ -672,121 +687,126 @@ function buildTableRow(tabId, row) {
         lastColValue = format_percentage(row.wastage);
     }
 
-	// Build row with tab-specific layouts
-	if (tabId === 'rolled_production') {
-        // Rolled Production:
-        // RM section first (RM, Actual RM Consumption, Burning Loss %, Total Billet Pcs, Description of Cutting Billet,
-        // Total Raw Material Pcs, Miss Billet Pcs, Miss Billet Weight, Heat No, Total Hr Consumed – inside border),
-        // then FG section
+    // ── Rolled Production ──
+    if (tabId === 'rolled_production') {
+        const burningLossVal = parseFloat(row.burning_loss) || 0;
+        const rowBg = burningLossVal > 3.5 ? 'background:#ffe5e5;' : '';
+        const tdHighlight = rowBg ? tdStyle + rowBg : tdStyle;
+        const tdCol0H = tdCol0 + rowBg;
+        const tdCol1H = tdCol1 + rowBg;
+
+        return `<tr style="border-bottom:1px solid #e9ecef;${rowBg}">
+            <td style="${tdCol0H}">${ppLink}</td>
+            <td style="${tdCol1H}">${prodDate}</td>
+            <td style="${tdHighlight}">${rm}</td>
+            <td style="${tdHighlight}">${rmConsumption}</td>
+            <td style="${tdHighlight}">${billetPcs}</td>
+            <td style="${tdHighlight}">${descriptionOfCuttingBillet}</td>
+            <td style="${tdHighlight}">${totalRawMaterialPcs}</td>
+            <td style="${tdHighlight}">${totalRMWeight}</td>
+            <td style="${tdHighlight}">${missBilletPcs}</td>
+            <td style="${tdHighlight}">${missBilletWeight}</td>
+            <td style="${tdHighlight} border-right:2px solid #dee2e6;">${heatNo}</td>
+            <td style="${tdHighlight}">${finishedItem}</td>
+            <td style="${tdHighlight}">${fgPlannedQty}</td>
+            <td style="${tdHighlight}">${actualQty}</td>
+            <td style="${tdHighlight}">${finishPcs}</td>
+            <td style="${tdHighlight}">${fgLength}</td>
+            <td style="${tdHighlight}">${totalMissRollPcs}</td>
+            <td style="${tdHighlight}">${totalMissRollWeight}</td>
+            <td style="${tdHighlight}">${totalMissIngotPcs}</td>
+            <td style="${tdHighlight} border-right:2px solid #dee2e6;">${totalMissIngotWeight}</td>
+            <td style="${tdHighlight}">${meltingWeight}</td>
+            <td style="${tdHighlight}">${lastColValue}</td>
+            <td style="${tdHighlight}">${totalHrConsumed}</td>
+        </tr>`;
+    }
+
+    // ── Bend Weight Details ──
+    if (tabId === 'bend_weight_details') {
+        const id = row.id || row.name || '';
+        const safeId = id ? frappe.utils.escape_html(String(id)) : '';
+        const itemCode = row.item_code ? frappe.utils.escape_html(String(row.item_code)) : '';
+        const bendWeight = format_number_with_decimals(row.bend_material_weight);
+
         return `<tr style="border-bottom:1px solid #e9ecef;">
+            <td style="${tdCol0}">${safeId}</td>
+            <td style="${tdCol1}">${itemCode}</td>
+            <td style="${tdStyle}">${bendWeight}</td>
+        </tr>`;
+    }
+
+    // ── Bright Production ──
+    const machineName      = row.machine_name ? frappe.utils.escape_html(String(row.machine_name)) : '';
+    const finishLength     = row.finish_length ? frappe.utils.escape_html(String(row.finish_length)) : '';
+    const tolerance        = row.tolerance ? frappe.utils.escape_html(String(row.tolerance)) : '';
+
+    return `<tr style="border-bottom:1px solid #e9ecef;">
         <td style="${tdCol0}">${ppLink}</td>
         <td style="${tdCol1}">${prodDate}</td>
         <td style="${tdStyle}">${rm}</td>
         <td style="${tdStyle}">${rmConsumption}</td>
-        <td style="${tdStyle}">${billetPcs}</td>
-        <td style="${tdStyle}">${descriptionOfCuttingBillet}</td>
-        <td style="${tdStyle}">${totalRawMaterialPcs}</td>
-        <td style="${tdStyle}">${totalRMWeight}</td>
-        <td style="${tdStyle}">${missBilletPcs}</td>
-        <td style="${tdStyle}">${missBilletWeight}</td>
-        <td style="${tdStyle} border-right:2px solid #dee2e6;">${heatNo}</td>
+        <td style="${tdStyle} border-right:2px solid #dee2e6;">${machineName}</td>
         <td style="${tdStyle}">${finishedItem}</td>
         <td style="${tdStyle}">${fgPlannedQty}</td>
         <td style="${tdStyle}">${actualQty}</td>
-        <td style="${tdStyle}">${finishPcs}</td>
-        <td style="${tdStyle}">${fgLength}</td>
-        <td style="${tdStyle}">${totalMissRollPcs}</td>
-        <td style="${tdStyle}">${totalMissRollWeight}</td>
-        <td style="${tdStyle}">${totalMissIngotPcs}</td>
-        <td style="${tdStyle} border-right:2px solid #dee2e6;">${totalMissIngotWeight}</td>
-        <td style="${tdStyle}">${meltingWeight}</td>
+        <td style="${tdStyle}">${finishLength}</td>
+        <td style="${tdStyle}">${tolerance}</td>
         <td style="${tdStyle}">${lastColValue}</td>
-        <td style="${tdStyle}">${totalHrConsumed}</td>
     </tr>`;
-	}
-
-	if (tabId === 'bend_weight_details') {
-		// Bend Weight Details: simple three-column layout
-		const id = row.id || row.name || '';
-		const safeId = id ? frappe.utils.escape_html(String(id)) : '';
-		const itemCode = row.item_code ? frappe.utils.escape_html(String(row.item_code)) : '';
-		const bendWeight = format_number_with_decimals(row.bend_material_weight);
-
-		return `<tr style="border-bottom:1px solid #e9ecef;">
-		<td style="${tdCol0}">${safeId}</td>
-		<td style="${tdCol1}">${itemCode}</td>
-		<td style="${tdStyle}">${bendWeight}</td>
-	</tr>`;
-	}
-
-	// Bright Production – keep existing order:
-	// Production Plan, Production Date, Finished Item, FG Planned Qty, FG Length,
-	// Actual Qty (with border), RM, Actual RM Consumption, Wastage %.
-	return `<tr style="border-bottom:1px solid #e9ecef;">
-		<td style="${tdCol0}">${ppLink}</td>
-		<td style="${tdCol1}">${prodDate}</td>
-		<td style="${tdStyle}">${finishedItem}</td>
-		<td style="${tdStyle}">${fgPlannedQty}</td>
-		<td style="${tdStyle}">${fgLength}</td>
-		<td style="${tdStyle} border-right:2px solid #dee2e6;">${actualQty}</td>
-		<td style="${tdStyle}">${rm}</td>
-		<td style="${tdStyle}">${rmConsumption}</td>
-		<td style="${tdStyle}">${lastColValue}</td>
-	</tr>`;
 }
 
 function getTableColumns(tabId) {
-	if (tabId === 'rolled_production') {
-		// Rolled Production:
-		// RM section first (RM, Actual RM Consumption, Burning Loss %, Total Billet Pcs,
-		// Description of Cutting Billet, Total Raw Material Pcs, Miss Billet Pcs, Miss Billet Weight, Heat No, Total Hr Consumed),
-		// then FG section starting with Finished Item.
-		return [
-			{ label: __('Production Plan'), align: 'left' },
-			{ label: __('Production Date'), align: 'left' },
-			{ label: __('RM'), align: 'left' },
-			{ label: __('Actual RM Consumption'), align: 'left' },
-			{ label: __('Total Billet Pcs'), align: 'left' },
-			{ label: __('Description of Cutting Billet'), align: 'left' },
-			{ label: __('Total Raw Material Pcs'), align: 'left' },
-			{ label: __('Total RM Weight'), align: 'left' },
-			{ label: __('Miss Billet Pcs'), align: 'left' },
-			{ label: __('Miss Billet Weight'), align: 'left' },
-			{ label: __('Heat No'), align: 'left' },
-			{ label: __('Finished Item'), align: 'left' },
-			{ label: __('FG Planned Qty'), align: 'left' },
-			{ label: __('Actual Qty'), align: 'left' },
-			{ label: __('Finish Pcs'), align: 'left' },
-			{ label: __('FG Length'), align: 'left' },
-			{ label: __('Total Miss Roll (Pcs)'), align: 'left' },
-			{ label: __('Total Miss Roll Weight'), align: 'left' },
-			{ label: __('Total Miss Ingot'), align: 'left' },
-			{ label: __('Total Miss Ingot / Billet Weight'), align: 'left' },
-			{ label: __('Melting Weight'), align: 'left' },
-			{ label: __('Burning Loss %'), align: 'left' },
-			{ label: __('Total Hr Consumed'), align: 'left' },
-		];
-	}
-	if (tabId === 'bend_weight_details') {
-		// Bend Weight Details – simple three-column layout
-		return [
-			{ label: __('ID'), align: 'left' },
-			{ label: __('Item Code'), align: 'left' },
-			{ label: __('Bend Material Weight'), align: 'left' },
-		];
-	}
-	// bright_production
-	return [
-		{ label: __('Production Plan'), align: 'left' },
-		{ label: __('Production Date'), align: 'left' },
-		{ label: __('Finished Item'), align: 'left' },
-		{ label: __('FG Planned Qty'), align: 'left' },
-		{ label: __('FG Length'), align: 'left' },
-		{ label: __('Actual Qty'), align: 'left' },
-		{ label: __('RM'), align: 'left' },
-		{ label: __('Actual RM Consumption'), align: 'left' },
-		{ label: __('Wastage %'), align: 'left' },
-	];
+    if (tabId === 'rolled_production') {
+        return [
+            { label: __('Production Plan'), align: 'left' },
+            { label: __('Production Date'), align: 'left' },
+            { label: __('RM'), align: 'left' },
+            { label: __('Actual RM Consumption'), align: 'left' },
+            { label: __('Total Billet Pcs'), align: 'left' },
+            { label: __('Description of Cutting Billet'), align: 'left' },
+            { label: __('Total Raw Material Pcs'), align: 'left' },
+            { label: __('Total RM Weight'), align: 'left' },
+            { label: __('Miss Billet Pcs'), align: 'left' },
+            { label: __('Miss Billet Weight'), align: 'left' },
+            { label: __('Heat No'), align: 'left' },
+            { label: __('Finished Item'), align: 'left' },
+            { label: __('FG Planned Qty'), align: 'left' },
+            { label: __('Actual Qty'), align: 'left' },
+            { label: __('Finish Pcs'), align: 'left' },
+            { label: __('FG Length'), align: 'left' },
+            { label: __('Total Miss Roll (Pcs)'), align: 'left' },
+            { label: __('Total Miss Roll Weight'), align: 'left' },
+            { label: __('Total Miss Ingot'), align: 'left' },
+            { label: __('Total Miss Ingot / Billet Weight'), align: 'left' },
+            { label: __('Melting Weight'), align: 'left' },
+            { label: __('Burning Loss %'), align: 'left' },
+            { label: __('Total Hr Consumed'), align: 'left' },
+        ];
+    }
+
+    if (tabId === 'bend_weight_details') {
+        return [
+            { label: __('ID'), align: 'left' },
+            { label: __('Item Code'), align: 'left' },
+            { label: __('Bend Material Weight'), align: 'left' },
+        ];
+    }
+
+    // bright_production
+    return [
+        { label: __('Production Plan'), align: 'left' },
+        { label: __('Production Date'), align: 'left' },
+        { label: __('RM'), align: 'left' },
+        { label: __('Actual RM Consumption'), align: 'left' },
+        { label: __('Machine Name'), align: 'left' },
+        { label: __('Finished Item'), align: 'left' },
+        { label: __('FG Planned Qty'), align: 'left' },
+        { label: __('Actual Qty'), align: 'left' },
+        { label: __('Finish Length'), align: 'left' },
+        { label: __('Tolerance'), align: 'left' },
+        { label: __('Wastage %'), align: 'left' },
+    ];
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -824,7 +844,7 @@ function buildExportToolbar(state, tabId, columns, rows) {
         </div>
     `);
 
-    const $btn = $wrapper.find('button');
+    const $btn  = $wrapper.find('button');
     const $menu = $wrapper.find('.export-menu');
 
     $btn.on('click', (e) => {
@@ -858,13 +878,13 @@ function exportTableToExcel(state, tabId) {
     const from_date = filters.from_date || '';
     const to_date = filters.to_date || (filters.from_date ? '' : frappe.datetime.get_today());
 
-    // Build a simple URL to the server-side XLSX exporter
     const params = {
         tab_id: tabId,
         from_date: from_date,
         to_date: to_date,
         item_code: filters.item_code || '',
         production_plan: filters.production_plan || '',
+        machine_name: filters.machine_name || '',
     };
 
     const query = Object.keys(params)
@@ -932,7 +952,6 @@ function buildCSVContent(rows) {
 }
 
 function mapRowForExport(tabId, row) {
-    // Mirrors the visual table order defined in getTableColumns / buildTableRow
     if (tabId === 'rolled_production') {
         return [
             row.production_plan || '',
@@ -944,7 +963,7 @@ function mapRowForExport(tabId, row) {
             row.billet_pcs || 0,
             row.description_of_cutting_billet || '',
             row.total_raw_material_pcs || 0,
-			(row.rm_consumption || 0) + (row.miss_billet_weight || 0),
+            (row.rm_consumption || 0) + (row.miss_billet_weight || 0),
             row.miss_billet_pcs || 0,
             row.miss_billet_weight || 0,
             row.heat_no || '',
@@ -952,14 +971,14 @@ function mapRowForExport(tabId, row) {
             row.fg_planned_qty || 0,
             row.actual_qty || 0,
             row.finish_pcs || 0,
-			row.fg_length || '',
+            row.fg_length || '',
             row.total_miss_roll_pcs || 0,
             row.total_miss_roll_weight || 0,
             row.total_miss_ingot_pcs || 0,
             row.total_miss_ingot_weight || 0,
-			row.melting_weight || 0,
-			row.burning_loss || 0,
-			row.total_hr_consumed || 0,
+            row.melting_weight || 0,
+            row.burning_loss || 0,
+            row.total_hr_consumed || 0,
         ];
     }
 
@@ -977,12 +996,14 @@ function mapRowForExport(tabId, row) {
         row.production_date
             ? frappe.format(row.production_date, { fieldtype: 'Date' })
             : '',
-        row.finished_item || '',
-        row.fg_planned_qty || 0,
-        row.fg_length || '',
-        row.actual_qty || 0,
         row.rm || '',
         row.rm_consumption || 0,
+        row.machine_name || '',
+        row.finished_item || '',
+        row.fg_planned_qty || 0,
+        row.actual_qty || 0,
+        row.finish_length || '',
+        row.tolerance || 0,
         row.wastage || 0,
     ];
 }
