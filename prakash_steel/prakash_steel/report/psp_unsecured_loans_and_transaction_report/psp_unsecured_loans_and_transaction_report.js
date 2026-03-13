@@ -68,7 +68,8 @@ frappe.query_reports["PSP Unsecured Loans and Transaction Report"] = {
 		let formatted_value = default_formatter(value, row, column, data);
 
 		// If this is the Total row, blank out all columns
-		// except Month (label) and the three amount fields
+		// except Month (label) and the three amount fields,
+		// and make those cells bold.
 		if (data && data.name === "Total") {
 			const allowed_fields = ["month", "interest_amount", "tds_10", "total_amount"];
 
@@ -78,8 +79,11 @@ frappe.query_reports["PSP Unsecured Loans and Transaction Report"] = {
 
 			// Force the Month column to show the label "Total"
 			if (column.fieldname === "month") {
-				return __("Total");
+				formatted_value = __("Total");
 			}
+
+			// Wrap the visible Total row cells in bold styling
+			return `<strong>${formatted_value}</strong>`;
 		}
 
 		return formatted_value;
