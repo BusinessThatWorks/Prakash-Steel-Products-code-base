@@ -160,7 +160,7 @@
   },
   {
    "fieldname": "tolerance",
-   "fieldtype": "Float",
+   "fieldtype": "Data",
    "label": "Tolerance",
    "reqd": 1
   },
@@ -265,7 +265,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-11 14:44:39.360345",
+ "modified": "2026-03-13 10:12:19.809008",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Bright Bar Production",
@@ -286,6 +286,7 @@
   }
  ],
  "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
