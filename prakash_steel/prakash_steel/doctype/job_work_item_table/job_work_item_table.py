@@ -1,9 +1,9 @@
-# Copyright (c) 2026, beetashoke chakraborty and contributors
+# Copyright (c) 2026, Beetashoke Chakraborty and contributors
 # For license information, please see license.txt
 
 # import frappe
 from frappe.model.document import Document
 
 
-class InterestDetails(Document):
+class JOBWorkItemtable(Document):
 	pass
