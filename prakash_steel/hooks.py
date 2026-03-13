@@ -75,6 +75,7 @@ doc_events = {
 	},
 	"Purchase Invoice": {
 		"before_cancel": "prakash_steel.utils.purchase_invoice_cancel.validate_cancel_reason",
+		"validate": "prakash_steel.utils.purchase_invoice_cancel.clear_cancel_reason_on_amend",
 	},
 	"Material Request": {
 		"before_cancel": "prakash_steel.utils.material_request_cancel.validate_cancel_reason",

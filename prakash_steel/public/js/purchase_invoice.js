@@ -102,6 +102,14 @@
 
 
 frappe.ui.form.on("Purchase Invoice", {
+    refresh(frm) {
+        // Clear cancel reason on amended drafts — the field is copied from the
+        // cancelled doc but should not carry over to the new invoice.
+        if (frm.doc.amended_from && frm.doc.docstatus === 0 && frm.doc.custom_cancel_reason) {
+            frm.set_value("custom_cancel_reason", "");
+        }
+    },
+
     before_workflow_action(frm) {
         // Only intercept the Reject action
         if (frm.selected_workflow_action !== "Reject") {
