@@ -18,6 +18,13 @@ def get_columns():
             "width": 100,
         },
         {
+            "label": "Purchase Invoice",
+            "fieldname": "purchase_invoice",
+            "fieldtype": "Link",
+            "options": "Purchase Invoice",
+            "width": 160,
+        },
+        {
             "label": "Vendor Name",
             "fieldname": "vendor_name",
             "fieldtype": "Data",
@@ -96,6 +103,7 @@ def get_data(filters):
     query = f"""
         SELECT
             pi.posting_date AS bill_date,
+            pi.name AS purchase_invoice,
             pi.supplier AS vendor_name,
             pi.bill_no AS bill_no,
             pi.vehicle_no AS truck_no,
