@@ -10,6 +10,28 @@ def execute(filters=None):
     filters = filters or {}
     columns = get_columns()
     data = get_data(filters)
+    # Manually append a Total row that only sums selected columns
+    if data:
+        total_interest_amount = sum((row.get("interest_amount") or 0) for row in data)
+        total_tds_10 = sum((row.get("tds_10") or 0) for row in data)
+        total_total_amount = sum((row.get("total_amount") or 0) for row in data)
+
+        total_row = {
+            "month": "Total",
+            "detail_date": None,
+            "unsecured_loan": "",
+            "interest_percent": None,
+            "closing_balance": None,
+            "day_interest": None,
+            "interest_amount": total_interest_amount,
+            "tds_10": total_tds_10,
+            "total_amount": total_total_amount,
+            # mark as Total so formatter can detect it
+            "name": "Total",
+        }
+
+        data.append(total_row)
+
     return columns, data
 
 

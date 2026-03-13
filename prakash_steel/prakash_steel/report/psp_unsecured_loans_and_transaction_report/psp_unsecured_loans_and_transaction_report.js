@@ -67,12 +67,18 @@ frappe.query_reports["PSP Unsecured Loans and Transaction Report"] = {
 		// Let Frappe format everything first
 		let formatted_value = default_formatter(value, row, column, data);
 
-		// If this is the auto "Total" row, blank out all columns
-		// except Interest Amount, TDS (10%), and Total Amount
+		// If this is the Total row, blank out all columns
+		// except Month (label) and the three amount fields
 		if (data && data.name === "Total") {
-			const allowed_fields = ["interest_amount", "tds_10", "total_amount"];
+			const allowed_fields = ["month", "interest_amount", "tds_10", "total_amount"];
+
 			if (!allowed_fields.includes(column.fieldname)) {
 				return "";
+			}
+
+			// Force the Month column to show the label "Total"
+			if (column.fieldname === "month") {
+				return __("Total");
 			}
 		}
 
