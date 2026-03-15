@@ -1,6 +1,54 @@
 // Copyright (c) 2026, Beetashoke Chakraborty and contributors
 // For license information, please see license.txt
 
+frappe.ui.form.on("JOB Work Order", {
+	refresh: function (frm) {
+		if (frm.doc.docstatus === 1 && frm.doc.job_work_type === "Sale-Purchase") {
+			frm.add_custom_button(
+				__("Sales Invoice"),
+				function () {
+					_make_sales_invoice(frm);
+				},
+				__("Create")
+			);
+
+			frm.add_custom_button(
+				__("Purchase Receipt"),
+				function () {
+					_make_purchase_receipt(frm);
+				},
+				__("Create")
+			);
+		}
+	},
+});
+
+function _make_sales_invoice(frm) {
+	frappe.call({
+		method: "prakash_steel.prakash_steel.doctype.job_work_order.job_work_order.make_sales_invoice",
+		args: { source_name: frm.doc.name },
+		callback: function (r) {
+			if (r.message) {
+				frappe.model.sync(r.message);
+				frappe.set_route("Form", "Sales Invoice", r.message.name);
+			}
+		},
+	});
+}
+
+function _make_purchase_receipt(frm) {
+	frappe.call({
+		method: "prakash_steel.prakash_steel.doctype.job_work_order.job_work_order.make_purchase_receipt",
+		args: { source_name: frm.doc.name },
+		callback: function (r) {
+			if (r.message) {
+				frappe.model.sync(r.message);
+				frappe.set_route("Form", "Purchase Receipt", r.message.name);
+			}
+		},
+	});
+}
+
 frappe.ui.form.on("JOB Work Item table", {
 	fg_item: function (frm, cdt, cdn) {
 		let row = locals[cdt][cdn];
