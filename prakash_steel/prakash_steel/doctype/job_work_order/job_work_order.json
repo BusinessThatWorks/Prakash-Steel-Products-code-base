@@ -67,6 +67,8 @@
   {
    "fieldname": "status",
    "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
    "label": "Status",
    "options": "\nPending\nMaterial Transferred\nIn-Process\nPartially Received\nCompleted"
   },
@@ -80,7 +82,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-12 16:17:16.990311",
+ "modified": "2026-03-15 13:11:28.462087",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "JOB Work Order",

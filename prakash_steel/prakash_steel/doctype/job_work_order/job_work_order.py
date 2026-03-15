@@ -14,9 +14,10 @@ def make_sales_invoice(source_name):
 	source = frappe.get_doc("JOB Work Order", source_name)
 
 	si = frappe.new_doc("Sales Invoice")
-	si.company = frappe.db.get_default("company")
+	si.company = "Prakash Steel Products Pvt Ltd"
 	si.customer = source.customer
 	si.posting_date = source.job_work_date
+	si.custom_job_work_order = source_name
 
 	for row in source.work_item_table:
 		if row.raw_material and row.rm_qty_required:
@@ -25,6 +26,8 @@ def make_sales_invoice(source_name):
 				"qty": row.rm_qty_required,
 			})
 
+	si.run_method("set_missing_values")
+	si.run_method("calculate_taxes_and_totals")
 	return si
 
 
@@ -33,9 +36,10 @@ def make_delivery_note(source_name):
 	source = frappe.get_doc("JOB Work Order", source_name)
 
 	dn = frappe.new_doc("Delivery Note")
-	dn.company = frappe.db.get_default("company")
+	dn.company = "Prakash Steel Products Pvt Ltd"
 	dn.posting_date = source.job_work_date
 	dn.customer = source.customer
+	dn.custom_job_work_order = source_name
 
 	company_currency = frappe.get_cached_value("Company", dn.company, "default_currency") or "INR"
 	dn.currency = company_currency
@@ -48,6 +52,8 @@ def make_delivery_note(source_name):
 				"qty": row.rm_qty_required,
 			})
 
+	dn.run_method("set_missing_values")
+	dn.run_method("calculate_taxes_and_totals")
 	return dn
 
 
@@ -56,8 +62,9 @@ def make_purchase_receipt(source_name):
 	source = frappe.get_doc("JOB Work Order", source_name)
 
 	pr = frappe.new_doc("Purchase Receipt")
-	pr.company = frappe.db.get_default("company")
+	pr.company = "Prakash Steel Products Pvt Ltd"
 	pr.posting_date = source.job_work_date
+	pr.custom_job_work_order = source_name
 
 	company_currency = frappe.get_cached_value("Company", pr.company, "default_currency") or "INR"
 	pr.currency = company_currency
@@ -70,4 +77,6 @@ def make_purchase_receipt(source_name):
 				"qty": row.fg_production_qty,
 			})
 
+	pr.run_method("set_missing_values")
+	pr.run_method("calculate_taxes_and_totals")
 	return pr
