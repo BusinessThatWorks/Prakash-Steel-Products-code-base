@@ -56,12 +56,12 @@ doc_events = {
 		"validate": "prakash_steel.utils.item.validate_min_order_qty_and_batch_size",
 		"on_update": "prakash_steel.utils.item.update_decoupled_lead_time_on_item_save",
 	},
-	"Sales Invoice": {
-		"on_submit": "prakash_steel.utils.job_work_order_utils.update_jwo_on_sales_invoice_submit",
-	},
-	"Delivery Note": {
-		"on_submit": "prakash_steel.utils.job_work_order_utils.update_jwo_on_delivery_note_submit",
-	},
+	# "Sales Invoice": {
+	# 	"on_submit": "prakash_steel.utils.job_work_order_utils.update_jwo_on_sales_invoice_submit",
+	# },
+	# "Delivery Note": {
+	# 	"on_submit": "prakash_steel.utils.job_work_order_utils.update_jwo_on_delivery_note_submit",
+	# },
 	"BOM": {
 		"on_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
 		"on_update_after_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
@@ -69,7 +69,7 @@ doc_events = {
 	"Purchase Receipt": {
 		"on_submit": [
 			"prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
-			"prakash_steel.utils.job_work_order_utils.update_jwo_on_purchase_receipt_submit",
+			# "prakash_steel.utils.job_work_order_utils.update_jwo_on_purchase_receipt_submit",
 		],
 		"before_cancel": "prakash_steel.utils.purchase_receipt_cancel.validate_cancel_reason",
 	},
@@ -105,10 +105,8 @@ scheduler_events = {
 	# Recalculate ADU for all items once per day so Item.custom_adu stays in sync
 	"daily": [
 		"prakash_steel.prakash_steel.api.adu.recalculate_adu_for_all_items",
-        # "prakash_steel.prakash_steel.doctype.unsecured_loans_and_transaction.unsecured_loans_and_transaction.fetch_daily_interest_for_all_active_docs",
-        # "prakash_steel.prakash_steel.doctype.unsecured_loans_and_transaction.unsecured_loans_and_transaction.fetch_daily_interest_for_all_active_docs",
-
-
+		# "prakash_steel.prakash_steel.doctype.unsecured_loans_and_transaction.unsecured_loans_and_transaction.fetch_daily_interest_for_all_active_docs",
+		# "prakash_steel.prakash_steel.doctype.unsecured_loans_and_transaction.unsecured_loans_and_transaction.fetch_daily_interest_for_all_active_docs",
 	],
 }
 
