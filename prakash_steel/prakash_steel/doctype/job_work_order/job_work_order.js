@@ -20,6 +20,24 @@ frappe.ui.form.on("JOB Work Order", {
 				__("Create")
 			);
 		}
+
+		if (frm.doc.docstatus === 1 && frm.doc.job_work_type === "Subcontracting") {
+			frm.add_custom_button(
+				__("Delivery Note"),
+				function () {
+					_make_delivery_note(frm);
+				},
+				__("Create")
+			);
+
+			frm.add_custom_button(
+				__("Purchase Receipt"),
+				function () {
+					_make_purchase_receipt(frm);
+				},
+				__("Create")
+			);
+		}
 	},
 });
 
@@ -44,6 +62,19 @@ function _make_purchase_receipt(frm) {
 			if (r.message) {
 				frappe.model.sync(r.message);
 				frappe.set_route("Form", "Purchase Receipt", r.message.name);
+			}
+		},
+	});
+}
+
+function _make_delivery_note(frm) {
+	frappe.call({
+		method: "prakash_steel.prakash_steel.doctype.job_work_order.job_work_order.make_delivery_note",
+		args: { source_name: frm.doc.name },
+		callback: function (r) {
+			if (r.message) {
+				frappe.model.sync(r.message);
+				frappe.set_route("Form", "Delivery Note", r.message.name);
 			}
 		},
 	});

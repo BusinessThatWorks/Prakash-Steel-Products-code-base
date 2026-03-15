@@ -29,6 +29,29 @@ def make_sales_invoice(source_name):
 
 
 @frappe.whitelist()
+def make_delivery_note(source_name):
+	source = frappe.get_doc("JOB Work Order", source_name)
+
+	dn = frappe.new_doc("Delivery Note")
+	dn.company = frappe.db.get_default("company")
+	dn.posting_date = source.job_work_date
+	dn.customer = source.customer
+
+	company_currency = frappe.get_cached_value("Company", dn.company, "default_currency") or "INR"
+	dn.currency = company_currency
+	dn.conversion_rate = 1
+
+	for row in source.work_item_table:
+		if row.raw_material and row.rm_qty_required:
+			dn.append("items", {
+				"item_code": row.raw_material,
+				"qty": row.rm_qty_required,
+			})
+
+	return dn
+
+
+@frappe.whitelist()
 def make_purchase_receipt(source_name):
 	source = frappe.get_doc("JOB Work Order", source_name)
 
