@@ -13,6 +13,7 @@ def update_jwo_on_sales_invoice_submit(doc, method):
 
 	_update_transferred_qty(jwo, "Sales Invoice", "Sales Invoice Item")
 	_set_transfer_status(jwo)
+	_update_loss_per(jwo)
 
 
 def update_jwo_on_delivery_note_submit(doc, method):
@@ -27,6 +28,7 @@ def update_jwo_on_delivery_note_submit(doc, method):
 
 	_update_transferred_qty(jwo, "Delivery Note", "Delivery Note Item")
 	_set_transfer_status(jwo)
+	_update_loss_per(jwo)
 
 
 def update_jwo_on_purchase_receipt_submit(doc, method):
@@ -71,6 +73,7 @@ def update_jwo_on_purchase_receipt_submit(doc, method):
 		new_status = "Pending"
 
 	frappe.db.set_value("JOB Work Order", jwo.name, "status", new_status)
+	_update_loss_per(jwo)
 
 
 def _update_transferred_qty(jwo, parent_doctype, child_doctype):
@@ -153,3 +156,20 @@ def _set_received_status(jwo):
 		new_status = "Pending"
 
 	frappe.db.set_value("JOB Work Order", jwo.name, "status", new_status)
+
+
+def _update_loss_per(jwo):
+	"""Calculate loss_per = (actual_transferred_qty - actual_received_qty) / actual_transferred_qty * 100.
+	Minimum 0. Reload jwo first to get latest values."""
+	jwo.reload()
+	for row in jwo.work_item_table:
+		transferred = row.actual_transferred_qty or 0
+		received = row.actual_received_qty or 0
+
+		if transferred > 0:
+			loss = (transferred - received) / transferred * 100
+			loss_per = max(loss, 0)
+		else:
+			loss_per = 0
+
+		frappe.db.set_value("JOB Work Item table", row.name, "loss_per", round(loss_per, 2))

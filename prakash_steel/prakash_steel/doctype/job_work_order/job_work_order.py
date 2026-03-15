@@ -6,7 +6,8 @@ from frappe.model.document import Document
 
 
 class JOBWorkOrder(Document):
-	pass
+	def on_submit(self):
+		self.db_set("status", "Pending")
 
 
 @frappe.whitelist()
@@ -21,9 +22,12 @@ def make_sales_invoice(source_name):
 
 	for row in source.work_item_table:
 		if row.raw_material and row.rm_qty_required:
+			pending_qty = (row.rm_qty_required or 0) - (row.actual_transferred_qty or 0)
+			if pending_qty <= 0:
+				continue
 			si.append("items", {
 				"item_code": row.raw_material,
-				"qty": row.rm_qty_required,
+				"qty": pending_qty,
 			})
 
 	si.run_method("set_missing_values")
@@ -47,9 +51,12 @@ def make_delivery_note(source_name):
 
 	for row in source.work_item_table:
 		if row.raw_material and row.rm_qty_required:
+			pending_qty = (row.rm_qty_required or 0) - (row.actual_transferred_qty or 0)
+			if pending_qty <= 0:
+				continue
 			dn.append("items", {
 				"item_code": row.raw_material,
-				"qty": row.rm_qty_required,
+				"qty": pending_qty,
 			})
 
 	dn.run_method("set_missing_values")
@@ -72,9 +79,12 @@ def make_purchase_receipt(source_name):
 
 	for row in source.work_item_table:
 		if row.fg_item and row.fg_production_qty:
+			pending_qty = (row.fg_production_qty or 0) - (row.actual_received_qty or 0)
+			if pending_qty <= 0:
+				continue
 			pr.append("items", {
 				"item_code": row.fg_item,
-				"qty": row.fg_production_qty,
+				"qty": pending_qty,
 			})
 
 	pr.run_method("set_missing_values")
