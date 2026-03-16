@@ -1,5 +1,10 @@
 frappe.ui.form.on("Sales Order", {
     refresh(frm) {
+        // Clear cancel reason on amended drafts
+        if (frm.doc.amended_from && frm.doc.docstatus === 0 && frm.doc.custom_cancel_reason) {
+            frm.set_value("custom_cancel_reason", "");
+        }
+
         // Patch cancel behavior once per form instance
         if (frm.__pspl_cancel_patched) return;
         frm.__pspl_cancel_patched = true;

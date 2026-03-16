@@ -3,6 +3,11 @@
 
 frappe.ui.form.on("Purchase Order", {
     refresh(frm) {
+        // Clear cancel reason on amended drafts
+        if (frm.doc.amended_from && frm.doc.docstatus === 0 && frm.doc.custom_cancel_reason) {
+            frm.set_value("custom_cancel_reason", "");
+        }
+
         // Optional: existing UI behaviour
         if (frm.doc.status === "Closed") {
             frappe.show_alert(

@@ -65,6 +65,11 @@
 
 frappe.ui.form.on("Material Request", {
     refresh: function (frm) {
+        // Clear cancel reason on amended drafts
+        if (frm.doc.amended_from && frm.doc.docstatus === 0 && frm.doc.custom_cancel_reason) {
+            frm.set_value("custom_cancel_reason", "");
+        }
+
         console.log("=== Material Request Form Refreshed ===");
         console.log("Parent Doc:", frm.doc);
 
