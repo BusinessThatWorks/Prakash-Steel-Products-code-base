@@ -51,6 +51,12 @@ import frappe
 from frappe import _
 
 
+def clear_cancel_reason_on_amend(doc, method=None):
+    """Clear cancel reason on an amended (draft) Purchase Invoice."""
+    if doc.amended_from and doc.docstatus == 0 and doc.custom_cancel_reason:
+        doc.custom_cancel_reason = ""
+
+
 def validate_cancel_reason(doc, method=None):
     """Server-side guard: block cancellation if Cancel Reason is missing.
 
