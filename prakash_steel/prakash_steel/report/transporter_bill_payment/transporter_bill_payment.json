@@ -10,7 +10,7 @@
  "idx": 0,
  "is_standard": "Yes",
  "letterhead": null,
- "modified": "2026-03-13 16:45:58.660781",
+ "modified": "2026-03-16 12:46:51.239559",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Transporter Bill Payment",
@@ -22,8 +22,13 @@
  "roles": [
   {
    "role": "System Manager"
+  },
+  {
+   "role": "Accounts Manager"
+  },
+  {
+   "role": "Accounts User"
   }
  ],
  "timeout": 0
 }
-
