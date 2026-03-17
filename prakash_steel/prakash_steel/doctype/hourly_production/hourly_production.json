@@ -224,7 +224,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-06 13:32:33.595453",
+ "modified": "2026-03-17 11:15:11.738040",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Hourly Production",
@@ -248,5 +248,6 @@
  "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "track_changes": 1
 }
