@@ -123,6 +123,9 @@ class BrightBarProduction(Document):
 			frappe.db.set_value("Bright Bar Production", self.name, "custom_stock_entry_id", stock_entry.name)
 			frappe.db.commit()
 
+			# Push FG weight to linked Production Plan Item row(s)
+			self.update_production_plan_qty_from_fg_weight()
+
 			frappe.msgprint(
 				_("Stock Entry {0} created and submitted successfully").format(frappe.bold(stock_entry.name)),
 				indicator="green",
@@ -135,6 +138,69 @@ class BrightBarProduction(Document):
 				"Bright Bar Production Stock Entry Creation Error",
 			)
 			frappe.throw(_("Error creating Stock Entry: {0}").format(str(e)))
+
+	def update_production_plan_qty_from_fg_weight(self):
+		"""
+		Update `custom_production_qty` in the linked Production Plan Item row(s)
+		(child table `po_items`) for the Production Plan referenced on this
+		Bright Bar Production document.
+
+		Logic:
+		- Use this document's `production_plan` link field.
+		- Find child rows in `po_items` where `item_code == finished_good`.
+		- For each matching row, set `custom_production_qty = fg_weight`.
+
+		Note:
+		- Production Plan is a submittable doctype; we therefore use
+		  `frappe.db.set_value` on the child rows so this works even when
+		  the Production Plan is already submitted.
+		"""
+		if not getattr(self, "production_plan", None):
+			return
+
+		if not getattr(self, "finished_good", None):
+			return
+
+		if not getattr(self, "fg_weight", None) or self.fg_weight <= 0:
+			return
+
+		try:
+			# Fetch all Production Plan Item rows under this Production Plan
+			# in the `po_items` child table that match the finished_good.
+			rows = frappe.get_all(
+				"Production Plan Item",
+				filters={
+					"parent": self.production_plan,
+					"parenttype": "Production Plan",
+					"parentfield": "po_items",
+					"item_code": self.finished_good,
+				},
+				fields=["name", "custom_production_qty"],
+			)
+
+			if not rows:
+				return
+
+			for row in rows:
+				# Sum up: existing custom_production_qty + this fg_weight
+				existing_qty = flt(row.get("custom_production_qty") or 0)
+				new_qty = existing_qty + flt(self.fg_weight)
+
+				frappe.db.set_value(
+					"Production Plan Item",
+					row.name,
+					"custom_production_qty",
+					new_qty,
+				)
+
+			# Commit so that the value is persisted even if Production Plan is submitted
+			frappe.db.commit()
+
+		except Exception as e:
+			frappe.log_error(
+				f"Error updating Production Plan Item custom_production_qty from Bright Bar Production {self.name}: {str(e)}",
+				"Bright Bar Production → Production Plan Qty Sync Error",
+			)
 
 	def before_cancel(self):
 		"""Prevent cancellation if linked Stock Entry is not cancelled.
