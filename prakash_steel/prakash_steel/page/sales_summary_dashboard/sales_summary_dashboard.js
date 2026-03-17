@@ -524,15 +524,27 @@ function fetchSalesOverviewData(filters) {
             fetchSalesOrderData(filters, {}),
             fetchSalesInvoiceData(filters, {})
         ]).then(([salesOrderData, salesInvoiceData]) => {
+            // Consider only "submitted" documents for overview metrics
+            // i.e. exclude Draft and Cancelled records from both SO & SI datasets
+            const filteredSalesOrders = (salesOrderData.raw_data || []).filter(so =>
+                (so.status || '').toLowerCase() !== 'draft' &&
+                (so.status || '').toLowerCase() !== 'cancelled'
+            );
+
+            const filteredSalesInvoices = (salesInvoiceData.raw_data || []).filter(si =>
+                (si.status || '').toLowerCase() !== 'draft' &&
+                (si.status || '').toLowerCase() !== 'cancelled'
+            );
+
             // Calculate totals - count unique documents, not line items
-            const uniqueOrders = new Set(salesOrderData.raw_data.map(so => so.sales_order));
-            const uniqueInvoices = new Set(salesInvoiceData.raw_data.map(si => si.sales_invoice));
+            const uniqueOrders = new Set(filteredSalesOrders.map(so => so.sales_order));
+            const uniqueInvoices = new Set(filteredSalesInvoices.map(si => si.sales_invoice));
             const totalOrders = uniqueOrders.size;
             const totalInvoices = uniqueInvoices.size;
 
             // Calculate total values - sum unique document totals
             const orderTotals = {};
-            salesOrderData.raw_data.forEach(so => {
+            filteredSalesOrders.forEach(so => {
                 if (so.sales_order && !orderTotals[so.sales_order]) {
                     orderTotals[so.sales_order] = parseFloat(so.grand_total) || 0;
                 }
@@ -540,7 +552,7 @@ function fetchSalesOverviewData(filters) {
             const totalOrderValue = Object.values(orderTotals).reduce((sum, total) => sum + total, 0);
 
             const invoiceTotals = {};
-            salesInvoiceData.raw_data.forEach(si => {
+            filteredSalesInvoices.forEach(si => {
                 if (si.sales_invoice && !invoiceTotals[si.sales_invoice]) {
                     invoiceTotals[si.sales_invoice] = parseFloat(si.grand_total) || 0;
                 }
@@ -551,32 +563,32 @@ function fetchSalesOverviewData(filters) {
             const summary = [
                 {
                     value: totalOrders,
-                    label: __('Total Sales Orders'),
+                    label: __('Total Sales Orders (Submitted)'),
                     datatype: 'Int',
                     indicator: 'Blue',
-                    description: __('Total sales orders in the period')
+                    description: __('Total submitted sales orders in the period (excluding Draft and Cancelled)')
                 },
                 {
                     value: totalInvoices,
-                    label: __('Total Sales Invoices'),
+                    label: __('Total Sales Invoices (Submitted)'),
                     datatype: 'Int',
                     indicator: 'Green',
-                    description: __('Total sales invoices in the period')
+                    description: __('Total submitted sales invoices in the period (excluding Draft and Cancelled)')
                 },
                 {
                     value: totalOrderValue,
-                    label: __('Total Order Value'),
+                    label: __('Total Order Value (Submitted)'),
                     datatype: 'Currency',
                     indicator: 'Orange',
-                    description: __('Total value of sales orders'),
+                    description: __('Total value of submitted sales orders (excluding Draft and Cancelled)'),
                     prefix: '₹'
                 },
                 {
                     value: totalInvoiceValue,
-                    label: __('Total Invoice Value'),
+                    label: __('Total Invoice Value (Submitted)'),
                     datatype: 'Currency',
                     indicator: 'Purple',
-                    description: __('Total value of sales invoices'),
+                    description: __('Total value of submitted sales invoices (excluding Draft and Cancelled)'),
                     prefix: '₹'
                 }
             ];
