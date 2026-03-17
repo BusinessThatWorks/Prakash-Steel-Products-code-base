@@ -16,6 +16,27 @@ frappe.pages['sales-summary-dashboard'].on_page_load = function (wrapper) {
         single_column: true,
     });
 
+    // Hide Frappe's default page head/title - SCOPED to this page container only
+    $(page.page_container).find('.page-head').hide();
+
+    // Hide title elements within this page container only (not globally)
+    setTimeout(function () {
+        // Only hide elements within this page's container
+        $(page.page_container).find('.page-title, .page-header h1, .page-title-wrapper').hide();
+        $(page.page_container).find('h1, .page-title, .title').not('.dashboard-title').hide();
+        if (page.page_title) {
+            $(page.page_title).hide();
+        }
+        // Hide breadcrumbs within this page container
+        $(page.page_container).find('.page-header, .page-breadcrumbs').hide();
+    }, 100);
+
+    // Also check after a longer delay in case elements load later - SCOPED
+    setTimeout(function () {
+        $(page.page_container).find('.page-title, .page-header h1, .page-title-wrapper, .page-head').hide();
+        $(page.page_container).find('h1').not('.dashboard-title').hide();
+    }, 500);
+
     // Initialize dashboard state
     const state = {
         page,
@@ -303,15 +324,16 @@ function createSectionFilterControls(state, tabId) {
         });
     }, 100);
 
-    // ID filter
+    // ID filter - use Autocomplete so we can feed it suggestions
     const idField = getIdFieldName(tabId);
     state.controls[`${tabId}_id`] = frappe.ui.form.make_control({
         parent: $(`#${tabId}-id-filter`).get(0),
         df: {
-            fieldtype: 'Data',
+            fieldtype: 'Autocomplete',
             label: __('ID'),
             fieldname: `${tabId}_id`,
-            reqd: 0
+            reqd: 0,
+            options: ''
         },
         render_input: true,
     });
@@ -670,6 +692,9 @@ function fetchSalesOrderData(filters, state) {
                     // Update status options based on actual data
                     updateStatusOptions('sales_order', rawData, state);
 
+                    // Update ID autocomplete options based on actual data
+                    updateIdOptions('sales_order', rawData, state);
+
                     resolve({ summary: summary, raw_data: rawData });
                 } else {
                     resolve({ summary: [], raw_data: [] });
@@ -752,6 +777,9 @@ function fetchSalesInvoiceData(filters, state) {
                     // Update status options based on actual data
                     updateStatusOptions('sales_invoice', rawData, state);
 
+                    // Update ID autocomplete options based on actual data
+                    updateIdOptions('sales_invoice', rawData, state);
+
                     resolve({ summary: summary, raw_data: rawData });
                 } else {
                     resolve({ summary: [], raw_data: [] });
@@ -793,6 +821,50 @@ function updateStatusOptions(tabId, data, state) {
     }
 
     return statusOptions;
+}
+
+function updateIdOptions(tabId, data, state) {
+    const idFieldName = getIdFieldName(tabId);
+    const idSet = new Set();
+
+    if (data && data.length > 0) {
+        data.forEach(row => {
+            if (row.sales_order && tabId === 'sales_order') {
+                idSet.add(row.sales_order);
+            }
+            if (row.sales_invoice && tabId === 'sales_invoice') {
+                idSet.add(row.sales_invoice);
+            }
+            // Fallback: use generic id field name if present
+            if (row[idFieldName]) {
+                idSet.add(row[idFieldName]);
+            }
+        });
+    }
+
+    const idOptions = Array.from(idSet).sort();
+
+    if (state && state.controls) {
+        const idControl = state.controls[`${tabId}_id`];
+        if (idControl) {
+            // Frappe Autocomplete works best with an array of options
+            idControl.df.options = idOptions;
+
+            // If the control exposes set_data (v13+), use it
+            if (typeof idControl.set_data === 'function') {
+                idControl.set_data(idOptions);
+            }
+
+            // Refresh the input UI to bind the new dataset
+            if (typeof idControl.refresh_input === 'function') {
+                idControl.refresh_input();
+            } else if (typeof idControl.refresh === 'function') {
+                idControl.refresh();
+            }
+        }
+    }
+
+    return idOptions;
 }
 
 function getStatusIndicator(status) {
