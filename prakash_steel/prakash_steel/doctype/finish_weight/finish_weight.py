@@ -103,6 +103,9 @@ class FinishWeight(Document):
 			frappe.db.set_value("Finish Weight", self.name, "custom_stock_entry_id", stock_entry.name)
 			frappe.db.commit()
 
+			# Push finish_weight to linked Production Plan Item row(s)
+			self.update_production_plan_qty_from_finish_weight()
+
 			frappe.msgprint(
 				_("Stock Entry {0} created and submitted successfully").format(frappe.bold(stock_entry.name)),
 				indicator="green",
@@ -141,6 +144,66 @@ class FinishWeight(Document):
 				f"Cooling PIT creation failed for Finish Weight {self.name}: {e}",
 			)
 			frappe.msgprint(_("Warning:  Error: {0}").format(str(e)), indicator="orange", alert=True)
+
+	def update_production_plan_qty_from_finish_weight(self):
+		"""
+		Accumulate `finish_weight` into `custom_production_qty` in the linked
+		Production Plan Item row(s) (child table `po_items`) for the Production
+		Plan referenced on this Finish Weight document.
+
+		Logic:
+		- Use this document's `production_plan` link field.
+		- Find child rows in `po_items` where `item_code == item_code`.
+		- For each matching row, set:
+		  custom_production_qty = existing custom_production_qty + finish_weight
+
+		Note:
+		- Production Plan is a submittable doctype; we therefore use
+		  `frappe.db.set_value` on the child rows so this works even when
+		  the Production Plan is already submitted.
+		"""
+		if not getattr(self, "production_plan", None):
+			return
+
+		if not getattr(self, "item_code", None):
+			return
+
+		if not getattr(self, "finish_weight", None) or self.finish_weight <= 0:
+			return
+
+		try:
+			rows = frappe.get_all(
+				"Production Plan Item",
+				filters={
+					"parent": self.production_plan,
+					"parenttype": "Production Plan",
+					"parentfield": "po_items",
+					"item_code": self.item_code,
+				},
+				fields=["name", "custom_production_qty"],
+			)
+
+			if not rows:
+				return
+
+			for row in rows:
+				existing_qty = flt(row.get("custom_production_qty") or 0)
+				new_qty = existing_qty + flt(self.finish_weight)
+
+				frappe.db.set_value(
+					"Production Plan Item",
+					row.name,
+					"custom_production_qty",
+					new_qty,
+				)
+
+			frappe.db.commit()
+
+		except Exception as e:
+			frappe.log_error(
+				f"Error updating Production Plan Item custom_production_qty from Finish Weight {self.name}: {str(e)}",
+				"Finish Weight → Production Plan Qty Sync Error",
+			)
 
 	def before_cancel(self):
 		"""Block cancel if linked Stock Entry is still active."""

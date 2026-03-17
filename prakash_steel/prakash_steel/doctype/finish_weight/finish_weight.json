@@ -129,13 +129,15 @@
    "fieldname": "grade",
    "fieldtype": "Link",
    "label": "Grade",
-   "options": "Item Grade"
+   "options": "Item Grade",
+   "read_only": 1
   },
   {
    "fetch_from": "item_code.custom_shape",
    "fieldname": "shape",
    "fieldtype": "Data",
-   "label": "Shape"
+   "label": "Shape",
+   "read_only": 1
   },
   {
    "fieldname": "finished_goods_details_section",
@@ -336,7 +338,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-09 16:56:12.444151",
+ "modified": "2026-03-17 11:14:47.807153",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight",
@@ -359,5 +361,6 @@
  "row_format": "Dynamic",
  "sort_field": "modified",
  "sort_order": "DESC",
- "states": []
+ "states": [],
+ "track_changes": 1
 }

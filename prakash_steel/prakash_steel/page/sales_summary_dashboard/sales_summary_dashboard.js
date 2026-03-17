@@ -16,6 +16,27 @@ frappe.pages['sales-summary-dashboard'].on_page_load = function (wrapper) {
         single_column: true,
     });
 
+    // Hide Frappe's default page head/title - SCOPED to this page container only
+    $(page.page_container).find('.page-head').hide();
+
+    // Hide title elements within this page container only (not globally)
+    setTimeout(function () {
+        // Only hide elements within this page's container
+        $(page.page_container).find('.page-title, .page-header h1, .page-title-wrapper').hide();
+        $(page.page_container).find('h1, .page-title, .title').not('.dashboard-title').hide();
+        if (page.page_title) {
+            $(page.page_title).hide();
+        }
+        // Hide breadcrumbs within this page container
+        $(page.page_container).find('.page-header, .page-breadcrumbs').hide();
+    }, 100);
+
+    // Also check after a longer delay in case elements load later - SCOPED
+    setTimeout(function () {
+        $(page.page_container).find('.page-title, .page-header h1, .page-title-wrapper, .page-head').hide();
+        $(page.page_container).find('h1').not('.dashboard-title').hide();
+    }, 500);
+
     // Initialize dashboard state
     const state = {
         page,
@@ -303,15 +324,16 @@ function createSectionFilterControls(state, tabId) {
         });
     }, 100);
 
-    // ID filter
+    // ID filter - use Autocomplete so we can feed it suggestions
     const idField = getIdFieldName(tabId);
     state.controls[`${tabId}_id`] = frappe.ui.form.make_control({
         parent: $(`#${tabId}-id-filter`).get(0),
         df: {
-            fieldtype: 'Data',
+            fieldtype: 'Autocomplete',
             label: __('ID'),
             fieldname: `${tabId}_id`,
-            reqd: 0
+            reqd: 0,
+            options: ''
         },
         render_input: true,
     });
@@ -524,15 +546,27 @@ function fetchSalesOverviewData(filters) {
             fetchSalesOrderData(filters, {}),
             fetchSalesInvoiceData(filters, {})
         ]).then(([salesOrderData, salesInvoiceData]) => {
+            // Consider only "submitted" documents for overview metrics
+            // i.e. exclude Draft and Cancelled records from both SO & SI datasets
+            const filteredSalesOrders = (salesOrderData.raw_data || []).filter(so =>
+                (so.status || '').toLowerCase() !== 'draft' &&
+                (so.status || '').toLowerCase() !== 'cancelled'
+            );
+
+            const filteredSalesInvoices = (salesInvoiceData.raw_data || []).filter(si =>
+                (si.status || '').toLowerCase() !== 'draft' &&
+                (si.status || '').toLowerCase() !== 'cancelled'
+            );
+
             // Calculate totals - count unique documents, not line items
-            const uniqueOrders = new Set(salesOrderData.raw_data.map(so => so.sales_order));
-            const uniqueInvoices = new Set(salesInvoiceData.raw_data.map(si => si.sales_invoice));
+            const uniqueOrders = new Set(filteredSalesOrders.map(so => so.sales_order));
+            const uniqueInvoices = new Set(filteredSalesInvoices.map(si => si.sales_invoice));
             const totalOrders = uniqueOrders.size;
             const totalInvoices = uniqueInvoices.size;
 
             // Calculate total values - sum unique document totals
             const orderTotals = {};
-            salesOrderData.raw_data.forEach(so => {
+            filteredSalesOrders.forEach(so => {
                 if (so.sales_order && !orderTotals[so.sales_order]) {
                     orderTotals[so.sales_order] = parseFloat(so.grand_total) || 0;
                 }
@@ -540,7 +574,7 @@ function fetchSalesOverviewData(filters) {
             const totalOrderValue = Object.values(orderTotals).reduce((sum, total) => sum + total, 0);
 
             const invoiceTotals = {};
-            salesInvoiceData.raw_data.forEach(si => {
+            filteredSalesInvoices.forEach(si => {
                 if (si.sales_invoice && !invoiceTotals[si.sales_invoice]) {
                     invoiceTotals[si.sales_invoice] = parseFloat(si.grand_total) || 0;
                 }
@@ -551,32 +585,32 @@ function fetchSalesOverviewData(filters) {
             const summary = [
                 {
                     value: totalOrders,
-                    label: __('Total Sales Orders'),
+                    label: __('Total Sales Orders (Submitted)'),
                     datatype: 'Int',
                     indicator: 'Blue',
-                    description: __('Total sales orders in the period')
+                    description: __('Total submitted sales orders in the period (excluding Draft and Cancelled)')
                 },
                 {
                     value: totalInvoices,
-                    label: __('Total Sales Invoices'),
+                    label: __('Total Sales Invoices (Submitted)'),
                     datatype: 'Int',
                     indicator: 'Green',
-                    description: __('Total sales invoices in the period')
+                    description: __('Total submitted sales invoices in the period (excluding Draft and Cancelled)')
                 },
                 {
                     value: totalOrderValue,
-                    label: __('Total Order Value'),
+                    label: __('Total Order Value (Submitted)'),
                     datatype: 'Currency',
                     indicator: 'Orange',
-                    description: __('Total value of sales orders'),
+                    description: __('Total value of submitted sales orders (excluding Draft and Cancelled)'),
                     prefix: '₹'
                 },
                 {
                     value: totalInvoiceValue,
-                    label: __('Total Invoice Value'),
+                    label: __('Total Invoice Value (Submitted)'),
                     datatype: 'Currency',
                     indicator: 'Purple',
-                    description: __('Total value of sales invoices'),
+                    description: __('Total value of submitted sales invoices (excluding Draft and Cancelled)'),
                     prefix: '₹'
                 }
             ];
@@ -657,6 +691,9 @@ function fetchSalesOrderData(filters, state) {
 
                     // Update status options based on actual data
                     updateStatusOptions('sales_order', rawData, state);
+
+                    // Update ID autocomplete options based on actual data
+                    updateIdOptions('sales_order', rawData, state);
 
                     resolve({ summary: summary, raw_data: rawData });
                 } else {
@@ -740,6 +777,9 @@ function fetchSalesInvoiceData(filters, state) {
                     // Update status options based on actual data
                     updateStatusOptions('sales_invoice', rawData, state);
 
+                    // Update ID autocomplete options based on actual data
+                    updateIdOptions('sales_invoice', rawData, state);
+
                     resolve({ summary: summary, raw_data: rawData });
                 } else {
                     resolve({ summary: [], raw_data: [] });
@@ -781,6 +821,50 @@ function updateStatusOptions(tabId, data, state) {
     }
 
     return statusOptions;
+}
+
+function updateIdOptions(tabId, data, state) {
+    const idFieldName = getIdFieldName(tabId);
+    const idSet = new Set();
+
+    if (data && data.length > 0) {
+        data.forEach(row => {
+            if (row.sales_order && tabId === 'sales_order') {
+                idSet.add(row.sales_order);
+            }
+            if (row.sales_invoice && tabId === 'sales_invoice') {
+                idSet.add(row.sales_invoice);
+            }
+            // Fallback: use generic id field name if present
+            if (row[idFieldName]) {
+                idSet.add(row[idFieldName]);
+            }
+        });
+    }
+
+    const idOptions = Array.from(idSet).sort();
+
+    if (state && state.controls) {
+        const idControl = state.controls[`${tabId}_id`];
+        if (idControl) {
+            // Frappe Autocomplete works best with an array of options
+            idControl.df.options = idOptions;
+
+            // If the control exposes set_data (v13+), use it
+            if (typeof idControl.set_data === 'function') {
+                idControl.set_data(idOptions);
+            }
+
+            // Refresh the input UI to bind the new dataset
+            if (typeof idControl.refresh_input === 'function') {
+                idControl.refresh_input();
+            } else if (typeof idControl.refresh === 'function') {
+                idControl.refresh();
+            }
+        }
+    }
+
+    return idOptions;
 }
 
 function getStatusIndicator(status) {
