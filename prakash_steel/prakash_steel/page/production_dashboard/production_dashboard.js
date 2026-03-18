@@ -747,9 +747,9 @@ function buildTableRow(tabId, row) {
         <td style="${tdStyle}">${finishedItem}</td>
         <td style="${tdStyle}">${fgPlannedQty}</td>
         <td style="${tdStyle}">${actualQty}</td>
-        <td style="${tdStyle}">${fgWeight}</td>
         <td style="${tdStyle}">${finishLength}</td>
         <td style="${tdStyle}">${tolerance}</td>
+        <td style="${tdStyle}">${fgWeight}</td>
         <td style="${tdStyle}">${lastColValue}</td>
     </tr>`;
 }
@@ -801,9 +801,9 @@ function getTableColumns(tabId) {
         { label: __('Finished Item'), align: 'left' },
         { label: __('FG Planned Qty'), align: 'left' },
         { label: __('Actual Qty'), align: 'left' },
-        { label: __('Melting Weight'), align: 'left' },
         { label: __('Finish Length'), align: 'left' },
         { label: __('Tolerance'), align: 'left' },
+        { label: __('Melting Weight'), align: 'left' },
         { label: __('Wastage %'), align: 'left' },
     ];
 }
