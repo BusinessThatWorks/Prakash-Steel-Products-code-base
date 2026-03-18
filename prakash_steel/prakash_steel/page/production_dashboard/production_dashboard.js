@@ -460,12 +460,12 @@ function render_cards(state, totals) {
         });
 
     } else if (tabId === 'bright_production') {
-        // FG Weight — Sum from Bright Bar Production (backend calculated)
+        // Melting Weight — Sum from Bright Bar Production (backend calculated)
         cards.push({
             value: totals.total_fg_weight,
-            label: __('FG Weight'),
+            label: __('Melting Weight'),
             gradientClass: 'card-teal',
-            description: __('Total FG Weight (from Bright Bar Production)'),
+            description: __('Total Melting Weight (from Bright Bar Production)'),
             isQty: true,
         });
 
@@ -801,7 +801,7 @@ function getTableColumns(tabId) {
         { label: __('Finished Item'), align: 'left' },
         { label: __('FG Planned Qty'), align: 'left' },
         { label: __('Actual Qty'), align: 'left' },
-        { label: __('FG Weight'), align: 'left' },
+        { label: __('Melting Weight'), align: 'left' },
         { label: __('Finish Length'), align: 'left' },
         { label: __('Tolerance'), align: 'left' },
         { label: __('Wastage %'), align: 'left' },
