@@ -14,6 +14,7 @@ def update_jwo_on_sales_invoice_submit(doc, method):
 	_update_transferred_qty(jwo, "Sales Invoice", "Sales Invoice Item")
 	_set_transfer_status(jwo)
 	_update_loss_per(jwo)
+	frappe.publish_realtime("jwo_updated", {"name": jwo_name}, after_commit=True)
 
 
 def update_jwo_on_delivery_note_submit(doc, method):
@@ -29,6 +30,7 @@ def update_jwo_on_delivery_note_submit(doc, method):
 	_update_transferred_qty(jwo, "Delivery Note", "Delivery Note Item")
 	_set_transfer_status(jwo)
 	_update_loss_per(jwo)
+	frappe.publish_realtime("jwo_updated", {"name": jwo_name}, after_commit=True)
 
 
 def update_jwo_on_purchase_receipt_submit(doc, method):
@@ -77,6 +79,7 @@ def update_jwo_on_purchase_receipt_submit(doc, method):
 
 	frappe.db.set_value("JOB Work Order", jwo.name, "status", new_status)
 	_update_loss_per(jwo)
+	frappe.publish_realtime("jwo_updated", {"name": jwo.name}, after_commit=True)
 
 
 def _update_transferred_qty(jwo, parent_doctype, child_doctype):

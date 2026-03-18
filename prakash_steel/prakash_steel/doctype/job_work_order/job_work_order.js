@@ -2,6 +2,14 @@
 // For license information, please see license.txt
 
 frappe.ui.form.on("JOB Work Order", {
+    onload: function (frm) {
+        frappe.realtime.on("jwo_updated", function (data) {
+            if (frm.doc.name === data.name) {
+                frm.reload_doc();
+            }
+        });
+    },
+
     refresh: function (frm) {
         frm.set_query("default_bom", "work_item_table", function (doc, cdt, cdn) {
             let row = locals[cdt][cdn];
@@ -27,37 +35,41 @@ frappe.ui.form.on("JOB Work Order", {
         }
 
         if (frm.doc.docstatus === 1 && frm.doc.job_work_type === "Sale-Purchase") {
-            frm.add_custom_button(
-                __("Sales Invoice"),
-                function () {
-                    _make_sales_invoice(frm);
-                },
-                __("Create")
+            const has_pending_transfer = (frm.doc.work_item_table || []).some(
+                row => (row.rm_qty_required || 0) > (row.actual_transferred_qty || 0)
             );
+
+            if (has_pending_transfer) {
+                frm.add_custom_button(
+                    __("Sales Invoice"),
+                    function () { _make_sales_invoice(frm); },
+                    __("Create")
+                );
+            }
 
             frm.add_custom_button(
                 __("Purchase Receipt"),
-                function () {
-                    _make_purchase_receipt(frm);
-                },
+                function () { _make_purchase_receipt(frm); },
                 __("Create")
             );
         }
 
         if (frm.doc.docstatus === 1 && frm.doc.job_work_type === "Subcontracting") {
-            frm.add_custom_button(
-                __("Delivery Note"),
-                function () {
-                    _make_delivery_note(frm);
-                },
-                __("Create")
+            const has_pending_transfer = (frm.doc.work_item_table || []).some(
+                row => (row.rm_qty_required || 0) > (row.actual_transferred_qty || 0)
             );
+
+            if (has_pending_transfer) {
+                frm.add_custom_button(
+                    __("Delivery Note"),
+                    function () { _make_delivery_note(frm); },
+                    __("Create")
+                );
+            }
 
             frm.add_custom_button(
                 __("Purchase Receipt"),
-                function () {
-                    _make_purchase_receipt(frm);
-                },
+                function () { _make_purchase_receipt(frm); },
                 __("Create")
             );
         }
