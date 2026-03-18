@@ -1,4 +1,19 @@
+function validate_zero_rate_items(frm) {
+    let zero_rate_rows = (frm.doc.items || []).filter(row => !row.rate || row.rate === 0);
+    if (zero_rate_rows.length) {
+        let msgs = zero_rate_rows.map(row =>
+            __("Row {0}: Item {1} has Rate 0. Please set a valid rate.", [row.idx, row.item_code || row.item_name || ""])
+        );
+        frappe.msgprint({ title: __("Zero Rate Not Allowed"), message: msgs.join("<br>"), indicator: "red" });
+        frappe.validated = false;
+    }
+}
+
 frappe.ui.form.on("Sales Order", {
+    validate(frm) {
+        validate_zero_rate_items(frm);
+    },
+
     refresh(frm) {
         // Clear cancel reason on amended drafts
         if (frm.doc.amended_from && frm.doc.docstatus === 0 && frm.doc.custom_cancel_reason) {

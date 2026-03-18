@@ -32,7 +32,8 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Default BOM",
-   "options": "BOM"
+   "options": "BOM",
+   "reqd": 1
   },
   {
    "fieldname": "column_break_hbhh",
@@ -52,7 +53,8 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Raw Material",
-   "options": "Item"
+   "options": "Item",
+   "read_only": 1
   },
   {
    "columns": 2,
@@ -85,7 +87,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-03-12 12:12:18.413681",
+ "modified": "2026-03-17 11:48:07.965632",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "JOB Work Item table",

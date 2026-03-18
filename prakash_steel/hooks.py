@@ -17,6 +17,10 @@ fixtures = [
 # DocType JavaScript
 # ------------------------------------------------------------------------------
 
+doctype_list_js = {
+	"JOB Work Order": "prakash_steel/doctype/job_work_order/job_work_order_list.js",
+}
+
 doctype_js = {
 	"Material Request": "public/js/material_request.js",
 	"Sales Order": "public/js/sales_order.js",
@@ -56,12 +60,14 @@ doc_events = {
 		"validate": "prakash_steel.utils.item.validate_min_order_qty_and_batch_size",
 		"on_update": "prakash_steel.utils.item.update_decoupled_lead_time_on_item_save",
 	},
-	# "Sales Invoice": {
-	# 	"on_submit": "prakash_steel.utils.job_work_order_utils.update_jwo_on_sales_invoice_submit",
-	# },
-	# "Delivery Note": {
-	# 	"on_submit": "prakash_steel.utils.job_work_order_utils.update_jwo_on_delivery_note_submit",
-	# },
+	"Sales Invoice": {
+		"on_submit": "prakash_steel.utils.job_work_order_utils.update_jwo_on_sales_invoice_submit",
+		"on_cancel": "prakash_steel.utils.job_work_order_utils.update_jwo_on_sales_invoice_submit",
+	},
+	"Delivery Note": {
+		"on_submit": "prakash_steel.utils.job_work_order_utils.update_jwo_on_delivery_note_submit",
+		"on_cancel": "prakash_steel.utils.job_work_order_utils.update_jwo_on_delivery_note_submit",
+	},
 	"BOM": {
 		"on_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
 		"on_update_after_submit": "prakash_steel.utils.item.update_decoupled_lead_time_on_bom_save",
@@ -69,8 +75,9 @@ doc_events = {
 	"Purchase Receipt": {
 		"on_submit": [
 			"prakash_steel.utils.purchase_receipt.validate_purchase_receipt_quantity",
-			# "prakash_steel.utils.job_work_order_utils.update_jwo_on_purchase_receipt_submit",
+			"prakash_steel.utils.job_work_order_utils.update_jwo_on_purchase_receipt_submit",
 		],
+		"on_cancel": "prakash_steel.utils.job_work_order_utils.update_jwo_on_purchase_receipt_submit",
 		"before_cancel": "prakash_steel.utils.purchase_receipt_cancel.validate_cancel_reason",
 	},
 	"Production Plan": {
@@ -78,9 +85,13 @@ doc_events = {
 	},
 	"Sales Order": {
 		"before_cancel": "prakash_steel.utils.sales_order_cancel.validate_cancel_reason",
+		"validate": "prakash_steel.utils.order_validation.validate_no_zero_rate_items",
+		"before_update_after_submit": "prakash_steel.utils.order_validation.validate_no_zero_rate_items",
 	},
 	"Purchase Order": {
 		"before_cancel": "prakash_steel.utils.purchase_order_cancel.validate_cancel_reason",
+		"validate": "prakash_steel.utils.order_validation.validate_no_zero_rate_items",
+		"before_update_after_submit": "prakash_steel.utils.order_validation.validate_no_zero_rate_items",
 	},
 	"Purchase Invoice": {
 		"before_cancel": "prakash_steel.utils.purchase_invoice_cancel.validate_cancel_reason",
