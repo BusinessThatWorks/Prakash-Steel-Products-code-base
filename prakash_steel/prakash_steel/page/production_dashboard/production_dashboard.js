@@ -460,6 +460,15 @@ function render_cards(state, totals) {
         });
 
     } else if (tabId === 'bright_production') {
+        // Melting Weight — Sum from Bright Bar Production (backend calculated)
+        cards.push({
+            value: totals.total_fg_weight,
+            label: __('Melting Weight'),
+            gradientClass: 'card-teal',
+            description: __('Total Melting Weight (from Bright Bar Production)'),
+            isQty: true,
+        });
+
         // Wastage % — Average from Bright Bar Production records (backend calculated)
         cards.push({
             value: totals.wastage_per,
@@ -644,6 +653,7 @@ function buildTableRow(tabId, row) {
     // Qty fields
     const fgPlannedQty        = format_qty_as_integer(row.fg_planned_qty);
     const actualQty           = format_qty_as_integer(row.actual_qty);
+    const fgWeight            = format_qty_as_integer(row.fg_weight);
     const meltingWeight       = format_qty_as_integer(row.melting_weight);
     const finishPcs           = format_qty_as_integer(row.finish_pcs);
     const totalMissRollPcs    = format_qty_as_integer(row.total_miss_roll_pcs);
@@ -739,6 +749,7 @@ function buildTableRow(tabId, row) {
         <td style="${tdStyle}">${actualQty}</td>
         <td style="${tdStyle}">${finishLength}</td>
         <td style="${tdStyle}">${tolerance}</td>
+        <td style="${tdStyle}">${fgWeight}</td>
         <td style="${tdStyle}">${lastColValue}</td>
     </tr>`;
 }
@@ -792,6 +803,7 @@ function getTableColumns(tabId) {
         { label: __('Actual Qty'), align: 'left' },
         { label: __('Finish Length'), align: 'left' },
         { label: __('Tolerance'), align: 'left' },
+        { label: __('Melting Weight'), align: 'left' },
         { label: __('Wastage %'), align: 'left' },
     ];
 }
