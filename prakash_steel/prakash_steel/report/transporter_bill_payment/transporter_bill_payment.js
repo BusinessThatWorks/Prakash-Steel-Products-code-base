@@ -1,6 +1,14 @@
 frappe.query_reports["Transporter Bill Payment"] = {
 	filters: [
 		{
+			fieldname: "invoice_type",
+			label: __("Type"),
+			fieldtype: "Select",
+			options: "\nPurchase\nSale",
+			default: "Purchase",
+			reqd: 1,
+		},
+		{
 			fieldname: "from_date",
 			label: __("From Date"),
 			fieldtype: "Date",

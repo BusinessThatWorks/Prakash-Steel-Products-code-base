@@ -4,12 +4,53 @@ from frappe.utils import flt, getdate
 
 def execute(filters=None):
     filters = filters or {}
-    columns = get_columns()
+    invoice_type = get_invoice_type(filters)
+    columns = get_columns(invoice_type)
     data = get_data(filters)
     return columns, data
 
 
-def get_columns():
+def get_invoice_type(filters):
+    invoice_type = (filters.get("invoice_type") or "Purchase").strip().lower()
+    return "sale" if invoice_type == "sale" else "purchase"
+
+
+def get_columns(invoice_type):
+    if invoice_type == "sale":
+        return [
+            {
+                "label": "Bill Date",
+                "fieldname": "bill_date",
+                "fieldtype": "Date",
+                "width": 120,
+            },
+            {
+                "label": "Sales Invoice",
+                "fieldname": "sales_invoice",
+                "fieldtype": "Link",
+                "options": "Sales Invoice",
+                "width": 170,
+            },
+            {
+                "label": "Vendor Name",
+                "fieldname": "vendor_name",
+                "fieldtype": "Data",
+                "width": 190,
+            },
+            {
+                "label": "Truck No",
+                "fieldname": "truck_no",
+                "fieldtype": "Data",
+                "width": 140,
+            },
+            {
+                "label": "Transporter Name",
+                "fieldname": "transporter_name",
+                "fieldtype": "Data",
+                "width": 190,
+            },
+        ]
+
     return [
         {
             "label": "Bill Date",
@@ -70,6 +111,14 @@ def get_columns():
 
 
 def get_data(filters):
+    invoice_type = get_invoice_type(filters)
+    if invoice_type == "sale":
+        return get_sale_data(filters)
+
+    return get_purchase_data(filters)
+
+
+def get_purchase_data(filters):
     conditions = ["pi.docstatus = 1", "ifnull(pi.transporter_name, '') != ''"]
     values = {}
 
@@ -140,4 +189,51 @@ def get_data(filters):
         row["shortage_qty"] = billing_qty - receiving_qty
 
     return result
+
+
+def get_sale_data(filters):
+    has_transporter_name = frappe.db.has_column("Sales Invoice", "transporter_name")
+    has_vehicle_no = frappe.db.has_column("Sales Invoice", "vehicle_no")
+
+    conditions = ["si.docstatus = 1"]
+    values = {}
+
+    if has_transporter_name:
+        conditions.append("ifnull(si.transporter_name, '') != ''")
+
+    if filters.get("from_date"):
+        conditions.append("si.posting_date >= %(from_date)s")
+        values["from_date"] = getdate(filters.get("from_date"))
+
+    if filters.get("to_date"):
+        conditions.append("si.posting_date <= %(to_date)s")
+        values["to_date"] = getdate(filters.get("to_date"))
+
+    if filters.get("transporter_name") and has_transporter_name:
+        conditions.append("si.transporter_name = %(transporter_name)s")
+        values["transporter_name"] = filters.get("transporter_name")
+    elif filters.get("transporter_name") and not has_transporter_name:
+        return []
+
+    where_clause = " AND ".join(conditions)
+    truck_no_field = "si.vehicle_no" if has_vehicle_no else "''"
+    transporter_name_field = "si.transporter_name" if has_transporter_name else "''"
+
+    query = f"""
+        SELECT
+            si.posting_date AS bill_date,
+            si.name AS sales_invoice,
+            si.customer AS vendor_name,
+            {truck_no_field} AS truck_no,
+            {transporter_name_field} AS transporter_name
+        FROM
+            `tabSales Invoice` si
+        WHERE
+            {where_clause}
+        ORDER BY
+            si.posting_date ASC,
+            si.name ASC
+    """
+
+    return frappe.db.sql(query, values=values, as_dict=True)
 
