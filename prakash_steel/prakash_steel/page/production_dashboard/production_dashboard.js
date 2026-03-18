@@ -460,6 +460,15 @@ function render_cards(state, totals) {
         });
 
     } else if (tabId === 'bright_production') {
+        // FG Weight — Sum from Bright Bar Production (backend calculated)
+        cards.push({
+            value: totals.total_fg_weight,
+            label: __('FG Weight'),
+            gradientClass: 'card-teal',
+            description: __('Total FG Weight (from Bright Bar Production)'),
+            isQty: true,
+        });
+
         // Wastage % — Average from Bright Bar Production records (backend calculated)
         cards.push({
             value: totals.wastage_per,
@@ -644,6 +653,7 @@ function buildTableRow(tabId, row) {
     // Qty fields
     const fgPlannedQty        = format_qty_as_integer(row.fg_planned_qty);
     const actualQty           = format_qty_as_integer(row.actual_qty);
+    const fgWeight            = format_qty_as_integer(row.fg_weight);
     const meltingWeight       = format_qty_as_integer(row.melting_weight);
     const finishPcs           = format_qty_as_integer(row.finish_pcs);
     const totalMissRollPcs    = format_qty_as_integer(row.total_miss_roll_pcs);
@@ -737,6 +747,7 @@ function buildTableRow(tabId, row) {
         <td style="${tdStyle}">${finishedItem}</td>
         <td style="${tdStyle}">${fgPlannedQty}</td>
         <td style="${tdStyle}">${actualQty}</td>
+        <td style="${tdStyle}">${fgWeight}</td>
         <td style="${tdStyle}">${finishLength}</td>
         <td style="${tdStyle}">${tolerance}</td>
         <td style="${tdStyle}">${lastColValue}</td>
@@ -790,6 +801,7 @@ function getTableColumns(tabId) {
         { label: __('Finished Item'), align: 'left' },
         { label: __('FG Planned Qty'), align: 'left' },
         { label: __('Actual Qty'), align: 'left' },
+        { label: __('FG Weight'), align: 'left' },
         { label: __('Finish Length'), align: 'left' },
         { label: __('Tolerance'), align: 'left' },
         { label: __('Wastage %'), align: 'left' },

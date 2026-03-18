@@ -305,6 +305,7 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 			bbp.production_plan,
 			bbp.production_date,
 			bbp.finished_good         AS finished_item,
+			bbp.fg_weight             AS fg_weight,
 			bbp.fg_weight             AS actual_qty,
 			bbp.finish_length         AS fg_length,
 			bbp.raw_material          AS rm,
@@ -367,10 +368,11 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 
 		rm_consumption = flt(row.rm_consumption)
 		actual_qty = flt(row.actual_qty)
+		fg_weight = flt(row.fg_weight)
 
 		total_production += actual_qty
 		total_rm_consumption += rm_consumption
-		total_fg_weight += actual_qty
+		total_fg_weight += fg_weight
 		total_rm_for_wastage += rm_consumption
 
 		rows.append({
@@ -379,6 +381,7 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 			"finished_item": fi,
 			"fg_planned_qty": flt(fg_planned_qty),
 			"actual_qty": actual_qty,
+			"fg_weight": fg_weight,
 			"fg_length": row.fg_length or "",
 			"rm": row.rm or "",
 			"rm_consumption": rm_consumption,
@@ -399,6 +402,7 @@ def get_bright_production_data(from_date=None, to_date=None, item_code=None, pro
 		"totals": {
 			"total_production": flt(total_production),
 			"rm_consumption": flt(total_rm_consumption),
+			"total_fg_weight": flt(total_fg_weight),
 			"wastage_per": flt(avg_wastage_per, 2),
 		},
 	}
@@ -528,6 +532,7 @@ def export_production_dashboard(tab_id, from_date=None, to_date=None, item_code=
 			_("Finished Item"),
 			_("FG Planned Qty"),
 			_("Actual Qty"),
+			_("FG Weight"),
 			_("Finish Length"),
 			_("Tolerance"),
 			_("Wastage %"),
@@ -543,6 +548,7 @@ def export_production_dashboard(tab_id, from_date=None, to_date=None, item_code=
 				r.get("finished_item") or "",
 				flt(r.get("fg_planned_qty")) or 0,
 				flt(r.get("actual_qty")) or 0,
+				flt(r.get("fg_weight")) or 0,
 				r.get("finish_length") or "",
 				r.get("tolerance") or "",
 				flt(r.get("wastage")) or 0,
