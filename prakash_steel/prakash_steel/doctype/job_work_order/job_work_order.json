@@ -1,11 +1,12 @@
 {
  "actions": [],
- "allow_rename": 1,
+ "autoname": "naming_series: [naming_series]",
  "creation": "2026-03-09 15:14:55.289496",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "section_break_vu3f",
+  "naming_series",
   "status",
   "job_work_type",
   "column_break_bert",
@@ -77,16 +78,23 @@
    "fieldname": "work_item_table",
    "fieldtype": "Table",
    "options": "JOB Work Item table"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "JOB/.####./.FY."
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-17 15:44:06.738829",
+ "modified": "2026-03-19 10:45:21.170664",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "JOB Work Order",
+ "naming_rule": "By \"Naming Series\" field",
  "owner": "Administrator",
  "permissions": [
   {
@@ -104,6 +112,7 @@
   }
  ],
  "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []
