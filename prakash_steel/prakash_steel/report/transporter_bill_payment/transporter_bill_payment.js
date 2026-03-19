@@ -1,3 +1,19 @@
+function syncDateFiltersInUrl(report) {
+	var fromDate = report.get_filter_value("from_date");
+	var toDate = report.get_filter_value("to_date");
+	var url = new URL(window.location.href);
+
+	if (!fromDate) {
+		url.searchParams.delete("from_date");
+	}
+	if (!toDate) {
+		url.searchParams.delete("to_date");
+	}
+
+	var newUrl = url.pathname + (url.search ? url.search : "");
+	window.history.replaceState(null, null, newUrl);
+}
+
 frappe.query_reports["Transporter Bill Payment"] = {
 	filters: [
 		{
@@ -7,18 +23,30 @@ frappe.query_reports["Transporter Bill Payment"] = {
 			options: "\nPurchase\nSale",
 			default: "Purchase",
 			reqd: 1,
+			on_change: function (report) {
+				// Ensure columns/data are rebuilt immediately when switching mode.
+				report.refresh();
+			},
 		},
 		{
 			fieldname: "from_date",
 			label: __("From Date"),
 			fieldtype: "Date",
 			reqd: 0,
+			on_change: function (report) {
+				syncDateFiltersInUrl(report);
+				report.refresh();
+			},
 		},
 		{
 			fieldname: "to_date",
 			label: __("To Date"),
 			fieldtype: "Date",
 			reqd: 0,
+			on_change: function (report) {
+				syncDateFiltersInUrl(report);
+				report.refresh();
+			},
 		},
 		{
 			fieldname: "transporter_name",
@@ -37,6 +65,8 @@ frappe.query_reports["Transporter Bill Payment"] = {
 	],
 
 	onload: function (report) {
+		syncDateFiltersInUrl(report);
+
 		// Frappe sets title / Bootstrap tooltip attributes after render.
 		// Strip all tooltip-related attributes with a generous delay.
 		function removeTransporterTooltip() {
