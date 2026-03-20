@@ -61,20 +61,22 @@ function render_filters(state) {
                     border-radius:8px;">
         </div>`);
 
-    const $filterControls = $('<div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;width:100%;"></div>');
+    const $filterControls = $('<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;"></div>');
 
-    const $fromDateWrap = $('<div style="flex:1;min-width:200px;"></div>');
-    const $toDateWrap   = $('<div style="flex:1;min-width:200px;"></div>');
-    const $itemWrap     = $('<div style="flex:1;min-width:250px;"></div>');
-    const $ppWrap       = $('<div style="flex:1;min-width:250px;"></div>');
-    const $machineWrap  = $('<div style="flex:1;min-width:250px;"></div>');
+    const $fromDateWrap  = $('<div></div>');
+    const $toDateWrap    = $('<div></div>');
+    const $itemWrap      = $('<div></div>');
+    const $ppWrap        = $('<div></div>');
+    const $machineWrap   = $('<div></div>');
+    const $categoryWrap  = $('<div></div>');
 
     $filterControls
         .append($fromDateWrap)
         .append($toDateWrap)
         .append($itemWrap)
         .append($ppWrap)
-        .append($machineWrap);
+        .append($machineWrap)
+        .append($categoryWrap);
 
     $filterBar.append($filterControls);
     $(state.page.main).append($filterBar);
@@ -129,11 +131,24 @@ function render_filters(state) {
         render_input: true,
     });
 
+    // ── Category Name ──
+    state.controls.category_name = frappe.ui.form.make_control({
+        parent: $categoryWrap.get(0),
+        df: {
+            fieldtype: 'Link',
+            label: __('Category Name'),
+            fieldname: 'category_name',
+            options: 'Item Category',
+            reqd: 0,
+        },
+        render_input: true,
+    });
+
     // ── Style inputs ──
     setTimeout(() => {
         [state.controls.from_date, state.controls.to_date,
          state.controls.item_code, state.controls.production_plan,
-         state.controls.machine_name].forEach(c => {
+         state.controls.machine_name, state.controls.category_name].forEach(c => {
             if (c && c.$input) {
                 $(c.$input).css({
                     border: '1px solid #000', 'border-radius': '4px',
@@ -162,6 +177,7 @@ function getFilters(state) {
         item_code: state.controls.item_code ? state.controls.item_code.get_value() : null,
         production_plan: state.controls.production_plan ? state.controls.production_plan.get_value() : null,
         machine_name: state.controls.machine_name ? state.controls.machine_name.get_value() : null,
+        category_name: state.controls.category_name ? state.controls.category_name.get_value() : null,
     };
 }
 
@@ -249,7 +265,7 @@ function bindEventHandlers(state) {
 
     [state.controls.from_date, state.controls.to_date,
      state.controls.item_code, state.controls.production_plan,
-     state.controls.machine_name].forEach(c => {
+     state.controls.machine_name, state.controls.category_name].forEach(c => {
         if (!c) return;
         c.df.change = handler;
         c.df.onchange = handler;
@@ -329,6 +345,7 @@ function refreshDashboard(state) {
             item_code: filters.item_code || '',
             production_plan: filters.production_plan || '',
             machine_name: filters.machine_name || '',
+            category_name: filters.category_name || '',
         },
         callback: function (r) {
             if (state._refreshGen !== thisGen) return; // stale
@@ -900,6 +917,7 @@ function exportTableToExcel(state, tabId) {
         item_code: filters.item_code || '',
         production_plan: filters.production_plan || '',
         machine_name: filters.machine_name || '',
+        category_name: filters.category_name || '',
     };
 
     const query = Object.keys(params)

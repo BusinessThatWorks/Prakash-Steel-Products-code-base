@@ -14,6 +14,7 @@ def get_rolled_production_data(
     item_code=None,
     production_plan=None,
     machine_name=None,
+    category_name=None,
 ):
     """
     Fetch Rolled Production data for the Production Dashboard.
@@ -41,6 +42,18 @@ def get_rolled_production_data(
     if production_plan:
         conditions += " AND bc.production_plan = %(production_plan)s"
         params["production_plan"] = production_plan
+    if category_name:
+        cat_items = frappe.db.sql(
+            """SELECT name FROM `tabItem` WHERE custom_category_name = %(cat)s""",
+            {"cat": category_name},
+            as_dict=True,
+        )
+        cat_item_codes = [r.name for r in cat_items]
+        if cat_item_codes:
+            conditions += " AND (bc.billet_size IN %(cat_items)s OR bc.finish_size IN %(cat_items)s)"
+            params["cat_items"] = cat_item_codes
+        else:
+            return {"rows": [], "totals": {"total_production": 0, "rm_consumption": 0}}
 
     billet_cutting_data = frappe.db.sql(
         f"""
@@ -315,6 +328,7 @@ def get_bright_production_data(
     item_code=None,
     production_plan=None,
     machine_name=None,
+    category_name=None,
 ):
     """
     Fetch Bright Production data for the Production Dashboard.
@@ -344,6 +358,18 @@ def get_bright_production_data(
     if machine_name:
         conditions += " AND bbp.machine_name = %(machine_name)s"
         params["machine_name"] = machine_name
+    if category_name:
+        cat_items = frappe.db.sql(
+            """SELECT name FROM `tabItem` WHERE custom_category_name = %(cat)s""",
+            {"cat": category_name},
+            as_dict=True,
+        )
+        cat_item_codes = [r.name for r in cat_items]
+        if cat_item_codes:
+            conditions += " AND (bbp.raw_material IN %(cat_items)s OR bbp.finished_good IN %(cat_items)s)"
+            params["cat_items"] = cat_item_codes
+        else:
+            return {"rows": [], "totals": {"total_production": 0, "rm_consumption": 0}}
 
     bright_data = frappe.db.sql(
         f"""
@@ -490,6 +516,7 @@ def get_bend_weight_details(
     item_code=None,
     production_plan=None,
     machine_name=None,
+    category_name=None,
 ):
     """
     Fetch Bend Weight Details for the Production Dashboard.
@@ -511,6 +538,18 @@ def get_bend_weight_details(
     if production_plan:
         conditions += " AND fw.production_plan = %(production_plan)s"
         params["production_plan"] = production_plan
+    if category_name:
+        cat_items = frappe.db.sql(
+            """SELECT name FROM `tabItem` WHERE custom_category_name = %(cat)s""",
+            {"cat": category_name},
+            as_dict=True,
+        )
+        cat_item_codes = [r.name for r in cat_items]
+        if cat_item_codes:
+            conditions += " AND fw.item_code IN %(cat_items)s"
+            params["cat_items"] = cat_item_codes
+        else:
+            return {"rows": [], "totals": {}}
 
     rows = frappe.db.sql(
         f"""
@@ -562,13 +601,14 @@ def export_production_dashboard(
     item_code=None,
     production_plan=None,
     machine_name=None,
+    category_name=None,
 ):
     """
     Build an Excel file (XLSX) for the Production Dashboard tables.
     """
     if tab_id == "rolled_production":
         data = get_rolled_production_data(
-            from_date, to_date, item_code, production_plan, machine_name
+            from_date, to_date, item_code, production_plan, machine_name, category_name
         )
         rows = data.get("rows", [])
         header = [
@@ -631,7 +671,7 @@ def export_production_dashboard(
 
     elif tab_id == "bright_production":
         data = get_bright_production_data(
-            from_date, to_date, item_code, production_plan, machine_name
+            from_date, to_date, item_code, production_plan, machine_name, category_name
         )
         rows = data.get("rows", [])
         header = [
@@ -670,7 +710,7 @@ def export_production_dashboard(
             ]
 
     elif tab_id == "bend_weight_details":
-        data = get_bend_weight_details(from_date, to_date, item_code, production_plan)
+        data = get_bend_weight_details(from_date, to_date, item_code, production_plan, category_name=category_name)
         rows = data.get("rows", [])
         header = [
             _("ID"),
