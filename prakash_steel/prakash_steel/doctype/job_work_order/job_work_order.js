@@ -35,9 +35,10 @@ frappe.ui.form.on("JOB Work Order", {
         }
 
         if (frm.doc.docstatus === 1 && frm.doc.job_work_type === "Sale-Purchase") {
-            const has_pending_transfer = (frm.doc.work_item_table || []).some(
-                row => (row.rm_qty_required || 0) > (row.actual_transferred_qty || 0)
+            const total_required = (frm.doc.work_item_table || []).reduce(
+                (sum, row) => sum + (row.rm_qty_required || 0), 0
             );
+            const has_pending_transfer = (frm.doc.actual_transferred_qty || 0) < total_required;
 
             if (has_pending_transfer) {
                 frm.add_custom_button(
@@ -55,9 +56,10 @@ frappe.ui.form.on("JOB Work Order", {
         }
 
         if (frm.doc.docstatus === 1 && frm.doc.job_work_type === "Subcontracting") {
-            const has_pending_transfer = (frm.doc.work_item_table || []).some(
-                row => (row.rm_qty_required || 0) > (row.actual_transferred_qty || 0)
+            const total_required = (frm.doc.work_item_table || []).reduce(
+                (sum, row) => sum + (row.rm_qty_required || 0), 0
             );
+            const has_pending_transfer = (frm.doc.actual_transferred_qty || 0) < total_required;
 
             if (has_pending_transfer) {
                 frm.add_custom_button(

@@ -2,7 +2,6 @@ import frappe
 
 
 def update_jwo_on_sales_invoice_submit(doc, method):
-	"""On Sales Invoice submit: update actual_transferred_qty and status on linked JWO."""
 	jwo_name = doc.get("custom_job_work_order")
 	if not jwo_name:
 		return
@@ -18,7 +17,6 @@ def update_jwo_on_sales_invoice_submit(doc, method):
 
 
 def update_jwo_on_delivery_note_submit(doc, method):
-	"""On Delivery Note submit: update actual_received_qty and status on linked JWO."""
 	jwo_name = doc.get("custom_job_work_order")
 	if not jwo_name:
 		return
@@ -34,20 +32,19 @@ def update_jwo_on_delivery_note_submit(doc, method):
 
 
 def update_jwo_on_purchase_receipt_submit(doc, method):
-	"""On Purchase Receipt submit: update actual_received_qty and status on linked JWO."""
 	jwo_name = doc.get("custom_job_work_order")
 	if not jwo_name:
 		return
 
 	jwo = frappe.get_doc("JOB Work Order", jwo_name)
 
+	# Update per-row actual_received_qty in child table
 	for row in jwo.work_item_table:
 		if not row.fg_item:
 			continue
 
-		total = (
-			frappe.db.sql(
-				"""
+		total = frappe.db.sql(
+			"""
 			SELECT COALESCE(SUM(pri.qty), 0)
 			FROM `tabPurchase Receipt Item` pri
 			JOIN `tabPurchase Receipt` pr ON pr.name = pri.parent
@@ -55,94 +52,49 @@ def update_jwo_on_purchase_receipt_submit(doc, method):
 			  AND pr.docstatus = 1
 			  AND pri.item_code = %s
 			""",
-				(jwo.name, row.fg_item),
-			)[0][0]
-			or 0
-		)
+			(jwo.name, row.fg_item),
+		)[0][0] or 0
 
 		frappe.db.set_value("JOB Work Item table", row.name, "actual_received_qty", total)
 
 	jwo.reload()
-	rows = [r for r in jwo.work_item_table if r.fg_item]
-	if not rows:
-		return
-
-	fully_done = all((r.actual_received_qty or 0) >= (r.fg_production_qty or 0) for r in rows)
-	any_started = any((r.actual_received_qty or 0) > 0 for r in rows)
-
-	if fully_done:
-		new_status = "Completed"
-	elif any_started:
-		new_status = "Partially Received"
-	else:
-		new_status = "Pending"
-
-	frappe.db.set_value("JOB Work Order", jwo.name, "status", new_status)
+	_update_total_received_qty(jwo)
+	_set_received_status(jwo)
 	_update_loss_per(jwo)
 	frappe.publish_realtime("jwo_updated", {"name": jwo.name}, after_commit=True)
 
 
 def _update_transferred_qty(jwo, parent_doctype, child_doctype):
-	"""Sum submitted docs and update actual_transferred_qty per child row by raw_material."""
-	for row in jwo.work_item_table:
-		if not row.raw_material:
-			continue
+	"""Sum ALL item qty from all submitted docs and set actual_transferred_qty on parent JWO."""
+	total = frappe.db.sql(
+		f"""
+		SELECT COALESCE(SUM(ci.qty), 0)
+		FROM `tab{child_doctype}` ci
+		JOIN `tab{parent_doctype}` p ON p.name = ci.parent
+		WHERE p.custom_job_work_order = %s
+		  AND p.docstatus = 1
+		""",
+		(jwo.name,),
+	)[0][0] or 0
 
-		total = (
-			frappe.db.sql(
-				"""
-			SELECT COALESCE(SUM(ci.qty), 0)
-			FROM `tab{child}` ci
-			JOIN `tab{parent}` p ON p.name = ci.parent
-			WHERE p.custom_job_work_order = %s
-			  AND p.docstatus = 1
-			  AND ci.item_code = %s
-			""".format(child=child_doctype, parent=parent_doctype),
-				(jwo.name, row.raw_material),
-			)[0][0]
-			or 0
-		)
-
-		frappe.db.set_value("JOB Work Item table", row.name, "actual_transferred_qty", total)
+	frappe.db.set_value("JOB Work Order", jwo.name, "actual_transferred_qty", total)
 
 
-def _update_received_qty(jwo, parent_doctype, child_doctype):
-	"""Sum submitted docs and update actual_received_qty per child row by raw_material."""
-	for row in jwo.work_item_table:
-		if not row.raw_material:
-			continue
-
-		total = (
-			frappe.db.sql(
-				"""
-			SELECT COALESCE(SUM(ci.qty), 0)
-			FROM `tab{child}` ci
-			JOIN `tab{parent}` p ON p.name = ci.parent
-			WHERE p.custom_job_work_order = %s
-			  AND p.docstatus = 1
-			  AND ci.item_code = %s
-			""".format(child=child_doctype, parent=parent_doctype),
-				(jwo.name, row.raw_material),
-			)[0][0]
-			or 0
-		)
-
-		frappe.db.set_value("JOB Work Item table", row.name, "actual_received_qty", total)
+def _update_total_received_qty(jwo):
+	"""Sum all child rows' actual_received_qty and set total_received_qty on parent JWO."""
+	total = sum(row.actual_received_qty or 0 for row in jwo.work_item_table)
+	frappe.db.set_value("JOB Work Order", jwo.name, "total_received_qty", total)
 
 
 def _set_transfer_status(jwo):
-	"""Pending → In-Process → Material Transferred based on actual_transferred_qty vs rm_qty_required."""
+	"""Pending → In-Process → Material Transferred based on actual_transferred_qty vs sum of rm_qty_required."""
 	jwo.reload()
-	rows = [r for r in jwo.work_item_table if r.raw_material]
-	if not rows:
-		return
+	total_required = sum(row.rm_qty_required or 0 for row in jwo.work_item_table if row.raw_material)
+	transferred = jwo.actual_transferred_qty or 0
 
-	fully_done = all((r.actual_transferred_qty or 0) >= (r.rm_qty_required or 0) for r in rows)
-	any_started = any((r.actual_transferred_qty or 0) > 0 for r in rows)
-
-	if fully_done:
+	if total_required > 0 and transferred >= total_required:
 		new_status = "Material Transferred"
-	elif any_started:
+	elif transferred > 0:
 		new_status = "In-Process"
 	else:
 		new_status = "Pending"
@@ -151,18 +103,14 @@ def _set_transfer_status(jwo):
 
 
 def _set_received_status(jwo):
-	"""Pending → Partially Received → Completed based on actual_received_qty vs rm_qty_required."""
+	"""Pending → Partially Received → Completed based on total_received_qty vs sum of fg_production_qty."""
 	jwo.reload()
-	rows = [r for r in jwo.work_item_table if r.raw_material]
-	if not rows:
-		return
+	total_required = sum(row.fg_production_qty or 0 for row in jwo.work_item_table if row.fg_item)
+	received = jwo.total_received_qty or 0
 
-	fully_done = all((r.actual_received_qty or 0) >= (r.rm_qty_required or 0) for r in rows)
-	any_started = any((r.actual_received_qty or 0) > 0 for r in rows)
-
-	if fully_done:
+	if total_required > 0 and received >= total_required:
 		new_status = "Completed"
-	elif any_started:
+	elif received > 0:
 		new_status = "Partially Received"
 	else:
 		new_status = "Pending"
@@ -171,17 +119,14 @@ def _set_received_status(jwo):
 
 
 def _update_loss_per(jwo):
-	"""Calculate loss_per = (actual_transferred_qty - actual_received_qty) / actual_transferred_qty * 100.
-	Minimum 0. Reload jwo first to get latest values."""
+	"""loss_per = ((actual_transferred_qty - total_received_qty) / actual_transferred_qty) * 100. Min 0."""
 	jwo.reload()
-	for row in jwo.work_item_table:
-		transferred = row.actual_transferred_qty or 0
-		received = row.actual_received_qty or 0
+	transferred = jwo.actual_transferred_qty or 0
+	received = jwo.total_received_qty or 0
 
-		if transferred > 0:
-			loss = (transferred - received) / transferred * 100
-			loss_per = max(loss, 0)
-		else:
-			loss_per = 0
+	if transferred > 0:
+		loss_per = max((transferred - received) / transferred * 100, 0)
+	else:
+		loss_per = 0
 
-		frappe.db.set_value("JOB Work Item table", row.name, "loss_per", round(loss_per, 2))
+	frappe.db.set_value("JOB Work Order", jwo.name, "loss_per", round(loss_per, 2))
