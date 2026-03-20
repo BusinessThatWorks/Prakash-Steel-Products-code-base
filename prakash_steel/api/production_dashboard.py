@@ -201,6 +201,24 @@ def get_rolled_production_data(
             for hr in hour_rows:
                 hours_map[hr.billet_cutting_name] = flt(hr.total_hours, 2)
 
+    # ── 3.c  Batch-fetch custom_category_name from Item ──────────────
+    all_item_codes_rolled = set()
+    for row in billet_cutting_data:
+        if row.rm:
+            all_item_codes_rolled.add(row.rm)
+        if row.finished_item:
+            all_item_codes_rolled.add(row.finished_item)
+
+    category_map_rolled = {}
+    if all_item_codes_rolled:
+        item_cat_rows = frappe.db.sql(
+            """SELECT name, custom_category_name FROM `tabItem` WHERE name IN %(items)s""",
+            {"items": list(all_item_codes_rolled)},
+            as_dict=True,
+        )
+        for ir in item_cat_rows:
+            category_map_rolled[ir.name] = ir.custom_category_name or ""
+
     # ── 4.  Assemble final rows ────────────────────────────────────
     rows = []
     total_production = 0
@@ -270,6 +288,8 @@ def get_rolled_production_data(
                 "rm": row.rm or "",
                 "rm_consumption": flt(row.rm_consumption),
                 "burning_loss": flt(burning_loss, 2),
+                "rm_category_name": category_map_rolled.get(row.rm or "", ""),
+                "finished_item_category_name": category_map_rolled.get(fi, ""),
             }
         )
 
@@ -380,6 +400,24 @@ def get_bright_production_data(
         for pr in planned_rows:
             planned_qty_map[(pr.production_plan, pr.item_code)] = flt(pr.planned_qty)
 
+    # ── 2.b  Batch-fetch custom_category_name from Item ──────────────
+    all_item_codes_bright = set()
+    for row in bright_data:
+        if row.rm:
+            all_item_codes_bright.add(row.rm)
+        if row.finished_item:
+            all_item_codes_bright.add(row.finished_item)
+
+    category_map_bright = {}
+    if all_item_codes_bright:
+        item_cat_rows = frappe.db.sql(
+            """SELECT name, custom_category_name FROM `tabItem` WHERE name IN %(items)s""",
+            {"items": list(all_item_codes_bright)},
+            as_dict=True,
+        )
+        for ir in item_cat_rows:
+            category_map_bright[ir.name] = ir.custom_category_name or ""
+
     # ── 3.  Assemble final rows ────────────────────────────────────
     rows = []
     total_production = 0
@@ -419,6 +457,8 @@ def get_bright_production_data(
                 "machine_name": row.machine_name or "",
                 "finish_length": row.finish_length or "",
                 "tolerance": row.tolerance or "",
+                "rm_category_name": category_map_bright.get(row.rm or "", ""),
+                "finished_item_category_name": category_map_bright.get(fi, ""),
             }
         )
 
@@ -486,6 +526,17 @@ def get_bend_weight_details(
         as_dict=True,
     )
 
+    all_item_codes_bend = set(r.item_code for r in rows if r.item_code)
+    category_map_bend = {}
+    if all_item_codes_bend:
+        item_cat_rows = frappe.db.sql(
+            """SELECT name, custom_category_name FROM `tabItem` WHERE name IN %(items)s""",
+            {"items": list(all_item_codes_bend)},
+            as_dict=True,
+        )
+        for ir in item_cat_rows:
+            category_map_bend[ir.name] = ir.custom_category_name or ""
+
     result_rows = []
     for r in rows:
         result_rows.append(
@@ -493,6 +544,7 @@ def get_bend_weight_details(
                 "bend_material_weight": flt(r.bend_material_weight),
                 "item_code": r.item_code,
                 "id": r.finish_weight_id,
+                "category_name": category_map_bend.get(r.item_code or "", ""),
             }
         )
 
@@ -523,6 +575,7 @@ def export_production_dashboard(
             _("Production Plan"),
             _("Production Date"),
             _("RM"),
+            _("RM Category Name"),
             _("Actual RM Consumption"),
             _("Total Billet Pcs"),
             _("Description of Cutting Billet"),
@@ -532,6 +585,7 @@ def export_production_dashboard(
             _("Miss Billet Weight"),
             _("Heat No"),
             _("Finished Item"),
+            _("Finished Item Category Name"),
             _("FG Planned Qty"),
             _("Actual Qty"),
             _("Finish Pcs"),
@@ -550,6 +604,7 @@ def export_production_dashboard(
                 r.get("production_plan") or "",
                 r.get("production_date") or "",
                 r.get("rm") or "",
+                r.get("rm_category_name") or "",
                 flt(r.get("rm_consumption")) or 0,
                 flt(r.get("billet_pcs")) or 0,
                 r.get("description_of_cutting_billet") or "",
@@ -560,6 +615,7 @@ def export_production_dashboard(
                 flt(r.get("miss_billet_weight")) or 0,
                 r.get("heat_no") or "",
                 r.get("finished_item") or "",
+                r.get("finished_item_category_name") or "",
                 flt(r.get("fg_planned_qty")) or 0,
                 flt(r.get("actual_qty")) or 0,
                 flt(r.get("finish_pcs")) or 0,
@@ -582,9 +638,11 @@ def export_production_dashboard(
             _("Production Plan"),
             _("Production Date"),
             _("RM"),
+            _("RM Category Name"),
             _("Actual RM Consumption"),
             _("Machine Name"),
             _("Finished Item"),
+            _("Finished Item Category Name"),
             _("FG Planned Qty"),
             _("Actual Qty"),
             _("Melting Weight"),
@@ -598,9 +656,11 @@ def export_production_dashboard(
                 r.get("production_plan") or "",
                 r.get("production_date") or "",
                 r.get("rm") or "",
+                r.get("rm_category_name") or "",
                 flt(r.get("rm_consumption")) or 0,
                 r.get("machine_name") or "",
                 r.get("finished_item") or "",
+                r.get("finished_item_category_name") or "",
                 flt(r.get("fg_planned_qty")) or 0,
                 flt(r.get("actual_qty")) or 0,
                 flt(r.get("fg_weight")) or 0,
@@ -615,6 +675,7 @@ def export_production_dashboard(
         header = [
             _("ID"),
             _("Item Code"),
+            _("Category Name"),
             _("Bend Material Weight"),
         ]
 
@@ -622,6 +683,7 @@ def export_production_dashboard(
             return [
                 r.get("id") or r.get("name") or "",
                 r.get("item_code") or "",
+                r.get("category_name") or "",
                 flt(r.get("bend_material_weight")) or 0,
             ]
 

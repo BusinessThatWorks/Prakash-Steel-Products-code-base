@@ -1,3 +1,5 @@
+import math
+
 import frappe
 
 
@@ -59,6 +61,7 @@ def update_jwo_on_purchase_receipt_submit(doc, method):
 
 	jwo.reload()
 	_update_total_received_qty(jwo)
+	_update_qty_available_with_party(jwo)
 	_set_received_status(jwo)
 	_update_loss_per(jwo)
 	frappe.publish_realtime("jwo_updated", {"name": jwo.name}, after_commit=True)
@@ -130,3 +133,25 @@ def _update_loss_per(jwo):
 		loss_per = 0
 
 	frappe.db.set_value("JOB Work Order", jwo.name, "loss_per", round(loss_per, 2))
+
+
+def _update_qty_available_with_party(jwo):
+	"""qty_available_with_party = actual_transferred_qty - sum(rm_back per row)
+	where rm_back = ceil((actual_received_qty / bom_fg_qty) * bom_rm_qty)."""
+	total_rm_back = 0
+	for row in jwo.work_item_table:
+		received_fg = row.actual_received_qty or 0
+
+		if received_fg and row.default_bom:
+			bom = frappe.db.get_value("BOM", row.default_bom, ["quantity", "name"], as_dict=True)
+			if bom:
+				bom_rm_qty = frappe.db.get_value(
+					"BOM Item", {"parent": row.default_bom}, "qty"
+				) or 0
+				bom_fg_qty = bom.quantity or 0
+				if bom_fg_qty:
+					total_rm_back += math.ceil((received_fg / bom_fg_qty) * bom_rm_qty)
+
+	transferred = jwo.actual_transferred_qty or 0
+	qty_available = max(transferred - total_rm_back, 0)
+	frappe.db.set_value("JOB Work Order", jwo.name, "qty_available_with_party", qty_available)

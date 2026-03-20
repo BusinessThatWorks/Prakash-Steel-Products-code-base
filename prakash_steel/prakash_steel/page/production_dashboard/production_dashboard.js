@@ -596,8 +596,8 @@ function render_table(state, rows) {
 
     const headerHtml = columns.map((c, idx) => {
         const borderAfterQty =
-            (tabId === 'rolled_production' && (idx === 10 || idx === 19)) ||
-            (tabId === 'bright_production' && idx === 4);
+            (tabId === 'rolled_production' && (idx === 11 || idx === 21)) ||
+            (tabId === 'bright_production' && idx === 5);
         const borderRight = borderAfterQty ? ' border-right:2px solid #dee2e6;' : '';
         let style;
         if (idx === 0) style = thCol0;
@@ -692,10 +692,14 @@ function buildTableRow(tabId, row) {
         const tdCol0H = tdCol0 + rowBg;
         const tdCol1H = tdCol1 + rowBg;
 
+        const rmCategoryName = row.rm_category_name ? frappe.utils.escape_html(row.rm_category_name) : '';
+        const finishedItemCategoryName = row.finished_item_category_name ? frappe.utils.escape_html(row.finished_item_category_name) : '';
+
         return `<tr style="border-bottom:1px solid #e9ecef;${rowBg}">
             <td style="${tdCol0H}">${ppLink}</td>
             <td style="${tdCol1H}">${prodDate}</td>
             <td style="${tdHighlight}">${rm}</td>
+            <td style="${tdHighlight}">${rmCategoryName}</td>
             <td style="${tdHighlight}">${rmConsumption}</td>
             <td style="${tdHighlight}">${billetPcs}</td>
             <td style="${tdHighlight}">${descriptionOfCuttingBillet}</td>
@@ -705,6 +709,7 @@ function buildTableRow(tabId, row) {
             <td style="${tdHighlight}">${missBilletWeight}</td>
             <td style="${tdHighlight} border-right:2px solid #dee2e6;">${heatNo}</td>
             <td style="${tdHighlight}">${finishedItem}</td>
+            <td style="${tdHighlight}">${finishedItemCategoryName}</td>
             <td style="${tdHighlight}">${fgPlannedQty}</td>
             <td style="${tdHighlight}">${actualQty}</td>
             <td style="${tdHighlight}">${finishPcs}</td>
@@ -724,11 +729,13 @@ function buildTableRow(tabId, row) {
         const id = row.id || row.name || '';
         const safeId = id ? frappe.utils.escape_html(String(id)) : '';
         const itemCode = row.item_code ? frappe.utils.escape_html(String(row.item_code)) : '';
+        const bendCategoryName = row.category_name ? frappe.utils.escape_html(String(row.category_name)) : '';
         const bendWeight = format_number_with_decimals(row.bend_material_weight);
 
         return `<tr style="border-bottom:1px solid #e9ecef;">
             <td style="${tdCol0}">${safeId}</td>
             <td style="${tdCol1}">${itemCode}</td>
+            <td style="${tdStyle}">${bendCategoryName}</td>
             <td style="${tdStyle}">${bendWeight}</td>
         </tr>`;
     }
@@ -737,14 +744,18 @@ function buildTableRow(tabId, row) {
     const machineName      = row.machine_name ? frappe.utils.escape_html(String(row.machine_name)) : '';
     const finishLength     = row.finish_length ? frappe.utils.escape_html(String(row.finish_length)) : '';
     const tolerance        = format_percentage(row.tolerance);
+    const brightRmCategoryName = row.rm_category_name ? frappe.utils.escape_html(String(row.rm_category_name)) : '';
+    const brightFiCategoryName = row.finished_item_category_name ? frappe.utils.escape_html(String(row.finished_item_category_name)) : '';
 
     return `<tr style="border-bottom:1px solid #e9ecef;">
         <td style="${tdCol0}">${ppLink}</td>
         <td style="${tdCol1}">${prodDate}</td>
         <td style="${tdStyle}">${rm}</td>
+        <td style="${tdStyle}">${brightRmCategoryName}</td>
         <td style="${tdStyle}">${rmConsumption}</td>
         <td style="${tdStyle} border-right:2px solid #dee2e6;">${machineName}</td>
         <td style="${tdStyle}">${finishedItem}</td>
+        <td style="${tdStyle}">${brightFiCategoryName}</td>
         <td style="${tdStyle}">${fgPlannedQty}</td>
         <td style="${tdStyle}">${actualQty}</td>
         <td style="${tdStyle}">${finishLength}</td>
@@ -760,6 +771,7 @@ function getTableColumns(tabId) {
             { label: __('Production Plan'), align: 'left' },
             { label: __('Production Date'), align: 'left' },
             { label: __('RM'), align: 'left' },
+            { label: __('RM Category Name'), align: 'left' },
             { label: __('Actual RM Consumption'), align: 'left' },
             { label: __('Total Billet Pcs'), align: 'left' },
             { label: __('Description of Cutting Billet'), align: 'left' },
@@ -769,6 +781,7 @@ function getTableColumns(tabId) {
             { label: __('Miss Billet Weight'), align: 'left' },
             { label: __('Heat No'), align: 'left' },
             { label: __('Finished Item'), align: 'left' },
+            { label: __('Finished Item Category Name'), align: 'left' },
             { label: __('FG Planned Qty'), align: 'left' },
             { label: __('Actual Qty'), align: 'left' },
             { label: __('Finish Pcs'), align: 'left' },
@@ -787,6 +800,7 @@ function getTableColumns(tabId) {
         return [
             { label: __('ID'), align: 'left' },
             { label: __('Item Code'), align: 'left' },
+            { label: __('Category Name'), align: 'left' },
             { label: __('Bend Material Weight'), align: 'left' },
         ];
     }
@@ -796,9 +810,11 @@ function getTableColumns(tabId) {
         { label: __('Production Plan'), align: 'left' },
         { label: __('Production Date'), align: 'left' },
         { label: __('RM'), align: 'left' },
+        { label: __('RM Category Name'), align: 'left' },
         { label: __('Actual RM Consumption'), align: 'left' },
         { label: __('Machine Name'), align: 'left' },
         { label: __('Finished Item'), align: 'left' },
+        { label: __('Finished Item Category Name'), align: 'left' },
         { label: __('FG Planned Qty'), align: 'left' },
         { label: __('Actual Qty'), align: 'left' },
         { label: __('Finish Length'), align: 'left' },
@@ -958,6 +974,7 @@ function mapRowForExport(tabId, row) {
                 ? frappe.format(row.production_date, { fieldtype: 'Date' })
                 : '',
             row.rm || '',
+            row.rm_category_name || '',
             row.rm_consumption || 0,
             row.billet_pcs || 0,
             row.description_of_cutting_billet || '',
@@ -967,6 +984,7 @@ function mapRowForExport(tabId, row) {
             row.miss_billet_weight || 0,
             row.heat_no || '',
             row.finished_item || '',
+            row.finished_item_category_name || '',
             row.fg_planned_qty || 0,
             row.actual_qty || 0,
             row.finish_pcs || 0,
@@ -985,6 +1003,7 @@ function mapRowForExport(tabId, row) {
         return [
             row.id || row.name || '',
             row.item_code || '',
+            row.category_name || '',
             row.bend_material_weight || 0,
         ];
     }
@@ -996,9 +1015,11 @@ function mapRowForExport(tabId, row) {
             ? frappe.format(row.production_date, { fieldtype: 'Date' })
             : '',
         row.rm || '',
+        row.rm_category_name || '',
         row.rm_consumption || 0,
         row.machine_name || '',
         row.finished_item || '',
+        row.finished_item_category_name || '',
         row.fg_planned_qty || 0,
         row.actual_qty || 0,
         row.finish_length || '',

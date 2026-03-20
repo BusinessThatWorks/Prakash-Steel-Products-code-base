@@ -230,6 +230,7 @@
    "fieldname": "billet_cutting_id",
    "fieldtype": "Link",
    "label": "Billet Cutting ID",
+   "link_filters": "[[\"Billet Cutting\",\"docstatus\",\"=\",\"1\"]]",
    "options": "Billet Cutting"
   },
   {
@@ -338,7 +339,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-18 11:22:08.195139",
+ "modified": "2026-03-20 14:40:21.741648",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight",
