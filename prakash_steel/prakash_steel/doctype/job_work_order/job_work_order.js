@@ -176,6 +176,6 @@ function _calc_rm_qty(cdt, cdn, fg_production_qty, bom_details) {
 
     if (!bom_fg_qty) return;
 
-    let rm_qty = flt((fg_production_qty / bom_fg_qty) * bom_rm_qty, 3);
+    let rm_qty = Math.ceil((fg_production_qty / bom_fg_qty) * bom_rm_qty);
     frappe.model.set_value(cdt, cdn, "rm_qty_required", rm_qty);
 }
