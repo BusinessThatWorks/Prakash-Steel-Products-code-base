@@ -6,6 +6,20 @@ from datetime import datetime
 
 
 class FinishWeight(Document):
+	def before_submit(self):
+		"""Linked Billet Cutting must be submitted before Finish Weight can be submitted."""
+		bc = getattr(self, "billet_cutting_id", None)
+		if not bc:
+			return
+		docstatus = frappe.db.get_value("Billet Cutting", bc, "docstatus")
+		if docstatus != 1:
+			frappe.throw(
+				_(
+					"Cannot submit: Billet Cutting {0} is not submitted. Submit the Billet Cutting document first."
+				).format(frappe.bold(bc)),
+				title=_("Validation Error"),
+			)
+
 	def on_submit(self):
 
 		try:

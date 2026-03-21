@@ -166,12 +166,12 @@ def get_sku_type_on_hand_status(filters=None):
 		# Use qualified_demand directly (Open SO with delivery_date <= today) - same as po_recomendation_for_psp report
 		qualify_demand = flt(qualified_demand_map.get(item_code, 0))
 
-		# Calculate On Hand Status = on_hand_stock / (TOG + qualify_demand) (as ratio, then rounded up)
+		# Calculate On Hand Status = (on_hand_stock / (TOG + qualify_demand)) * 100, then rounded up
 		# This matches the report exactly
 		on_hand_status_value = None
 		denominator = flt(tog) + flt(qualify_demand)
 		if denominator > 0:
-			on_hand_status_value = flt(on_hand_stock) / denominator
+			on_hand_status_value = (flt(on_hand_stock) / denominator) * 100
 		else:
 			# If denominator is 0, set to None (cannot calculate)
 			on_hand_status_value = None

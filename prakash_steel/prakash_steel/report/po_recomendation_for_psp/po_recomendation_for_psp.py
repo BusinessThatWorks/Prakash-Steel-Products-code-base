@@ -1242,7 +1242,7 @@ def get_data(filters=None):
 		if is_item_buffer:
 			denominator = flt(tog) + flt(qualify_demand)
 			if denominator > 0:
-				on_hand_status_value = flt(on_hand_stock) / denominator
+				on_hand_status_value = (flt(on_hand_stock) / denominator) * 100
 			else:
 				# If denominator is 0, set to None (cannot calculate)
 				on_hand_status_value = None

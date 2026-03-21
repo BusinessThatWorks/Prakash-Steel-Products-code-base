@@ -14,8 +14,16 @@
   "customer",
   "column_break_ifrr",
   "amended_from",
+  "actual_transferred_qty",
   "section_break_hwgd",
-  "work_item_table"
+  "work_item_table",
+  "section_break_zocd",
+  "total_received_qty",
+  "column_break_jtpw",
+  "loss_per",
+  "column_break_wobs",
+  "qty_available_with_party",
+  "column_break_eayl"
  ],
  "fields": [
   {
@@ -84,13 +92,50 @@
    "fieldtype": "Select",
    "label": "Series",
    "options": "JOB/.####./.FY."
+  },
+  {
+   "fieldname": "actual_transferred_qty",
+   "fieldtype": "Int",
+   "label": "Actual Transferred Qty"
+  },
+  {
+   "fieldname": "loss_per",
+   "fieldtype": "Float",
+   "label": "Loss %",
+   "precision": "2"
+  },
+  {
+   "fieldname": "section_break_zocd",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "total_received_qty",
+   "fieldtype": "Int",
+   "label": "Total Received Qty"
+  },
+  {
+   "fieldname": "column_break_jtpw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_wobs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_eayl",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "qty_available_with_party",
+   "fieldtype": "Int",
+   "label": "Qty Available with Party"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-19 10:45:21.170664",
+ "modified": "2026-03-20 11:10:45.276362",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "JOB Work Order",

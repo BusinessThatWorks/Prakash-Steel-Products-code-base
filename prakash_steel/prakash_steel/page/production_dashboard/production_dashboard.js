@@ -30,7 +30,7 @@ frappe.pages['production-dashboard'].on_page_load = function (wrapper) {
     initializeDashboard(state);
 };
 
-frappe.pages['production-dashboard'].on_page_show = function () {};
+frappe.pages['production-dashboard'].on_page_show = function () { };
 
 // ────────────────────────────────────────────────────────────────
 // Initialization
@@ -61,20 +61,22 @@ function render_filters(state) {
                     border-radius:8px;">
         </div>`);
 
-    const $filterControls = $('<div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;width:100%;"></div>');
+    const $filterControls = $('<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;"></div>');
 
-    const $fromDateWrap = $('<div style="flex:1;min-width:200px;"></div>');
-    const $toDateWrap   = $('<div style="flex:1;min-width:200px;"></div>');
-    const $itemWrap     = $('<div style="flex:1;min-width:250px;"></div>');
-    const $ppWrap       = $('<div style="flex:1;min-width:250px;"></div>');
-    const $machineWrap  = $('<div style="flex:1;min-width:250px;"></div>');
+    const $fromDateWrap = $('<div></div>');
+    const $toDateWrap = $('<div></div>');
+    const $itemWrap = $('<div></div>');
+    const $ppWrap = $('<div></div>');
+    const $machineWrap = $('<div></div>');
+    const $categoryWrap = $('<div></div>');
 
     $filterControls
         .append($fromDateWrap)
         .append($toDateWrap)
         .append($itemWrap)
         .append($ppWrap)
-        .append($machineWrap);
+        .append($machineWrap)
+        .append($categoryWrap);
 
     $filterBar.append($filterControls);
     $(state.page.main).append($filterBar);
@@ -129,11 +131,24 @@ function render_filters(state) {
         render_input: true,
     });
 
+    // ── Category Name ──
+    state.controls.category_name = frappe.ui.form.make_control({
+        parent: $categoryWrap.get(0),
+        df: {
+            fieldtype: 'Link',
+            label: __('Category Name'),
+            fieldname: 'category_name',
+            options: 'Item Category',
+            reqd: 0,
+        },
+        render_input: true,
+    });
+
     // ── Style inputs ──
     setTimeout(() => {
         [state.controls.from_date, state.controls.to_date,
-         state.controls.item_code, state.controls.production_plan,
-         state.controls.machine_name].forEach(c => {
+        state.controls.item_code, state.controls.production_plan,
+        state.controls.machine_name, state.controls.category_name].forEach(c => {
             if (c && c.$input) {
                 $(c.$input).css({
                     border: '1px solid #000', 'border-radius': '4px',
@@ -162,6 +177,7 @@ function getFilters(state) {
         item_code: state.controls.item_code ? state.controls.item_code.get_value() : null,
         production_plan: state.controls.production_plan ? state.controls.production_plan.get_value() : null,
         machine_name: state.controls.machine_name ? state.controls.machine_name.get_value() : null,
+        category_name: state.controls.category_name ? state.controls.category_name.get_value() : null,
     };
 }
 
@@ -248,8 +264,8 @@ function bindEventHandlers(state) {
     const handler = () => refreshDashboard(state);
 
     [state.controls.from_date, state.controls.to_date,
-     state.controls.item_code, state.controls.production_plan,
-     state.controls.machine_name].forEach(c => {
+    state.controls.item_code, state.controls.production_plan,
+    state.controls.machine_name, state.controls.category_name].forEach(c => {
         if (!c) return;
         c.df.change = handler;
         c.df.onchange = handler;
@@ -329,6 +345,7 @@ function refreshDashboard(state) {
             item_code: filters.item_code || '',
             production_plan: filters.production_plan || '',
             machine_name: filters.machine_name || '',
+            category_name: filters.category_name || '',
         },
         callback: function (r) {
             if (state._refreshGen !== thisGen) return; // stale
@@ -450,12 +467,12 @@ function render_cards(state, totals) {
             isQty: true,
         });
 
-        // Burning Loss % — Average from Finish Weight records (backend calculated)
+        // Burning Loss % — ((RM + Miss Billet − Production − Miss Ingot) / RM) × 100 (backend)
         cards.push({
             value: totals.burning_loss_per,
             label: __('Burning Loss %'),
             gradientClass: 'card-red',
-            description: __('Average Burning Loss % (from Finish Weight)'),
+            description: __('Avg Burning Loss %'),
             isPercentage: true,
         });
 
@@ -560,12 +577,12 @@ function buildCardHtml(card) {
 function getGradientStyle(gradientClass) {
     const gradients = {
         'card-orange': 'linear-gradient(135deg, #fdd085, #fde0a8)',
-        'card-blue':   'linear-gradient(135deg, #a8c8f0, #c4d9f5)',
-        'card-green':  'linear-gradient(135deg, #85e0a8, #a8ecc4)',
+        'card-blue': 'linear-gradient(135deg, #a8c8f0, #c4d9f5)',
+        'card-green': 'linear-gradient(135deg, #85e0a8, #a8ecc4)',
         'card-purple': 'linear-gradient(135deg, #c9a5d9, #d9b8e6)',
-        'card-teal':   'linear-gradient(135deg, #7dd3c0, #a3e4d4)',
-        'card-red':    'linear-gradient(135deg, #f5a5a0, #f8b8b3)',
-        'card-pink':   'linear-gradient(135deg, #f8c8d8, #fce0e8)',
+        'card-teal': 'linear-gradient(135deg, #7dd3c0, #a3e4d4)',
+        'card-red': 'linear-gradient(135deg, #f5a5a0, #f8b8b3)',
+        'card-pink': 'linear-gradient(135deg, #f8c8d8, #fce0e8)',
         'card-yellow': 'linear-gradient(135deg, #d4a574, #e8d5b7)',
     };
     return gradients[gradientClass] || gradients['card-blue'];
@@ -596,8 +613,8 @@ function render_table(state, rows) {
 
     const headerHtml = columns.map((c, idx) => {
         const borderAfterQty =
-            (tabId === 'rolled_production' && (idx === 10 || idx === 19)) ||
-            (tabId === 'bright_production' && idx === 4);
+            (tabId === 'rolled_production' && (idx === 11 || idx === 21)) ||
+            (tabId === 'bright_production' && idx === 5);
         const borderRight = borderAfterQty ? ' border-right:2px solid #dee2e6;' : '';
         let style;
         if (idx === 0) style = thCol0;
@@ -651,27 +668,27 @@ function buildTableRow(tabId, row) {
         : '';
 
     // Qty fields
-    const fgPlannedQty        = format_qty_as_integer(row.fg_planned_qty);
-    const actualQty           = format_qty_as_integer(row.actual_qty);
-    const fgWeight            = format_qty_as_integer(row.fg_weight);
-    const meltingWeight       = format_qty_as_integer(row.melting_weight);
-    const finishPcs           = format_qty_as_integer(row.finish_pcs);
-    const totalMissRollPcs    = format_qty_as_integer(row.total_miss_roll_pcs);
+    const fgPlannedQty = format_qty_as_integer(row.fg_planned_qty);
+    const actualQty = format_qty_as_integer(row.actual_qty);
+    const fgWeight = format_qty_as_integer(row.fg_weight);
+    const meltingWeight = format_qty_as_integer(row.melting_weight);
+    const finishPcs = format_qty_as_integer(row.finish_pcs);
+    const totalMissRollPcs = format_qty_as_integer(row.total_miss_roll_pcs);
     const totalMissRollWeight = format_qty_as_integer(row.total_miss_roll_weight);
-    const totalMissIngotPcs   = format_qty_as_integer(row.total_miss_ingot_pcs);
-    const totalMissIngotWeight= format_qty_as_integer(row.total_miss_ingot_weight);
-    const billetPcs           = format_qty_as_integer(row.billet_pcs);
+    const totalMissIngotPcs = format_qty_as_integer(row.total_miss_ingot_pcs);
+    const totalMissIngotWeight = format_qty_as_integer(row.total_miss_ingot_weight);
+    const billetPcs = format_qty_as_integer(row.billet_pcs);
     const totalRawMaterialPcs = format_qty_as_integer(row.total_raw_material_pcs);
-    const missBilletPcs       = format_qty_as_integer(row.miss_billet_pcs);
-    const missBilletWeight    = format_qty_as_integer(row.miss_billet_weight);
-    const totalRMWeight       = format_qty_as_integer(
+    const missBilletPcs = format_qty_as_integer(row.miss_billet_pcs);
+    const missBilletWeight = format_qty_as_integer(row.miss_billet_weight);
+    const totalRMWeight = format_qty_as_integer(
         (parseFloat(row.rm_consumption) || 0) + (parseFloat(row.miss_billet_weight) || 0)
     );
-    const heatNo          = row.heat_no ? frappe.utils.escape_html(String(row.heat_no)) : '';
+    const heatNo = row.heat_no ? frappe.utils.escape_html(String(row.heat_no)) : '';
     const totalHrConsumed = format_number_with_decimals(row.total_hr_consumed);
-    const rmConsumption   = format_qty_as_integer(row.rm_consumption);
-    const fgLength        = row.fg_length ? frappe.utils.escape_html(String(row.fg_length)) : '';
-    const rm              = row.rm ? frappe.utils.escape_html(row.rm) : '';
+    const rmConsumption = format_qty_as_integer(row.rm_consumption);
+    const fgLength = row.fg_length ? frappe.utils.escape_html(String(row.fg_length)) : '';
+    const rm = row.rm ? frappe.utils.escape_html(row.rm) : '';
     const descriptionOfCuttingBillet = row.description_of_cutting_billet
         ? frappe.utils.escape_html(String(row.description_of_cutting_billet))
         : '';
@@ -692,10 +709,14 @@ function buildTableRow(tabId, row) {
         const tdCol0H = tdCol0 + rowBg;
         const tdCol1H = tdCol1 + rowBg;
 
+        const rmCategoryName = row.rm_category_name ? frappe.utils.escape_html(row.rm_category_name) : '';
+        const finishedItemCategoryName = row.finished_item_category_name ? frappe.utils.escape_html(row.finished_item_category_name) : '';
+
         return `<tr style="border-bottom:1px solid #e9ecef;${rowBg}">
             <td style="${tdCol0H}">${ppLink}</td>
             <td style="${tdCol1H}">${prodDate}</td>
             <td style="${tdHighlight}">${rm}</td>
+            <td style="${tdHighlight}">${rmCategoryName}</td>
             <td style="${tdHighlight}">${rmConsumption}</td>
             <td style="${tdHighlight}">${billetPcs}</td>
             <td style="${tdHighlight}">${descriptionOfCuttingBillet}</td>
@@ -705,6 +726,7 @@ function buildTableRow(tabId, row) {
             <td style="${tdHighlight}">${missBilletWeight}</td>
             <td style="${tdHighlight} border-right:2px solid #dee2e6;">${heatNo}</td>
             <td style="${tdHighlight}">${finishedItem}</td>
+            <td style="${tdHighlight}">${finishedItemCategoryName}</td>
             <td style="${tdHighlight}">${fgPlannedQty}</td>
             <td style="${tdHighlight}">${actualQty}</td>
             <td style="${tdHighlight}">${finishPcs}</td>
@@ -724,27 +746,33 @@ function buildTableRow(tabId, row) {
         const id = row.id || row.name || '';
         const safeId = id ? frappe.utils.escape_html(String(id)) : '';
         const itemCode = row.item_code ? frappe.utils.escape_html(String(row.item_code)) : '';
+        const bendCategoryName = row.category_name ? frappe.utils.escape_html(String(row.category_name)) : '';
         const bendWeight = format_number_with_decimals(row.bend_material_weight);
 
         return `<tr style="border-bottom:1px solid #e9ecef;">
             <td style="${tdCol0}">${safeId}</td>
             <td style="${tdCol1}">${itemCode}</td>
+            <td style="${tdStyle}">${bendCategoryName}</td>
             <td style="${tdStyle}">${bendWeight}</td>
         </tr>`;
     }
 
     // ── Bright Production ──
-    const machineName      = row.machine_name ? frappe.utils.escape_html(String(row.machine_name)) : '';
-    const finishLength     = row.finish_length ? frappe.utils.escape_html(String(row.finish_length)) : '';
-    const tolerance        = format_percentage(row.tolerance);
+    const machineName = row.machine_name ? frappe.utils.escape_html(String(row.machine_name)) : '';
+    const finishLength = row.finish_length ? frappe.utils.escape_html(String(row.finish_length)) : '';
+    const tolerance = format_percentage(row.tolerance);
+    const brightRmCategoryName = row.rm_category_name ? frappe.utils.escape_html(String(row.rm_category_name)) : '';
+    const brightFiCategoryName = row.finished_item_category_name ? frappe.utils.escape_html(String(row.finished_item_category_name)) : '';
 
     return `<tr style="border-bottom:1px solid #e9ecef;">
         <td style="${tdCol0}">${ppLink}</td>
         <td style="${tdCol1}">${prodDate}</td>
         <td style="${tdStyle}">${rm}</td>
+        <td style="${tdStyle}">${brightRmCategoryName}</td>
         <td style="${tdStyle}">${rmConsumption}</td>
         <td style="${tdStyle} border-right:2px solid #dee2e6;">${machineName}</td>
         <td style="${tdStyle}">${finishedItem}</td>
+        <td style="${tdStyle}">${brightFiCategoryName}</td>
         <td style="${tdStyle}">${fgPlannedQty}</td>
         <td style="${tdStyle}">${actualQty}</td>
         <td style="${tdStyle}">${finishLength}</td>
@@ -760,6 +788,7 @@ function getTableColumns(tabId) {
             { label: __('Production Plan'), align: 'left' },
             { label: __('Production Date'), align: 'left' },
             { label: __('RM'), align: 'left' },
+            { label: __('RM Category Name'), align: 'left' },
             { label: __('Actual RM Consumption'), align: 'left' },
             { label: __('Total Billet Pcs'), align: 'left' },
             { label: __('Description of Cutting Billet'), align: 'left' },
@@ -769,6 +798,7 @@ function getTableColumns(tabId) {
             { label: __('Miss Billet Weight'), align: 'left' },
             { label: __('Heat No'), align: 'left' },
             { label: __('Finished Item'), align: 'left' },
+            { label: __('Finished Item Category Name'), align: 'left' },
             { label: __('FG Planned Qty'), align: 'left' },
             { label: __('Actual Qty'), align: 'left' },
             { label: __('Finish Pcs'), align: 'left' },
@@ -787,6 +817,7 @@ function getTableColumns(tabId) {
         return [
             { label: __('ID'), align: 'left' },
             { label: __('Item Code'), align: 'left' },
+            { label: __('Category Name'), align: 'left' },
             { label: __('Bend Material Weight'), align: 'left' },
         ];
     }
@@ -796,9 +827,11 @@ function getTableColumns(tabId) {
         { label: __('Production Plan'), align: 'left' },
         { label: __('Production Date'), align: 'left' },
         { label: __('RM'), align: 'left' },
+        { label: __('RM Category Name'), align: 'left' },
         { label: __('Actual RM Consumption'), align: 'left' },
         { label: __('Machine Name'), align: 'left' },
         { label: __('Finished Item'), align: 'left' },
+        { label: __('Finished Item Category Name'), align: 'left' },
         { label: __('FG Planned Qty'), align: 'left' },
         { label: __('Actual Qty'), align: 'left' },
         { label: __('Finish Length'), align: 'left' },
@@ -843,7 +876,7 @@ function buildExportToolbar(state, tabId, columns, rows) {
         </div>
     `);
 
-    const $btn  = $wrapper.find('button');
+    const $btn = $wrapper.find('button');
     const $menu = $wrapper.find('.export-menu');
 
     $btn.on('click', (e) => {
@@ -884,6 +917,7 @@ function exportTableToExcel(state, tabId) {
         item_code: filters.item_code || '',
         production_plan: filters.production_plan || '',
         machine_name: filters.machine_name || '',
+        category_name: filters.category_name || '',
     };
 
     const query = Object.keys(params)
@@ -958,6 +992,7 @@ function mapRowForExport(tabId, row) {
                 ? frappe.format(row.production_date, { fieldtype: 'Date' })
                 : '',
             row.rm || '',
+            row.rm_category_name || '',
             row.rm_consumption || 0,
             row.billet_pcs || 0,
             row.description_of_cutting_billet || '',
@@ -967,6 +1002,7 @@ function mapRowForExport(tabId, row) {
             row.miss_billet_weight || 0,
             row.heat_no || '',
             row.finished_item || '',
+            row.finished_item_category_name || '',
             row.fg_planned_qty || 0,
             row.actual_qty || 0,
             row.finish_pcs || 0,
@@ -985,6 +1021,7 @@ function mapRowForExport(tabId, row) {
         return [
             row.id || row.name || '',
             row.item_code || '',
+            row.category_name || '',
             row.bend_material_weight || 0,
         ];
     }
@@ -996,9 +1033,11 @@ function mapRowForExport(tabId, row) {
             ? frappe.format(row.production_date, { fieldtype: 'Date' })
             : '',
         row.rm || '',
+        row.rm_category_name || '',
         row.rm_consumption || 0,
         row.machine_name || '',
         row.finished_item || '',
+        row.finished_item_category_name || '',
         row.fg_planned_qty || 0,
         row.actual_qty || 0,
         row.finish_length || '',
