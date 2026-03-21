@@ -2,6 +2,10 @@
 # For license information, please see license.txt
 
 import frappe
+from datetime import date as _date
+from io import BytesIO
+
+import openpyxl
 from frappe import _
 from frappe.utils import flt
 from frappe.utils.xlsxutils import make_xlsx
@@ -593,6 +597,21 @@ def get_bend_weight_details(
     }
 
 
+def _fmt_date(date_val):
+    """Return a Python date object so Excel treats the cell as a real date."""
+    if not date_val:
+        return ""
+    try:
+        if isinstance(date_val, _date):
+            return date_val
+        parts = str(date_val).split("-")
+        if len(parts) == 3:
+            return _date(int(parts[0]), int(parts[1]), int(parts[2]))
+    except Exception:
+        pass
+    return str(date_val)
+
+
 @frappe.whitelist()
 def export_production_dashboard(
     tab_id,
@@ -642,7 +661,7 @@ def export_production_dashboard(
         def map_row(r):
             return [
                 r.get("production_plan") or "",
-                r.get("production_date") or "",
+                _fmt_date(r.get("production_date")),
                 r.get("rm") or "",
                 r.get("rm_category_name") or "",
                 flt(r.get("rm_consumption")) or 0,
@@ -694,7 +713,7 @@ def export_production_dashboard(
         def map_row(r):
             return [
                 r.get("production_plan") or "",
-                r.get("production_date") or "",
+                _fmt_date(r.get("production_date")),
                 r.get("rm") or "",
                 r.get("rm_category_name") or "",
                 flt(r.get("rm_consumption")) or 0,
@@ -735,6 +754,20 @@ def export_production_dashboard(
 
     file_name = f"{tab_id}_export.xlsx"
     xlsx_file = make_xlsx(table_data, _("Production Dashboard"))
+
+    # Post-process: apply DD-MM-YYYY number format to the Production Date column
+    # (column 2 in Excel, 1-indexed) for tabs that have a date field
+    if tab_id in ("rolled_production", "bright_production"):
+        wb = openpyxl.load_workbook(BytesIO(xlsx_file.getvalue()))
+        ws = wb.active
+        for row in ws.iter_rows(min_row=2, min_col=2, max_col=2):
+            for cell in row:
+                if cell.value:
+                    cell.number_format = "DD-MM-YYYY"
+        out = BytesIO()
+        wb.save(out)
+        out.seek(0)
+        xlsx_file = out
 
     frappe.response["filename"] = file_name
     frappe.response["filecontent"] = xlsx_file.getvalue()
