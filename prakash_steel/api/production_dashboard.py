@@ -26,7 +26,8 @@ def get_rolled_production_data(
     Primary source: Billet Cutting (submitted)
     Cross-referenced with:
       - Production Plan Item (po_items) → FG Planned Qty
-      - Finish Weight → Actual Qty & Burning Loss %
+      - Finish Weight → Actual Qty & related FG fields
+      - Burning Loss % (KPI) = aggregate formula on dashboard totals (not Finish Weight field)
 
     Returns dict with 'rows' (table data) and 'totals' (KPI aggregates).
     """
@@ -113,7 +114,7 @@ def get_rolled_production_data(
         for pr in planned_rows:
             planned_qty_map[(pr.production_plan, pr.item_code)] = flt(pr.planned_qty)
 
-    # ── 3.  Batch-fetch Actual Qty, Burning Loss, Length, Melting Weight, Finish Pcs, and Miss Roll/Ingot fields from Finish Weight
+    # ── 3.  Batch-fetch Actual Qty, Length, Melting Weight, Finish Pcs, and Miss Roll/Ingot fields from Finish Weight
     fw_map = {}
     if pp_names:
         pp_list = list(pp_names)
@@ -123,7 +124,6 @@ def get_rolled_production_data(
 				fw.production_plan,
 				fw.item_code,
 				SUM(fw.finish_weight)               AS total_finish_weight,
-				AVG(NULLIF(fw.burning_loss_per, 0))  AS avg_burning_loss,
 				SUM(fw.melting_weight)              AS total_melting_weight,
 				SUM(fw.finish_pcs)                 AS total_finish_pcs,
 				SUM(fw.total_miss_roll_pcs)        AS total_miss_roll_pcs,
@@ -150,7 +150,6 @@ def get_rolled_production_data(
         for fr in fw_rows:
             fw_map[(fr.production_plan, fr.item_code)] = {
                 "actual_qty": flt(fr.total_finish_weight),
-                "burning_loss": flt(fr.avg_burning_loss, 2),
                 "length": fr.length or "",
                 "melting_weight": flt(fr.total_melting_weight),
                 "finish_pcs": flt(fr.total_finish_pcs),
@@ -160,40 +159,7 @@ def get_rolled_production_data(
                 "total_miss_ingot_weight": flt(fr.total_miss_ingot_weight),
             }
 
-    # ── 3.a  Compute average Burning Loss % from Finish Weight records ──
-    avg_burning_loss_per = 0.0
-    if pp_names:
-        conditions_fw = ["fw.docstatus = 1", "fw.production_plan IN %(pp_list)s"]
-        params_fw = {"pp_list": list(pp_names)}
-
-        if from_date:
-            conditions_fw.append("fw.posting_date >= %(from_date)s")
-            params_fw["from_date"] = from_date
-        if to_date:
-            conditions_fw.append("fw.posting_date <= %(to_date)s")
-            params_fw["to_date"] = to_date
-        if item_code:
-            conditions_fw.append("fw.item_code = %(item_code)s")
-            params_fw["item_code"] = item_code
-        if production_plan:
-            conditions_fw.append("fw.production_plan = %(production_plan)s")
-            params_fw["production_plan"] = production_plan
-
-        fw_avg_rows = frappe.db.sql(
-            f"""
-			SELECT
-				AVG(NULLIF(fw.burning_loss_per, 0)) AS avg_burning_loss
-			FROM `tabFinish Weight` fw
-			WHERE {" AND ".join(conditions_fw)}
-			""",
-            params_fw,
-            as_dict=True,
-        )
-
-        if fw_avg_rows and fw_avg_rows[0].get("avg_burning_loss") is not None:
-            avg_burning_loss_per = flt(fw_avg_rows[0].get("avg_burning_loss"), 2)
-
-    # ── 3.b  Compute Total Hr Consumed from Hourly Production (per Billet Cutting) ──
+    # ── 3.a  Compute Total Hr Consumed from Hourly Production (per Billet Cutting) ──
     hours_map = {}
     if billet_cutting_data:
         bc_names = [
@@ -218,7 +184,7 @@ def get_rolled_production_data(
             for hr in hour_rows:
                 hours_map[hr.billet_cutting_name] = flt(hr.total_hours, 2)
 
-    # ── 3.c  Batch-fetch custom_category_name from Item ──────────────
+    # ── 3.b  Batch-fetch custom_category_name from Item ──────────────
     all_item_codes_rolled = set()
     for row in billet_cutting_data:
         if row.rm:
@@ -253,7 +219,6 @@ def get_rolled_production_data(
         fg_planned_qty = planned_qty_map.get((pp, fi), 0)
         fw_data = fw_map.get((pp, fi), {})
         actual_qty = fw_data.get("actual_qty", 0)
-        burning_loss = fw_data.get("burning_loss", 0)
         melting_weight = fw_data.get("melting_weight", 0)
         finish_pcs = fw_data.get("finish_pcs", 0)
         total_miss_roll_pcs = fw_data.get("total_miss_roll_pcs", 0)
@@ -261,6 +226,17 @@ def get_rolled_production_data(
         total_miss_ingot_pcs = fw_data.get("total_miss_ingot_pcs", 0)
         total_miss_ingot_weight = fw_data.get("total_miss_ingot_weight", 0)
         fg_length = fw_data.get("length", "") or row.fg_length or ""
+
+        rm_c = flt(row.rm_consumption)
+        miss_bw = flt(row.miss_billet_weight)
+        if rm_c > 0:
+            burning_loss = flt(
+                ((rm_c + miss_bw - flt(actual_qty) - flt(total_miss_ingot_weight)) / rm_c)
+                * 100,
+                2,
+            )
+        else:
+            burning_loss = 0.0
 
         total_production += flt(actual_qty)
         total_rm_consumption += flt(row.rm_consumption)
@@ -310,6 +286,23 @@ def get_rolled_production_data(
             }
         )
 
+    # Dashboard Burning Loss % = ((RM + Miss Billet - Production - Miss Ingot) / RM) × 100
+    burning_loss_per_total = 0.0
+    if total_rm_consumption > 0:
+        burning_loss_per_total = flt(
+            (
+                (
+                    total_rm_consumption
+                    + total_miss_billet_weight_overall
+                    - total_production
+                    - total_miss_ingot_weight_overall
+                )
+                / total_rm_consumption
+            )
+            * 100,
+            2,
+        )
+
     return {
         "rows": rows,
         "totals": {
@@ -320,7 +313,7 @@ def get_rolled_production_data(
             "total_miss_billet_weight": flt(total_miss_billet_weight_overall),
             "total_miss_roll_weight": flt(total_miss_roll_weight_overall),
             "total_miss_ingot_weight": flt(total_miss_ingot_weight_overall),
-            "burning_loss_per": flt(avg_burning_loss_per, 2),
+            "burning_loss_per": burning_loss_per_total,
         },
     }
 

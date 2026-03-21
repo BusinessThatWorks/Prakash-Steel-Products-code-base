@@ -30,7 +30,7 @@ frappe.pages['production-dashboard'].on_page_load = function (wrapper) {
     initializeDashboard(state);
 };
 
-frappe.pages['production-dashboard'].on_page_show = function () {};
+frappe.pages['production-dashboard'].on_page_show = function () { };
 
 // ────────────────────────────────────────────────────────────────
 // Initialization
@@ -63,12 +63,12 @@ function render_filters(state) {
 
     const $filterControls = $('<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;"></div>');
 
-    const $fromDateWrap  = $('<div></div>');
-    const $toDateWrap    = $('<div></div>');
-    const $itemWrap      = $('<div></div>');
-    const $ppWrap        = $('<div></div>');
-    const $machineWrap   = $('<div></div>');
-    const $categoryWrap  = $('<div></div>');
+    const $fromDateWrap = $('<div></div>');
+    const $toDateWrap = $('<div></div>');
+    const $itemWrap = $('<div></div>');
+    const $ppWrap = $('<div></div>');
+    const $machineWrap = $('<div></div>');
+    const $categoryWrap = $('<div></div>');
 
     $filterControls
         .append($fromDateWrap)
@@ -147,8 +147,8 @@ function render_filters(state) {
     // ── Style inputs ──
     setTimeout(() => {
         [state.controls.from_date, state.controls.to_date,
-         state.controls.item_code, state.controls.production_plan,
-         state.controls.machine_name, state.controls.category_name].forEach(c => {
+        state.controls.item_code, state.controls.production_plan,
+        state.controls.machine_name, state.controls.category_name].forEach(c => {
             if (c && c.$input) {
                 $(c.$input).css({
                     border: '1px solid #000', 'border-radius': '4px',
@@ -264,8 +264,8 @@ function bindEventHandlers(state) {
     const handler = () => refreshDashboard(state);
 
     [state.controls.from_date, state.controls.to_date,
-     state.controls.item_code, state.controls.production_plan,
-     state.controls.machine_name, state.controls.category_name].forEach(c => {
+    state.controls.item_code, state.controls.production_plan,
+    state.controls.machine_name, state.controls.category_name].forEach(c => {
         if (!c) return;
         c.df.change = handler;
         c.df.onchange = handler;
@@ -467,12 +467,12 @@ function render_cards(state, totals) {
             isQty: true,
         });
 
-        // Burning Loss % — Average from Finish Weight records (backend calculated)
+        // Burning Loss % — ((RM + Miss Billet − Production − Miss Ingot) / RM) × 100 (backend)
         cards.push({
             value: totals.burning_loss_per,
             label: __('Burning Loss %'),
             gradientClass: 'card-red',
-            description: __('Average Burning Loss % (from Finish Weight)'),
+            // description: __('((RM Consumption + Miss Billet Weight − Total Production − Miss Ingot/Billet FG) / RM Consumption) × 100'),
             isPercentage: true,
         });
 
@@ -577,12 +577,12 @@ function buildCardHtml(card) {
 function getGradientStyle(gradientClass) {
     const gradients = {
         'card-orange': 'linear-gradient(135deg, #fdd085, #fde0a8)',
-        'card-blue':   'linear-gradient(135deg, #a8c8f0, #c4d9f5)',
-        'card-green':  'linear-gradient(135deg, #85e0a8, #a8ecc4)',
+        'card-blue': 'linear-gradient(135deg, #a8c8f0, #c4d9f5)',
+        'card-green': 'linear-gradient(135deg, #85e0a8, #a8ecc4)',
         'card-purple': 'linear-gradient(135deg, #c9a5d9, #d9b8e6)',
-        'card-teal':   'linear-gradient(135deg, #7dd3c0, #a3e4d4)',
-        'card-red':    'linear-gradient(135deg, #f5a5a0, #f8b8b3)',
-        'card-pink':   'linear-gradient(135deg, #f8c8d8, #fce0e8)',
+        'card-teal': 'linear-gradient(135deg, #7dd3c0, #a3e4d4)',
+        'card-red': 'linear-gradient(135deg, #f5a5a0, #f8b8b3)',
+        'card-pink': 'linear-gradient(135deg, #f8c8d8, #fce0e8)',
         'card-yellow': 'linear-gradient(135deg, #d4a574, #e8d5b7)',
     };
     return gradients[gradientClass] || gradients['card-blue'];
@@ -668,27 +668,27 @@ function buildTableRow(tabId, row) {
         : '';
 
     // Qty fields
-    const fgPlannedQty        = format_qty_as_integer(row.fg_planned_qty);
-    const actualQty           = format_qty_as_integer(row.actual_qty);
-    const fgWeight            = format_qty_as_integer(row.fg_weight);
-    const meltingWeight       = format_qty_as_integer(row.melting_weight);
-    const finishPcs           = format_qty_as_integer(row.finish_pcs);
-    const totalMissRollPcs    = format_qty_as_integer(row.total_miss_roll_pcs);
+    const fgPlannedQty = format_qty_as_integer(row.fg_planned_qty);
+    const actualQty = format_qty_as_integer(row.actual_qty);
+    const fgWeight = format_qty_as_integer(row.fg_weight);
+    const meltingWeight = format_qty_as_integer(row.melting_weight);
+    const finishPcs = format_qty_as_integer(row.finish_pcs);
+    const totalMissRollPcs = format_qty_as_integer(row.total_miss_roll_pcs);
     const totalMissRollWeight = format_qty_as_integer(row.total_miss_roll_weight);
-    const totalMissIngotPcs   = format_qty_as_integer(row.total_miss_ingot_pcs);
-    const totalMissIngotWeight= format_qty_as_integer(row.total_miss_ingot_weight);
-    const billetPcs           = format_qty_as_integer(row.billet_pcs);
+    const totalMissIngotPcs = format_qty_as_integer(row.total_miss_ingot_pcs);
+    const totalMissIngotWeight = format_qty_as_integer(row.total_miss_ingot_weight);
+    const billetPcs = format_qty_as_integer(row.billet_pcs);
     const totalRawMaterialPcs = format_qty_as_integer(row.total_raw_material_pcs);
-    const missBilletPcs       = format_qty_as_integer(row.miss_billet_pcs);
-    const missBilletWeight    = format_qty_as_integer(row.miss_billet_weight);
-    const totalRMWeight       = format_qty_as_integer(
+    const missBilletPcs = format_qty_as_integer(row.miss_billet_pcs);
+    const missBilletWeight = format_qty_as_integer(row.miss_billet_weight);
+    const totalRMWeight = format_qty_as_integer(
         (parseFloat(row.rm_consumption) || 0) + (parseFloat(row.miss_billet_weight) || 0)
     );
-    const heatNo          = row.heat_no ? frappe.utils.escape_html(String(row.heat_no)) : '';
+    const heatNo = row.heat_no ? frappe.utils.escape_html(String(row.heat_no)) : '';
     const totalHrConsumed = format_number_with_decimals(row.total_hr_consumed);
-    const rmConsumption   = format_qty_as_integer(row.rm_consumption);
-    const fgLength        = row.fg_length ? frappe.utils.escape_html(String(row.fg_length)) : '';
-    const rm              = row.rm ? frappe.utils.escape_html(row.rm) : '';
+    const rmConsumption = format_qty_as_integer(row.rm_consumption);
+    const fgLength = row.fg_length ? frappe.utils.escape_html(String(row.fg_length)) : '';
+    const rm = row.rm ? frappe.utils.escape_html(row.rm) : '';
     const descriptionOfCuttingBillet = row.description_of_cutting_billet
         ? frappe.utils.escape_html(String(row.description_of_cutting_billet))
         : '';
@@ -758,9 +758,9 @@ function buildTableRow(tabId, row) {
     }
 
     // ── Bright Production ──
-    const machineName      = row.machine_name ? frappe.utils.escape_html(String(row.machine_name)) : '';
-    const finishLength     = row.finish_length ? frappe.utils.escape_html(String(row.finish_length)) : '';
-    const tolerance        = format_percentage(row.tolerance);
+    const machineName = row.machine_name ? frappe.utils.escape_html(String(row.machine_name)) : '';
+    const finishLength = row.finish_length ? frappe.utils.escape_html(String(row.finish_length)) : '';
+    const tolerance = format_percentage(row.tolerance);
     const brightRmCategoryName = row.rm_category_name ? frappe.utils.escape_html(String(row.rm_category_name)) : '';
     const brightFiCategoryName = row.finished_item_category_name ? frappe.utils.escape_html(String(row.finished_item_category_name)) : '';
 
@@ -876,7 +876,7 @@ function buildExportToolbar(state, tabId, columns, rows) {
         </div>
     `);
 
-    const $btn  = $wrapper.find('button');
+    const $btn = $wrapper.find('button');
     const $menu = $wrapper.find('.export-menu');
 
     $btn.on('click', (e) => {
