@@ -472,7 +472,7 @@ function render_cards(state, totals) {
             value: totals.burning_loss_per,
             label: __('Burning Loss %'),
             gradientClass: 'card-red',
-            // description: __('((RM Consumption + Miss Billet Weight − Total Production − Miss Ingot/Billet FG) / RM Consumption) × 100'),
+            description: __('Avg Burning Loss %'),
             isPercentage: true,
         });
 
