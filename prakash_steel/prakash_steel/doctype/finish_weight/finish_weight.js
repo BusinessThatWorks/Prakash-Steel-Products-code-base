@@ -348,9 +348,7 @@ function calculate_burning_loss_per(frm) {
     console.log("calculate_burning_loss_per called");
     console.log("billet_cutting_id:", frm.doc.billet_cutting_id);
     console.log("finish_weight:", frm.doc.finish_weight);
-    console.log("total_miss_ingot_weight:", frm.doc.total_miss_ingot_weight);
-    console.log("melting_weight:", frm.doc.melting_weight);
-    
+
     // Check if billet_cutting_id exists
     if (!frm.doc.billet_cutting_id) {
         console.log("No billet_cutting_id found, cannot calculate burning_loss_per");
@@ -359,55 +357,34 @@ function calculate_burning_loss_per(frm) {
         console.log("=".repeat(50));
         return Promise.resolve();
     }
-    
+
     // Fetch billet_weight and miss_billet_weight from billet_cutting_id
     return frappe.db.get_doc("Billet Cutting", frm.doc.billet_cutting_id).then(function(billet_cutting_doc) {
         console.log("Billet Cutting document fetched:", billet_cutting_doc.name);
         console.log("billet_weight from billet_cutting:", billet_cutting_doc.billet_weight);
         console.log("miss_billet_weight from billet_cutting:", billet_cutting_doc.miss_billet_weight);
-        
-        // Calculate a = billet_weight + miss_billet_weight
-        let billet_weight = parseInt(billet_cutting_doc.billet_weight) || 0;
-        let miss_billet_weight = parseInt(billet_cutting_doc.miss_billet_weight) || 0;
-        let a = billet_weight + miss_billet_weight;
-        
-        console.log("Step 1 - Calculating 'a':");
-        console.log("  billet_weight:", billet_weight);
-        console.log("  miss_billet_weight:", miss_billet_weight);
-        console.log("  a = billet_weight + miss_billet_weight =", a);
-        
-        // Calculate b = finish_weight + total_miss_ingot_weight + melting_weight
-        let finish_weight = parseInt(frm.doc.finish_weight) || 0;
-        let total_miss_ingot_weight = parseInt(frm.doc.total_miss_ingot_weight) || 0;
-        let melting_weight = parseInt(frm.doc.melting_weight) || 0;
-        let b = finish_weight + total_miss_ingot_weight + melting_weight;
-        
-        console.log("Step 2 - Calculating 'b':");
-        console.log("  finish_weight:", finish_weight);
-        console.log("  total_miss_ingot_weight:", total_miss_ingot_weight);
-        console.log("  melting_weight:", melting_weight);
-        console.log("  b = finish_weight + total_miss_ingot_weight + melting_weight =", b);
-        
-        // Calculate burning_loss_per = (a - b) / a * 100
-        if (a > 0) {
-            let burning_loss_per = ((a - b) / a) * 100;
-            // Round to 2 decimal places
+
+        let billet_weight = parseFloat(billet_cutting_doc.billet_weight) || 0;
+        let miss_billet_weight = parseFloat(billet_cutting_doc.miss_billet_weight) || 0;
+        let finish_weight = parseFloat(frm.doc.finish_weight) || 0;
+
+        console.log("burning_loss_per formula: ((billet_weight - miss_billet_weight - finish_weight) / billet_weight) * 100");
+        console.log("  billet_weight:", billet_weight, "miss_billet_weight:", miss_billet_weight, "finish_weight:", finish_weight);
+
+        // burning_loss_per = ((billet_weight - miss_billet_weight - finish_weight) / billet_weight) * 100
+        if (billet_weight > 0) {
+            let burning_loss_per =
+                ((billet_weight - miss_billet_weight - finish_weight) / billet_weight) * 100;
             burning_loss_per = Math.round(burning_loss_per * 100) / 100;
-            
-            console.log("Step 3 - Calculating burning_loss_per:");
-            console.log("  Formula: (a - b) / a * 100");
-            console.log("  Calculation: (" + a + " - " + b + ") / " + a + " * 100");
-            console.log("  Result before rounding:", ((a - b) / a) * 100);
+
             console.log("  Result after rounding to 2 decimals:", burning_loss_per);
-            
             frm.set_value("burning_loss_per", burning_loss_per);
             console.log("burning_loss_per set to:", burning_loss_per);
         } else {
-            console.log("Cannot calculate burning_loss_per - 'a' is 0 (billet_weight + miss_billet_weight = 0)");
-            console.log("Setting burning_loss_per to 0");
+            console.log("Cannot calculate burning_loss_per - billet_weight is 0");
             frm.set_value("burning_loss_per", 0);
         }
-        
+
         console.log("=".repeat(50));
         return Promise.resolve();
     }).catch(function(error) {

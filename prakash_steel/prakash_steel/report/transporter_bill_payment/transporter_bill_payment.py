@@ -49,6 +49,18 @@ def get_columns(invoice_type):
                 "fieldtype": "Data",
                 "width": 190,
             },
+            {
+                "label": "Quantity",
+                "fieldname": "qty",
+                "fieldtype": "Float",
+                "width": 130,
+            },
+            {
+                "label": "Amount",
+                "fieldname": "amount",
+                "fieldtype": "Currency",
+                "width": 140,
+            },
         ]
 
     return [
@@ -225,7 +237,16 @@ def get_sale_data(filters):
             si.name AS sales_invoice,
             si.customer AS vendor_name,
             {truck_no_field} AS truck_no,
-            {transporter_name_field} AS transporter_name
+            {transporter_name_field} AS transporter_name,
+            IFNULL(
+                (
+                    SELECT SUM(sii.qty)
+                    FROM `tabSales Invoice Item` sii
+                    WHERE sii.parent = si.name
+                ),
+                0
+            ) AS qty,
+            si.grand_total AS amount
         FROM
             `tabSales Invoice` si
         WHERE

@@ -20,18 +20,31 @@ def make_sales_invoice(source_name):
 	si.posting_date = source.job_work_date
 	si.custom_job_work_order = source_name
 
+	# Group rm_qty_required by raw_material
+	rm_qty_map = {}
 	for row in source.work_item_table:
 		if row.raw_material and row.rm_qty_required:
-			pending_qty = (row.rm_qty_required or 0) - (row.actual_transferred_qty or 0)
-			if pending_qty <= 0:
-				continue
-			si.append(
-				"items",
-				{
-					"item_code": row.raw_material,
-					"qty": pending_qty,
-				},
-			)
+			rm_qty_map[row.raw_material] = rm_qty_map.get(row.raw_material, 0) + (row.rm_qty_required or 0)
+
+	for raw_material, total_required in rm_qty_map.items():
+		already = (
+			frappe.db.sql(
+				"""
+			SELECT COALESCE(SUM(sii.qty), 0)
+			FROM `tabSales Invoice Item` sii
+			JOIN `tabSales Invoice` si ON si.name = sii.parent
+			WHERE si.custom_job_work_order = %s
+			  AND si.docstatus = 1
+			  AND sii.item_code = %s
+			""",
+				(source_name, raw_material),
+			)[0][0]
+			or 0
+		)
+		pending_qty = total_required - already
+		if pending_qty <= 0:
+			continue
+		si.append("items", {"item_code": raw_material, "qty": pending_qty})
 
 	si.run_method("set_missing_values")
 	si.run_method("calculate_taxes_and_totals")
@@ -52,18 +65,31 @@ def make_delivery_note(source_name):
 	dn.currency = company_currency
 	dn.conversion_rate = 1
 
+	# Group rm_qty_required by raw_material
+	rm_qty_map = {}
 	for row in source.work_item_table:
 		if row.raw_material and row.rm_qty_required:
-			pending_qty = (row.rm_qty_required or 0) - (row.actual_transferred_qty or 0)
-			if pending_qty <= 0:
-				continue
-			dn.append(
-				"items",
-				{
-					"item_code": row.raw_material,
-					"qty": pending_qty,
-				},
-			)
+			rm_qty_map[row.raw_material] = rm_qty_map.get(row.raw_material, 0) + (row.rm_qty_required or 0)
+
+	for raw_material, total_required in rm_qty_map.items():
+		already = (
+			frappe.db.sql(
+				"""
+			SELECT COALESCE(SUM(dni.qty), 0)
+			FROM `tabDelivery Note Item` dni
+			JOIN `tabDelivery Note` dn ON dn.name = dni.parent
+			WHERE dn.custom_job_work_order = %s
+			  AND dn.docstatus = 1
+			  AND dni.item_code = %s
+			""",
+				(source_name, raw_material),
+			)[0][0]
+			or 0
+		)
+		pending_qty = total_required - already
+		if pending_qty <= 0:
+			continue
+		dn.append("items", {"item_code": raw_material, "qty": pending_qty})
 
 	dn.run_method("set_missing_values")
 	dn.run_method("calculate_taxes_and_totals")
