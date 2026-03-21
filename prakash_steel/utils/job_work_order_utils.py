@@ -15,6 +15,7 @@ def update_jwo_on_sales_invoice_submit(doc, method):
 	_update_transferred_qty(jwo, "Sales Invoice", "Sales Invoice Item")
 	_set_transfer_status(jwo)
 	_update_loss_per(jwo)
+	_update_qty_available_with_party(jwo)
 	frappe.publish_realtime("jwo_updated", {"name": jwo_name}, after_commit=True)
 
 
@@ -30,6 +31,7 @@ def update_jwo_on_delivery_note_submit(doc, method):
 	_update_transferred_qty(jwo, "Delivery Note", "Delivery Note Item")
 	_set_transfer_status(jwo)
 	_update_loss_per(jwo)
+	_update_qty_available_with_party(jwo)
 	frappe.publish_realtime("jwo_updated", {"name": jwo_name}, after_commit=True)
 
 
@@ -45,8 +47,9 @@ def update_jwo_on_purchase_receipt_submit(doc, method):
 		if not row.fg_item:
 			continue
 
-		total = frappe.db.sql(
-			"""
+		total = (
+			frappe.db.sql(
+				"""
 			SELECT COALESCE(SUM(pri.qty), 0)
 			FROM `tabPurchase Receipt Item` pri
 			JOIN `tabPurchase Receipt` pr ON pr.name = pri.parent
@@ -54,8 +57,10 @@ def update_jwo_on_purchase_receipt_submit(doc, method):
 			  AND pr.docstatus = 1
 			  AND pri.item_code = %s
 			""",
-			(jwo.name, row.fg_item),
-		)[0][0] or 0
+				(jwo.name, row.fg_item),
+			)[0][0]
+			or 0
+		)
 
 		frappe.db.set_value("JOB Work Item table", row.name, "actual_received_qty", total)
 
@@ -69,16 +74,19 @@ def update_jwo_on_purchase_receipt_submit(doc, method):
 
 def _update_transferred_qty(jwo, parent_doctype, child_doctype):
 	"""Sum ALL item qty from all submitted docs and set actual_transferred_qty on parent JWO."""
-	total = frappe.db.sql(
-		f"""
+	total = (
+		frappe.db.sql(
+			f"""
 		SELECT COALESCE(SUM(ci.qty), 0)
 		FROM `tab{child_doctype}` ci
 		JOIN `tab{parent_doctype}` p ON p.name = ci.parent
 		WHERE p.custom_job_work_order = %s
 		  AND p.docstatus = 1
 		""",
-		(jwo.name,),
-	)[0][0] or 0
+			(jwo.name,),
+		)[0][0]
+		or 0
+	)
 
 	frappe.db.set_value("JOB Work Order", jwo.name, "actual_transferred_qty", total)
 
@@ -138,6 +146,7 @@ def _update_loss_per(jwo):
 def _update_qty_available_with_party(jwo):
 	"""qty_available_with_party = actual_transferred_qty - sum(rm_back per row)
 	where rm_back = ceil((actual_received_qty / bom_fg_qty) * bom_rm_qty)."""
+	jwo.reload()
 	total_rm_back = 0
 	for row in jwo.work_item_table:
 		received_fg = row.actual_received_qty or 0
@@ -145,9 +154,7 @@ def _update_qty_available_with_party(jwo):
 		if received_fg and row.default_bom:
 			bom = frappe.db.get_value("BOM", row.default_bom, ["quantity", "name"], as_dict=True)
 			if bom:
-				bom_rm_qty = frappe.db.get_value(
-					"BOM Item", {"parent": row.default_bom}, "qty"
-				) or 0
+				bom_rm_qty = frappe.db.get_value("BOM Item", {"parent": row.default_bom}, "qty") or 0
 				bom_fg_qty = bom.quantity or 0
 				if bom_fg_qty:
 					total_rm_back += math.ceil((received_fg / bom_fg_qty) * bom_rm_qty)

@@ -27,8 +27,9 @@ def make_sales_invoice(source_name):
 			rm_qty_map[row.raw_material] = rm_qty_map.get(row.raw_material, 0) + (row.rm_qty_required or 0)
 
 	for raw_material, total_required in rm_qty_map.items():
-		already = frappe.db.sql(
-			"""
+		already = (
+			frappe.db.sql(
+				"""
 			SELECT COALESCE(SUM(sii.qty), 0)
 			FROM `tabSales Invoice Item` sii
 			JOIN `tabSales Invoice` si ON si.name = sii.parent
@@ -36,8 +37,10 @@ def make_sales_invoice(source_name):
 			  AND si.docstatus = 1
 			  AND sii.item_code = %s
 			""",
-			(source_name, raw_material),
-		)[0][0] or 0
+				(source_name, raw_material),
+			)[0][0]
+			or 0
+		)
 		pending_qty = total_required - already
 		if pending_qty <= 0:
 			continue
@@ -69,8 +72,9 @@ def make_delivery_note(source_name):
 			rm_qty_map[row.raw_material] = rm_qty_map.get(row.raw_material, 0) + (row.rm_qty_required or 0)
 
 	for raw_material, total_required in rm_qty_map.items():
-		already = frappe.db.sql(
-			"""
+		already = (
+			frappe.db.sql(
+				"""
 			SELECT COALESCE(SUM(dni.qty), 0)
 			FROM `tabDelivery Note Item` dni
 			JOIN `tabDelivery Note` dn ON dn.name = dni.parent
@@ -78,8 +82,10 @@ def make_delivery_note(source_name):
 			  AND dn.docstatus = 1
 			  AND dni.item_code = %s
 			""",
-			(source_name, raw_material),
-		)[0][0] or 0
+				(source_name, raw_material),
+			)[0][0]
+			or 0
+		)
 		pending_qty = total_required - already
 		if pending_qty <= 0:
 			continue
