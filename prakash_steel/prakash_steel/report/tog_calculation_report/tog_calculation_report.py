@@ -1,6 +1,10 @@
+import math
+from collections import defaultdict
+
 import frappe
 from frappe.utils import cint, flt, today, add_days
-import math
+
+from prakash_steel.utils.lead_time import get_default_bom
 
 
 def execute(filters=None):
@@ -56,10 +60,17 @@ def get_columns():
 			"width": 100,
 		},
 		{
+			"label": "Parent Sell",
+			"fieldname": "parent_sell",
+			"fieldtype": "Int",
+			"width": 110,
+		},
+		{
 			"label": "Consumption",
 			"fieldname": "consumption",
 			"fieldtype": "Int",
 			"width": 110,
+			"hidden": 1,  # Not shown by default since it's not used in ADU calculation for all items; can be toggled on if needed
 		},
 		{
 			"label": "ADU",
@@ -101,6 +112,8 @@ def get_data(filters=None):
 	# Map of item_code -> total consumption (filtered by same date range as sales)
 	consumption_map = _get_consumption_by_item(days)
 
+	parent_sell_map = _compute_parent_sell_map(sales_qty_map)
+
 	items = frappe.db.get_all(
 		"Item",
 		fields=[
@@ -121,6 +134,10 @@ def get_data(filters=None):
 		# 1) Sell: live total sales qty in current horizon (integer)
 		sell_qty = flt(sales_qty_map.get(item_code, 0.0))
 		item["sell"] = int(sell_qty) if sell_qty else 0
+
+		# 1b) Parent sell: demand on this item from exploding other items' sales through BOMs (ceiled int)
+		ps = flt(parent_sell_map.get(item_code, 0.0))
+		item["parent_sell"] = int(math.ceil(ps)) if ps > 0 else 0
 
 		# 2) Consumption: live total consumption (integer)
 		consumption_qty = flt(consumption_map.get(item_code, 0.0))
@@ -183,6 +200,83 @@ def _get_sales_qty_by_item() -> dict[str, float]:
 	)
 
 	return {row["item_code"]: flt(row.get("total_qty", 0.0)) for row in rows}
+
+
+def _compute_parent_sell_map(sales_qty_map: dict[str, float]) -> dict[str, float]:
+	"""
+	For each invoiced item with sell qty > 0, explode through default BOMs.
+
+	Per BOM row: child_need = incoming_qty * (bom.quantity / bom_item.qty).
+
+	Parent sell for a component is the *cumulative* demand along the path from the
+	sold item: sum of child_need at each hop (sold → … → this item). Multiple
+	sales or multiple paths add together.
+
+	Stop traversing when custom_item_type is 'rm' (case-insensitive); the RM line
+	still receives the cumulative total for that path.
+
+	Stored as floats; the report column uses ceil.
+	"""
+	acc = defaultdict(float)
+	bom_doc_cache: dict[str, object] = {}
+	default_bom_cache: dict[str, str | None] = {}
+	rm_cache: dict[str, bool] = {}
+
+	def _is_rm_stop(item_code: str) -> bool:
+		if item_code not in rm_cache:
+			raw = frappe.db.get_value("Item", item_code, "custom_item_type")
+			rm_cache[item_code] = bool(raw and str(raw).strip().lower() == "rm")
+		return rm_cache[item_code]
+
+	def _get_bom_doc(bom_name: str):
+		if bom_name not in bom_doc_cache:
+			bom_doc_cache[bom_name] = frappe.get_doc("BOM", bom_name)
+		return bom_doc_cache[bom_name]
+
+	def _propagate(
+		item_code: str, incoming_qty: float, visited: frozenset[str], path_cumulative: float
+	) -> None:
+		"""
+		path_cumulative: sum of child_need for each hop from the sold root up to
+		and including demand landing on item_code (incoming_qty is that landing qty).
+		"""
+		if not incoming_qty or item_code in visited:
+			return
+		if _is_rm_stop(item_code):
+			return
+
+		if item_code not in default_bom_cache:
+			default_bom_cache[item_code] = get_default_bom(item_code)
+		bom_name = default_bom_cache[item_code]
+		if not bom_name:
+			return
+
+		bom_doc = _get_bom_doc(bom_name)
+		fg_qty = flt(bom_doc.quantity)
+		if fg_qty <= 0:
+			return
+
+		next_visited = visited | {item_code}
+
+		for bom_item in bom_doc.items:
+			child_code = bom_item.item_code
+			child_line_qty = flt(bom_item.qty)
+			if not child_code or child_line_qty <= 0:
+				continue
+			child_need = incoming_qty * (fg_qty / child_line_qty)
+			path_total = path_cumulative + child_need
+			acc[child_code] += path_total
+			if _is_rm_stop(child_code):
+				continue
+			_propagate(child_code, child_need, next_visited, path_total)
+
+	for sold_item, sell_qty in sales_qty_map.items():
+		sq = flt(sell_qty)
+		if sq <= 0:
+			continue
+		_propagate(sold_item, sq, frozenset(), 0.0)
+
+	return dict(acc)
 
 
 def _get_consumption_by_item(days: int) -> dict[str, float]:
