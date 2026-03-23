@@ -10,6 +10,7 @@
   "billet_cutting_id",
   "production_plan",
   "production_date",
+  "shift_type",
   "column_break_tohi",
   "amended_from",
   "time_from",
@@ -218,13 +219,20 @@
    "fieldtype": "Int",
    "label": "Total Billet Cutting (Pcs)",
    "read_only": 1
+  },
+  {
+   "fetch_from": "production_plan.custom_shift_type",
+   "fieldname": "shift_type",
+   "fieldtype": "Data",
+   "label": "Shift Type",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-17 11:15:11.738040",
+ "modified": "2026-03-23 21:12:06.522176",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Hourly Production",
@@ -246,6 +254,7 @@
   }
  ],
  "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

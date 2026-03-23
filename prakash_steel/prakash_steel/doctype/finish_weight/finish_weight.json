@@ -10,6 +10,7 @@
   "production_plan",
   "column_break_xdcg",
   "amended_from",
+  "shift_type",
   "column_break_iunx",
   "section_break_mzau",
   "posting_date",
@@ -333,13 +334,20 @@
    "label": "Melting Item",
    "options": "Item",
    "reqd": 1
+  },
+  {
+   "fetch_from": "production_plan.custom_shift_type",
+   "fieldname": "shift_type",
+   "fieldtype": "Data",
+   "label": "Shift Type",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-20 16:17:25.144377",
+ "modified": "2026-03-23 21:12:43.262324",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Finish Weight",
@@ -360,6 +368,7 @@
   }
  ],
  "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
