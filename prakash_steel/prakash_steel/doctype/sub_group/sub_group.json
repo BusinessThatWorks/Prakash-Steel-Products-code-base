@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "[sub_group_id]",
+ "autoname": "{sub_group_id}",
  "creation": "2025-08-22 16:52:01.699141",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -31,11 +31,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-03-24 22:34:59.495436",
+ "modified": "2026-03-24 22:52:16.105232",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Sub Group",
- "naming_rule": "By fieldname",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
