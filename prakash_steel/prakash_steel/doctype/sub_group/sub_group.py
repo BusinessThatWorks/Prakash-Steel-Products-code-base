@@ -1,13 +1,16 @@
 # # Copyright (c) 2025, beetashoke chakraborty and contributors
 # # For license information, please see license.txt
 
-# import frappe
-# from frappe.model.document import Document
+import frappe
+from frappe.model.document import Document
 # import hashlib
 # import re
 
 
-# class SubGroup(Document):
+class SubGroup(Document):
+	pass
+
+
 # 	def _generate_name_from_sub_group_name(self):
 # 		"""Generate a unique name (ID) from sub_group_name that fits within 140 character limit
 # 		The sub_group_name field keeps its full value, but the name (ID) is truncated if needed.
