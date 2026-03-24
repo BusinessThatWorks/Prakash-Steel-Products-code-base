@@ -1,15 +1,14 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "[sub_group_name]",
+ "autoname": "[sub_group_id]",
  "creation": "2025-08-22 16:52:01.699141",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "sub_group_id",
   "sub_group_name",
-  "column_break_xcjg",
-  "section_break_bacf",
-  "table_gxcp"
+  "column_break_xcjg"
  ],
  "fields": [
   {
@@ -24,20 +23,15 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "section_break_bacf",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "table_gxcp",
-   "fieldtype": "Table",
-   "label": "Item Sub Group defaults",
-   "options": "Item Default"
+   "fieldname": "sub_group_id",
+   "fieldtype": "Data",
+   "label": "Sub Group ID"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-28 18:58:05.074445",
+ "modified": "2026-03-24 22:34:59.495436",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Sub Group",
