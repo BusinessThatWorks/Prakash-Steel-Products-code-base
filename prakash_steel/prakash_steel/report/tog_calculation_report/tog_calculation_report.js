@@ -18,24 +18,20 @@ function tog_debug_item(item_code) {
 				return;
 			}
 
-			// ── Header ──────────────────────────────────────────────────────
 			console.group(
 				`%c[Tog] ═══ Debug: ${d.item_code} ═══`,
 				"font-size:14px; font-weight:bold; color:#2196F3"
 			);
 			console.log(`Horizon: ${d.horizon_days} days`);
-			console.log(
-				`%cSell (direct)  = ${d.total_sell}`,
-				"font-weight:bold; color:#4CAF50"
-			);
+			console.log(`%cSell (direct)  = ${d.total_sell}`, "font-weight:bold; color:#4CAF50");
 			console.log(
 				`%cParent Sell    = ${d.total_parent_sell_raw.toFixed(4)}  →  ceiled in grid = ${d.total_parent_sell_ceiled}`,
 				"font-weight:bold; color:#FF9800"
 			);
 
-			// ── Section 1: Direct Sells ──────────────────────────────────────
+			// ── SELL: direct sales invoices ──────────────────────────────────
 			console.group(
-				`%c[SELL] "${d.item_code}" was directly sold on ${d.direct_sells.length} invoice line(s)`,
+				`%c[SELL] "${d.item_code}" directly sold on ${d.direct_sells.length} invoice line(s)`,
 				"color:#4CAF50; font-weight:bold"
 			);
 			if (d.direct_sells.length) {
@@ -52,18 +48,18 @@ function tog_debug_item(item_code) {
 			}
 			console.groupEnd();
 
-			// ── Section 2: Parent Sell contributions ─────────────────────────
+			// ── PARENT SELL: BOM hops that pushed demand onto this item ───────
 			console.group(
 				`%c[PARENT SELL] ${d.parent_sell_contributions.length} BOM hop(s) pushed demand onto "${d.item_code}"`,
 				"color:#FF9800; font-weight:bold"
 			);
 			console.log(
 				"Formula per hop:  child_need = sold_qty × (bom_fg_qty ÷ bom_line_qty)\n" +
-				"  path_total_added_to_parent_sell = path_cumul_before + child_need  (accumulates along BOM depth)"
+				"  path_total added to Parent Sell = path_cumul_before + child_need"
 			);
 
 			if (d.parent_sell_contributions.length) {
-				// Group by invoice line so each sale event is one collapsible block
+				// Group by invoice line
 				const groups = {};
 				for (const hop of d.parent_sell_contributions) {
 					const key = `${hop.posting_date}  |  ${hop.sales_invoice}  |  Sold: ${hop.sold_item}  qty=${hop.sold_qty_this_line}`;
@@ -72,11 +68,12 @@ function tog_debug_item(item_code) {
 				}
 
 				for (const [label, hops] of Object.entries(groups)) {
-					// Show BOM ratio in the label so user sees it without expanding
 					const h0 = hops[0];
 					const ratio = h0.bom_fg_qty / h0.bom_line_qty;
-					const labelWithRatio = `${label}  →  BOM ratio ${h0.bom_fg_qty}÷${h0.bom_line_qty}=${ratio.toFixed(4)}  →  child_need = sold_qty × ${ratio.toFixed(4)}`;
-					console.groupCollapsed(labelWithRatio);
+					const fullLabel =
+						`${label}  →  BOM ratio ${h0.bom_fg_qty}÷${h0.bom_line_qty}=${ratio.toFixed(4)}` +
+						`  →  child_need = sold_qty × ${ratio.toFixed(4)}`;
+					console.groupCollapsed(fullLabel);
 					console.table(
 						hops.map((h) => ({
 							"BOM parent (from)": h.from_item,
@@ -94,7 +91,7 @@ function tog_debug_item(item_code) {
 					console.groupEnd();
 				}
 
-				// Summary: which sold item contributed how much
+				// Summary per sold item
 				const by_sold = {};
 				for (const hop of d.parent_sell_contributions) {
 					by_sold[hop.sold_item] = (by_sold[hop.sold_item] || 0) + hop.path_total_accrued_to_to_item;
@@ -109,9 +106,9 @@ function tog_debug_item(item_code) {
 				console.groupEnd();
 			} else {
 				console.log(
-					"No BOM hops found. Possible reasons:\n" +
-					"  • No parent item sold in this horizon has a default BOM that includes this item\n" +
-					"  • This item has item_type = RM (stop condition — BOM traversal stops here)"
+					"No BOM hops found.\n" +
+					"  • No parent item sold in this horizon has a BOM that includes this item\n" +
+					"  • OR this item has item_type = RM (BOM traversal stops here)"
 				);
 			}
 
@@ -129,9 +126,8 @@ frappe.query_reports["Tog calculation report"] = {
 	filters: [],
 
 	onload: function (report) {
-		// Add "Debug Item" button in the report toolbar
 		report.page.add_inner_button(__("Debug Item"), function () {
-			const dialog = new frappe.ui.Dialog({
+			var d = new frappe.ui.Dialog({
 				title: __("Debug Item — Tog Calculation"),
 				fields: [
 					{
@@ -140,16 +136,16 @@ frappe.query_reports["Tog calculation report"] = {
 						options: "Item",
 						label: __("Item Code"),
 						reqd: 1,
-						description: __("Results will appear in DevTools → Console (F12)"),
+						description: __("Open DevTools Console (F12) before clicking Show"),
 					},
 				],
 				primary_action_label: __("Show in Console"),
 				primary_action: function (values) {
-					dialog.hide();
+					d.hide();
 					tog_debug_item(values.item_code);
 				},
 			});
-			dialog.show();
+			d.show();
 		});
 	},
 };
