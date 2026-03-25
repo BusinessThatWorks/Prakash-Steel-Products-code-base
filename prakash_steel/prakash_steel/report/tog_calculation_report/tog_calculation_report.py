@@ -2,33 +2,73 @@ import math
 from collections import defaultdict
 
 import frappe
+from frappe import _
 from frappe.utils import cint, flt, today, add_days
 
 from prakash_steel.utils.lead_time import get_default_bom
 
 
 def execute(filters=None):
-	"""
-	Tog Calculation Report
-
-	Columns required:
-	- Item Code
-	- Category Name (Item.custom_catagory_name)
-	- Item Type (Item.custom_item_type)
-	- Sell
-	- Consumption
-	- ADU (Item.custom_adu)
-	- SD
-	- COV
-
-	Right now, only values coming from Item are populated.
-	Other measure fields (sell, consumption, sd, cov) are left empty.
-	"""
-
 	columns = get_columns()
 	data = get_data(filters)
-
 	return columns, data
+
+
+@frappe.whitelist()
+def get_tog_parent_sell_console_payload():
+	"""
+	Return parent-sell debug JSON for the browser console.
+
+	Loaded via a separate request so it is not lost when the report pipeline
+	(e.g. user-permission filtering on Item rows) strips or reorders rows.
+	"""
+	if not frappe.has_permission("Item", "report"):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	rows = get_data(None)
+	if not rows:
+		return {}
+	return rows[0].get("tog_parent_sell_debug") or {}
+
+
+@frappe.whitelist()
+def get_item_tog_debug(item_code):
+	"""
+	Full per-item debug for browser console.
+
+	Returns:
+	  - direct_sells     : every Sales Invoice line that sold this item (→ Sell column)
+	  - parent_sell_contributions : every BOM hop that pushed demand onto this item (→ Parent Sell column)
+	  - total_sell / total_parent_sell_raw / total_parent_sell_ceiled : summary numbers
+	"""
+	if not frappe.has_permission("Item", "report"):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	days = _get_horizon_days()
+	sales_lines = _get_sales_invoice_lines()
+
+	# ── Direct sells (Sell column) ─────────────────────────────────────────
+	direct_sells = [l for l in sales_lines if l.get("item_code") == item_code]
+	total_sell = sum(flt(l.get("qty", 0)) for l in direct_sells)
+
+	# ── Propagation trace ──────────────────────────────────────────────────
+	trace = _compute_parent_sell_from_lines(sales_lines, collect_trace=True)[1]
+
+	# Only hops where demand lands ON this item
+	contributions = [t for t in (trace or []) if t.get("to_item") == item_code]
+
+	# parent_sell accumulator = sum of path_total_accrued_to_to_item (same as acc[item_code])
+	total_parent_sell_raw = sum(flt(t.get("path_total_accrued_to_to_item", 0)) for t in contributions)
+
+	return {
+		"item_code": item_code,
+		"horizon_days": days,
+		"total_sell": int(total_sell),
+		"total_parent_sell_raw": total_parent_sell_raw,
+		"total_parent_sell_ceiled": int(math.ceil(total_parent_sell_raw)) if total_parent_sell_raw > 0 else 0,
+		"direct_sells": direct_sells,
+		"parent_sell_contributions": contributions,
+	}
 
 
 def get_columns():
@@ -104,6 +144,10 @@ def get_data(filters=None):
 	- custom_adu
 
 	Leaves other fields (consumption, sd, cov) empty.
+
+	Debug payload is stored on the first row as `tog_parent_sell_debug` and also
+	exposed via `get_tog_parent_sell_console_payload` (used by report JS) so it
+	survives row filtering in `generate_report_result`.
 	"""
 	# Number of days in horizon (based on ADU Horizon)
 	days = _get_horizon_days()
@@ -112,7 +156,10 @@ def get_data(filters=None):
 	# Map of item_code -> total consumption (filtered by same date range as sales)
 	consumption_map = _get_consumption_by_item(days)
 
-	parent_sell_map = _compute_parent_sell_map(sales_qty_map)
+	sales_lines = _get_sales_invoice_lines()
+	parent_sell_map, propagation_trace = _compute_parent_sell_from_lines(
+		sales_lines, collect_trace=True
+	)
 
 	items = frappe.db.get_all(
 		"Item",
@@ -155,6 +202,27 @@ def get_data(filters=None):
 		# 4) SD / COV placeholders (not yet implemented)
 		item.setdefault("sd", None)
 		item.setdefault("cov", None)
+
+	# Browser console: one payload on first row (always present in API result; not a column).
+	if items:
+		per_item = []
+		for row in items:
+			ic = row.get("item_code")
+			ps = flt(parent_sell_map.get(ic, 0.0))
+			per_item.append(
+				{
+					"item_code": ic,
+					"parent_sell_float": ps,
+					"parent_sell_in_grid": int(math.ceil(ps)) if ps > 0 else 0,
+					"sell_in_grid": row.get("sell"),
+				}
+			)
+		items[0]["tog_parent_sell_debug"] = {
+			"horizon_days": days,
+			"sales_invoice_lines": sales_lines,
+			"propagation_trace": propagation_trace or [],
+			"per_item_parent_sell": per_item,
+		}
 
 	return items
 
@@ -202,22 +270,82 @@ def _get_sales_qty_by_item() -> dict[str, float]:
 	return {row["item_code"]: flt(row.get("total_qty", 0.0)) for row in rows}
 
 
+def _get_sales_invoice_lines() -> list[dict]:
+	"""Each submitted Sales Invoice line in the ADU horizon (one row per line item)."""
+	days = _get_horizon_days()
+	if days <= 0:
+		return []
+
+	end_date = today()
+	start_date = add_days(end_date, -(days - 1))
+
+	rows = frappe.db.sql(
+		"""
+		SELECT
+			sii.name AS invoice_item_row,
+			sii.parent AS sales_invoice,
+			si.posting_date AS posting_date,
+			sii.item_code AS item_code,
+			sii.qty AS qty,
+			sii.sales_order AS sales_order
+		FROM `tabSales Invoice Item` sii
+		INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
+		WHERE
+			si.docstatus = 1
+			AND si.posting_date BETWEEN %s AND %s
+		ORDER BY si.posting_date, sii.parent, sii.idx
+		""",
+		(start_date, end_date),
+		as_dict=True,
+	)
+
+	out = []
+	for row in rows:
+		out.append(
+			{
+				"invoice_item_row": row.get("invoice_item_row"),
+				"sales_invoice": row.get("sales_invoice"),
+				"posting_date": str(row.get("posting_date") or ""),
+				"item_code": row.get("item_code"),
+				"qty": flt(row.get("qty")),
+				"sales_order": row.get("sales_order") or None,
+			}
+		)
+	return out
+
+
 def _compute_parent_sell_map(sales_qty_map: dict[str, float]) -> dict[str, float]:
+	"""Aggregated by item (no per–sales-invoice trace)."""
+	lines = [
+		{
+			"invoice_item_row": None,
+			"sales_invoice": None,
+			"posting_date": None,
+			"item_code": k,
+			"qty": flt(v),
+			"sales_order": None,
+		}
+		for k, v in sales_qty_map.items()
+		if flt(v) > 0
+	]
+	acc, _ = _compute_parent_sell_from_lines(lines, collect_trace=False)
+	return acc
+
+
+def _compute_parent_sell_from_lines(
+	lines: list[dict],
+	collect_trace: bool,
+) -> tuple[dict[str, float], list | None]:
 	"""
-	For each invoiced item with sell qty > 0, explode through default BOMs.
+	For each sales line, explode through default BOMs.
 
 	Per BOM row: child_need = incoming_qty * (bom.quantity / bom_item.qty).
+	Parent sell for a component is the cumulative demand along the path.
 
-	Parent sell for a component is the *cumulative* demand along the path from the
-	sold item: sum of child_need at each hop (sold → … → this item). Multiple
-	sales or multiple paths add together.
-
-	Stop traversing when custom_item_type is 'rm' (case-insensitive); the RM line
-	still receives the cumulative total for that path.
-
-	Stored as floats; the report column uses ceil.
+	If collect_trace, each hop is appended with sales invoice / SO context.
 	"""
 	acc = defaultdict(float)
+	trace: list[dict] | None = [] if collect_trace else None
 	bom_doc_cache: dict[str, object] = {}
 	default_bom_cache: dict[str, str | None] = {}
 	rm_cache: dict[str, bool] = {}
@@ -234,12 +362,12 @@ def _compute_parent_sell_map(sales_qty_map: dict[str, float]) -> dict[str, float
 		return bom_doc_cache[bom_name]
 
 	def _propagate(
-		item_code: str, incoming_qty: float, visited: frozenset[str], path_cumulative: float
+		item_code: str,
+		incoming_qty: float,
+		visited: frozenset[str],
+		path_cumulative: float,
+		line_ctx: dict,
 	) -> None:
-		"""
-		path_cumulative: sum of child_need for each hop from the sold root up to
-		and including demand landing on item_code (incoming_qty is that landing qty).
-		"""
 		if not incoming_qty or item_code in visited:
 			return
 		if _is_rm_stop(item_code):
@@ -266,17 +394,46 @@ def _compute_parent_sell_map(sales_qty_map: dict[str, float]) -> dict[str, float
 			child_need = incoming_qty * (fg_qty / child_line_qty)
 			path_total = path_cumulative + child_need
 			acc[child_code] += path_total
+
+			if trace is not None:
+				trace.append(
+					{
+						"sales_invoice": line_ctx.get("sales_invoice"),
+						"sales_order": line_ctx.get("sales_order"),
+						"invoice_item_row": line_ctx.get("invoice_item_row"),
+						"posting_date": line_ctx.get("posting_date"),
+						"sold_item": line_ctx.get("item_code"),
+						"sold_qty_this_line": flt(line_ctx.get("qty")),
+						"from_item": item_code,
+						"to_item": child_code,
+						"bom": bom_name,
+						"bom_fg_qty": fg_qty,
+						"bom_line_qty": child_line_qty,
+						"child_need": child_need,
+						"path_cumulative_before_hop": path_cumulative,
+						"path_total_accrued_to_to_item": path_total,
+					}
+				)
+
 			if _is_rm_stop(child_code):
 				continue
-			_propagate(child_code, child_need, next_visited, path_total)
+			_propagate(child_code, child_need, next_visited, path_total, line_ctx)
 
-	for sold_item, sell_qty in sales_qty_map.items():
-		sq = flt(sell_qty)
-		if sq <= 0:
+	for line in lines:
+		sq = flt(line.get("qty"))
+		if sq <= 0 or not line.get("item_code"):
 			continue
-		_propagate(sold_item, sq, frozenset(), 0.0)
+		line_ctx = {
+			"invoice_item_row": line.get("invoice_item_row"),
+			"sales_invoice": line.get("sales_invoice"),
+			"posting_date": line.get("posting_date"),
+			"item_code": line.get("item_code"),
+			"qty": sq,
+			"sales_order": line.get("sales_order"),
+		}
+		_propagate(line["item_code"], sq, frozenset(), 0.0, line_ctx)
 
-	return dict(acc)
+	return dict(acc), trace
 
 
 def _get_consumption_by_item(days: int) -> dict[str, float]:
