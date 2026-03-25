@@ -178,3 +178,46 @@ def get_notification_recipients():
 
 	return recipients
 
+
+@frappe.whitelist()
+def make_purchase_receipt(source_name, target_doc=None):
+	"""
+	Override of erpnext.buying.doctype.purchase_order.purchase_order.make_purchase_receipt.
+
+	Excludes Purchase Order Items where custom_closed = 1 from the generated
+	Purchase Receipt so they are never carried forward to receiving.
+	"""
+	from erpnext.buying.doctype.purchase_order.purchase_order import (
+		make_purchase_receipt as _make_purchase_receipt,
+	)
+
+	doc = _make_purchase_receipt(source_name, target_doc)
+
+	if not (doc and doc.items):
+		return doc
+
+	original_count = len(doc.items)
+
+	doc.items = [
+		item
+		for item in doc.items
+		if not (
+			item.get("purchase_order_item")
+			and frappe.db.get_value("Purchase Order Item", item.purchase_order_item, "custom_closed")
+		)
+	]
+
+	# Re-index after filtering
+	for idx, item in enumerate(doc.items, 1):
+		item.idx = idx
+
+	closed_count = original_count - len(doc.items)
+	if closed_count:
+		frappe.msgprint(
+			_("{0} closed item(s) were excluded from the Purchase Receipt.").format(closed_count),
+			indicator="orange",
+			alert=True,
+		)
+
+	return doc
+
