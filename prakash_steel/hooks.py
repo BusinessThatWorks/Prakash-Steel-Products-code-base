@@ -130,3 +130,12 @@ override_doctype_class = {
 	"Payment Reconciliation": "prakash_steel.overrides.payment_reconciliation.CustomPaymentReconciliation",
 	"Sales Invoice": "prakash_steel.overrides.sales_invoice.CustomSalesInvoice",
 }
+
+# ------------------------------------------------------------------------------
+# Override Whitelisted Methods
+# ------------------------------------------------------------------------------
+
+override_whitelisted_methods = {
+	"erpnext.selling.doctype.sales_order.sales_order.make_sales_invoice": "prakash_steel.utils.sales_order.make_sales_invoice",
+	"erpnext.buying.doctype.purchase_order.purchase_order.make_purchase_receipt": "prakash_steel.utils.purchase_order.make_purchase_receipt",
+}
