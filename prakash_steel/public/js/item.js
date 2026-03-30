@@ -600,52 +600,52 @@ function handle_min_order_qty_batch_size_exclusivity(frm) {
 }
 
 
-function refresh_item_adu(frm) {
-    if (!frm.doc.item_code || frm.is_new() || frm.doc.__islocal) {
-        return;
-    }
+// function refresh_item_adu(frm) {
+//     if (!frm.doc.item_code || frm.is_new() || frm.doc.__islocal) {
+//         return;
+//     }
 
-    if (!frm.fields_dict['custom_adu']) {
-        return;
-    }
+//     if (!frm.fields_dict['custom_adu']) {
+//         return;
+//     }
 
-    const was_dirty = frm.is_dirty();
+//     const was_dirty = frm.is_dirty();
 
-    frappe.call({
-        method: "prakash_steel.prakash_steel.api.adu.update_item_adu",
-        args: {
-            item_code: frm.doc.item_code
-        },
-        callback: function (r) {
-            if (r.message !== undefined && r.message !== null) {
-                const new_adu = r.message;
-                const current_adu = frm.doc.custom_adu;
+//     frappe.call({
+//         method: "prakash_steel.prakash_steel.api.adu.update_item_adu",
+//         args: {
+//             item_code: frm.doc.item_code
+//         },
+//         callback: function (r) {
+//             if (r.message !== undefined && r.message !== null) {
+//                 const new_adu = r.message;
+//                 const current_adu = frm.doc.custom_adu;
 
-                if (current_adu !== new_adu) {
-                    const doc = locals[frm.doctype] && locals[frm.doctype][frm.docname];
-                    if (doc) {
-                        doc.custom_adu = new_adu;
-                    }
-                    frm.doc.custom_adu = new_adu;
-                    frm.refresh_field('custom_adu');
+//                 if (current_adu !== new_adu) {
+//                     const doc = locals[frm.doctype] && locals[frm.doctype][frm.docname];
+//                     if (doc) {
+//                         doc.custom_adu = new_adu;
+//                     }
+//                     frm.doc.custom_adu = new_adu;
+//                     frm.refresh_field('custom_adu');
 
-                    if (!was_dirty) {
-                        if (frm._dirty_fields) {
-                            const idx = frm._dirty_fields.indexOf('custom_adu');
-                            if (idx > -1) {
-                                frm._dirty_fields.splice(idx, 1);
-                            }
-                        }
-                        setTimeout(function () {
-                            const has_other_changes = frm._dirty_fields && frm._dirty_fields.length > 0;
-                            if (!has_other_changes && frm.is_dirty && frm.is_dirty()) {
-                                frm.dirty(false);
-                            }
-                        }, 100);
-                    }
-                }
-            }
-        }
-    });
-}
+//                     if (!was_dirty) {
+//                         if (frm._dirty_fields) {
+//                             const idx = frm._dirty_fields.indexOf('custom_adu');
+//                             if (idx > -1) {
+//                                 frm._dirty_fields.splice(idx, 1);
+//                             }
+//                         }
+//                         setTimeout(function () {
+//                             const has_other_changes = frm._dirty_fields && frm._dirty_fields.length > 0;
+//                             if (!has_other_changes && frm.is_dirty && frm.is_dirty()) {
+//                                 frm.dirty(false);
+//                             }
+//                         }, 100);
+//                     }
+//                 }
+//             }
+//         }
+//     });
+// }
 

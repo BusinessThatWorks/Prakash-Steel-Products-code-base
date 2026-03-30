@@ -31,6 +31,7 @@ doctype_js = {
 	"Purchase Receipt": "public/js/purchase_receipt.js",
 	"Sales Invoice": "public/js/sales_invoice.js",
 	"Production Plan": "public/js/production_plan.js",
+	"Salary Slip": "public/js/salary_slip.js",
 	# "Payment Reconciliation": "public/js/payment_reconciliation.js",
 }
 
