@@ -4,12 +4,6 @@ from frappe import _
 
 @frappe.whitelist()
 def make_sales_invoice(source_name, target_doc=None):
-	"""
-	Override of erpnext.selling.doctype.sales_order.sales_order.make_sales_invoice.
-
-	Excludes Sales Order Items where custom_closed = 1 from the generated
-	Sales Invoice so they are never carried forward to billing.
-	"""
 	from erpnext.selling.doctype.sales_order.sales_order import (
 		make_sales_invoice as _make_sales_invoice,
 	)
@@ -25,8 +19,7 @@ def make_sales_invoice(source_name, target_doc=None):
 		item
 		for item in doc.items
 		if not (
-			item.get("so_detail")
-			and frappe.db.get_value("Sales Order Item", item.so_detail, "custom_closed")
+			item.get("so_detail") and frappe.db.get_value("Sales Order Item", item.so_detail, "custom_closed")
 		)
 	]
 

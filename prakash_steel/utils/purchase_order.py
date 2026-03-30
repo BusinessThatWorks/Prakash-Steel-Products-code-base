@@ -28,7 +28,7 @@ def validate_purchase_order_quantity_on_close(doc, method=None):
 	previous_status = None
 	if hasattr(doc, "_doc_before_save") and doc._doc_before_save:
 		previous_status = doc._doc_before_save.get("status")
-	
+
 	# If status was already "Closed" before this update, don't send email again
 	if previous_status == "Closed":
 		return
@@ -181,12 +181,6 @@ def get_notification_recipients():
 
 @frappe.whitelist()
 def make_purchase_receipt(source_name, target_doc=None):
-	"""
-	Override of erpnext.buying.doctype.purchase_order.purchase_order.make_purchase_receipt.
-
-	Excludes Purchase Order Items where custom_closed = 1 from the generated
-	Purchase Receipt so they are never carried forward to receiving.
-	"""
 	from erpnext.buying.doctype.purchase_order.purchase_order import (
 		make_purchase_receipt as _make_purchase_receipt,
 	)
@@ -220,4 +214,3 @@ def make_purchase_receipt(source_name, target_doc=None):
 		)
 
 	return doc
-
