@@ -3,6 +3,7 @@
 
 import frappe
 from frappe import _
+import re
 from erpnext.accounts.doctype.sales_invoice.sales_invoice import SalesInvoice
 from frappe.utils import flt, nowdate, nowtime
 from erpnext.stock.stock_ledger import get_previous_sle
@@ -10,323 +11,398 @@ from prakash_steel.prakash_steel.api.adu import update_adu_for_sales_invoice
 
 
 class CustomSalesInvoice(SalesInvoice):
-	"""Custom Sales Invoice that automatically creates Material Receipt Stock Entry
-	for items with insufficient stock when custom_stock_in_for_weight_variance is checked.
-	"""
+    """Custom Sales Invoice that automatically creates Material Receipt Stock Entry
+    for items with insufficient stock when custom_stock_in_for_weight_variance is checked.
+    """
 
-	def before_insert(self):
-		"""On amendment, clear fields that should not carry forward from the original."""
-		if getattr(self, "amended_from", None):
-			self.custom_stock_entry_id = None
-			self.custom_cancel_reason = None
+    @staticmethod
+    def _extract_sales_order_serial(so_name: str) -> str | None:
+        """
+        Extract the serial-like numeric part from Sales Order name while
+        skipping year-ranges (e.g. `25-26`).
 
-		try:
-			super().before_insert()
-		except AttributeError:
-			pass
+        Examples:
+        - `SO/25-26/01514` -> `01514`
+        - `SO/01007/25-26` -> `01007`
+        - `SO-0001/2025` -> `0001`
 
-	def validate(self):
-		"""Run parent validate, then re-clear amendment fields in case parent restored them."""
-		super().validate()
-		# ERPNext's validate chain may re-copy values from amended_from; clear them again here.
-		if self.is_new() and getattr(self, "amended_from", None):
-			self.custom_stock_entry_id = None
-			self.custom_cancel_reason = None
+        Implementation approach:
+        - remove slash-delimited year-range segments like `/25-26/` (and trailing `/25-26`)
+        - return the first remaining numeric token, skipping common 4-digit calendar years
+        """
+        if not so_name:
+            return None
 
-	def on_submit(self):
-		"""Run standard submit, then update ADU (custom)."""
-		super().on_submit()
+        so_name = str(so_name).strip()
+        if not so_name:
+            return None
 
-		try:
-			update_adu_for_sales_invoice(self)
-		except Exception:
-			frappe.log_error(
-				title=_("Error updating ADU for Sales Invoice {0}").format(self.name),
-				message=frappe.get_traceback(),
-			)
+        # Remove year ranges first, e.g. `25-26` from `SO/25-26/01514`.
+        # This ensures we never accidentally pick those tokens as the serial.
+        so_name = re.sub(r"(?<=/)\d{2}-\d{2}(?=/|$)", "", so_name)
 
-	def before_submit(self):
-		"""Run stock-entry (conditional) before submit."""
-		custom_field_value = self.get("custom_stock_in_for_weight_variance")
+        # Now pick the first numeric token that is not a common 4-digit calendar year.
+        # (We keep leading zeros by returning the matched text as-is.)
+        for match in re.finditer(r"\d+", so_name):
+            token = match.group(0)
+            if len(token) == 4 and 1900 <= int(token) <= 2099:
+                continue
+            return token
 
-		if custom_field_value and custom_field_value not in [None, "", 0, "0", "No"]:
-			if self.update_stock:
-				self.create_material_receipt_for_insufficient_stock()
+        return None
 
-		super().before_submit()
+    def before_insert(self):
+        """On amendment, clear fields that should not carry forward from the original."""
+        if getattr(self, "amended_from", None):
+            self.custom_stock_entry_id = None
+            self.custom_cancel_reason = None
 
-	def before_cancel(self):
-		"""Ensure cancel reason is provided before allowing cancellation."""
-		if not (self.custom_cancel_reason or "").strip():
-			frappe.throw(
-				_("Please enter Cancel Reason before cancelling this Sales Invoice."),
-				title=_("Cancel Reason Required"),
-			)
+        try:
+            super().before_insert()
+        except AttributeError:
+            pass
 
-		# Continue with standard cancellation flow
-		super().before_cancel()
+    def validate(self):
+        """Run parent validate, then re-clear amendment fields in case parent restored them."""
+        super().validate()
+        # ERPNext's validate chain may re-copy values from amended_from; clear them again here.
+        if self.is_new() and getattr(self, "amended_from", None):
+            self.custom_stock_entry_id = None
+            self.custom_cancel_reason = None
 
-	def create_material_receipt_for_insufficient_stock(self):
-		"""Create Material Receipt Stock Entry for items with insufficient stock in warehouse."""
-		if not self.items:
-			return
+    def _build_other_references(self) -> str | None:
+        """Build ordered, unique Sales Order serial list from child item rows."""
+        seen = set()
+        ordered_serials = []
 
-		items_to_receipt = []
-		stock_entry_items = []
+        for item in self.get("items") or []:
+            so_name = getattr(item, "sales_order", None) or item.get("sales_order")
+            serial = self._extract_sales_order_serial(so_name)
+            if serial and serial not in seen:
+                seen.add(serial)
+                ordered_serials.append(serial)
 
-		# Check each item for insufficient stock
-		for item in self.get("items"):
-			if not item.item_code or not item.warehouse:
-				continue
+        return ", ".join(ordered_serials) if ordered_serials else None
 
-			# Skip if item is not a stock item
-			if not frappe.get_cached_value("Item", item.item_code, "is_stock_item"):
-				continue
+    def on_submit(self):
+        """Run standard submit, set custom references, then update ADU (custom)."""
+        super().on_submit()
 
-			# Get required quantity in stock UOM
-			# Use stock_qty if available (already in stock UOM), otherwise convert qty to stock UOM
-			if hasattr(item, "stock_qty") and item.stock_qty:
-				required_qty = flt(item.stock_qty, item.precision("stock_qty"))
-			else:
-				# Convert qty to stock UOM using conversion_factor
-				conversion_factor = flt(item.conversion_factor) or 1.0
-				required_qty = flt(item.qty, item.precision("qty")) * conversion_factor
+        other_references = self._build_other_references()
+        self.custom_other_references = other_references
+        self.db_set("custom_other_references", other_references, update_modified=False)
 
-			if required_qty <= 0:
-				continue
+        try:
+            update_adu_for_sales_invoice(self)
+        except Exception:
+            frappe.log_error(
+                title=_("Error updating ADU for Sales Invoice {0}").format(self.name),
+                message=frappe.get_traceback(),
+            )
 
-			# Get available stock from warehous
-			available_qty = self.get_available_stock(item.item_code, item.warehouse)
+    def before_submit(self):
+        """Run stock-entry (conditional) before submit."""
+        custom_field_value = self.get("custom_stock_in_for_weight_variance")
 
-			# Validation: If any item has 0 quantity in warehouse, throw error and prevent submission
-			if available_qty == 0:
-				frappe.throw(
-					_(
-						"Item {0} has 0 quantity in warehouse {1}. Cannot create Material Receipt for items with zero stock. Please add stock manually before submitting."
-					).format(frappe.bold(item.item_code), frappe.bold(item.warehouse)),
-					title=_("Zero Stock Error"),
-				)
+        if custom_field_value and custom_field_value not in [None, "", 0, "0", "No"]:
+            if self.update_stock:
+                self.create_material_receipt_for_insufficient_stock()
 
-			# Check if stock is insufficient
-			if available_qty < required_qty:
-				shortage_qty = required_qty - available_qty
+        super().before_submit()
 
-				# If linked to a Sales Order, check if we can serve the invoice with max 10% extra stock-in
-				if getattr(item, "sales_order", None) and getattr(item, "so_detail", None):
-					so_item = frappe.db.get_value(
-						"Sales Order Item",
-						item.so_detail,
-						["qty", "stock_qty", "conversion_factor"],
-						as_dict=True,
-					)
+    def before_cancel(self):
+        """Ensure cancel reason is provided before allowing cancellation."""
+        if not (self.custom_cancel_reason or "").strip():
+            frappe.throw(
+                _("Please enter Cancel Reason before cancelling this Sales Invoice."),
+                title=_("Cancel Reason Required"),
+            )
 
-					if so_item:
-						# Convert SO qty to stock UOM
-						so_cf = flt(so_item.conversion_factor or 1.0) or 1.0
-						so_qty = flt(so_item.qty or 0)
-						so_stock_qty = flt(so_item.stock_qty or 0) or (so_qty * so_cf)
+        # Continue with standard cancellation flow
+        super().before_cancel()
 
-						if so_stock_qty > 0:
-							# Max extra we are allowed to auto stock-in = 10% of SO qty (in stock UOM)
-							max_extra_stock_in = so_stock_qty * 0.10
+    def create_material_receipt_for_insufficient_stock(self):
+        """Create Material Receipt Stock Entry for items with insufficient stock in warehouse."""
+        if not self.items:
+            return
 
-							# Check: After adding max_extra_stock_in, will we have enough to serve the invoice?
-							available_after_max_stock_in = available_qty + max_extra_stock_in
+        items_to_receipt = []
+        stock_entry_items = []
 
-							if available_after_max_stock_in < required_qty:
-								# Even with max 10% stock-in, we cannot serve this invoice
-								# Calculate how much more we would need
-								still_short = required_qty - available_after_max_stock_in
-								frappe.throw(
-									_(
-										"Row #{0}: Item {1} - Even after maximum allowed 10% stock-in ({2}), "
-										"available stock ({3}) will be insufficient. Required: {4}, "
-										"still short by: {5}. Please reduce the invoice quantity "
-										"or receive stock manually."
-									).format(
-										item.idx,
-										frappe.bold(item.item_code),
-										frappe.bold(max_extra_stock_in),
-										frappe.bold(available_after_max_stock_in),
-										frappe.bold(required_qty),
-										frappe.bold(still_short),
-									),
-									title=_("Insufficient Stock Even After Max Stock-in"),
-								)
+        # Check each item for insufficient stock
+        for item in self.get("items"):
+            if not item.item_code or not item.warehouse:
+                continue
 
-							# We can serve it, but only stock-in up to the shortage OR max_extra_stock_in, whichever is smaller
-							actual_stock_in_qty = min(shortage_qty, max_extra_stock_in)
+            # Skip if item is not a stock item
+            if not frappe.get_cached_value("Item", item.item_code, "is_stock_item"):
+                continue
 
-							# Only add to receipt list if we need to stock-in something
-							if actual_stock_in_qty > 0:
-								items_to_receipt.append(
-									{
-										"item": item,
-										"shortage_qty": actual_stock_in_qty,  # Use capped quantity
-										"available_qty": available_qty,
-										"required_qty": required_qty,
-									}
-								)
-				else:
-					# No SO link, use original logic (stock-in full shortage)
-					items_to_receipt.append(
-						{
-							"item": item,
-							"shortage_qty": shortage_qty,
-							"available_qty": available_qty,
-							"required_qty": required_qty,
-						}
-					)
+            # Get required quantity in stock UOM
+            # Use stock_qty if available (already in stock UOM), otherwise convert qty to stock UOM
+            if hasattr(item, "stock_qty") and item.stock_qty:
+                required_qty = flt(item.stock_qty, item.precision("stock_qty"))
+            else:
+                # Convert qty to stock UOM using conversion_factor
+                conversion_factor = flt(item.conversion_factor) or 1.0
+                required_qty = flt(item.qty, item.precision("qty")) * conversion_factor
 
-		# If no items need stock receipt, return
-		if not items_to_receipt:
-			return
+            if required_qty <= 0:
+                continue
 
-		# Create Material Receipt Stock Entry
-		try:
-			# Get company from Sales Invoice
-			company = self.company
+            # Get available stock from warehous
+            available_qty = self.get_available_stock(item.item_code, item.warehouse)
 
-			# Get posting date and time
-			posting_date = self.posting_date or nowdate()
-			posting_time = self.posting_time or nowtime()
+            # Validation: If any item has 0 quantity in warehouse, throw error and prevent submission
+            if available_qty == 0:
+                frappe.throw(
+                    _(
+                        "Item {0} has 0 quantity in warehouse {1}. Cannot create Material Receipt for items with zero stock. Please add stock manually before submitting."
+                    ).format(frappe.bold(item.item_code), frappe.bold(item.warehouse)),
+                    title=_("Zero Stock Error"),
+                )
 
-			# Prepare items for Stock Entry
-			for receipt_item in items_to_receipt:
-				item = receipt_item["item"]
-				shortage_qty = receipt_item["shortage_qty"]
+            # Check if stock is insufficient
+            if available_qty < required_qty:
+                shortage_qty = required_qty - available_qty
 
-				# Get item details
-				item_doc = frappe.get_doc("Item", item.item_code)
-				stock_uom = item_doc.stock_uom or item.uom or "Nos"
+                # If linked to a Sales Order, check if we can serve the invoice with max 10% extra stock-in
+                if getattr(item, "sales_order", None) and getattr(
+                    item, "so_detail", None
+                ):
+                    so_item = frappe.db.get_value(
+                        "Sales Order Item",
+                        item.so_detail,
+                        ["qty", "stock_qty", "conversion_factor"],
+                        as_dict=True,
+                    )
 
-				# Calculate rate in stock UOM if needed
-				conversion_factor = flt(item.conversion_factor) or 1.0
-				rate_in_stock_uom = (
-					flt(item.rate or 0) / conversion_factor if conversion_factor > 0 else flt(item.rate or 0)
-				)
+                    if so_item:
+                        # Convert SO qty to stock UOM
+                        so_cf = flt(so_item.conversion_factor or 1.0) or 1.0
+                        so_qty = flt(so_item.qty or 0)
+                        so_stock_qty = flt(so_item.stock_qty or 0) or (so_qty * so_cf)
 
-				# Add to stock entry items (shortage_qty is already in stock UOM)
-				stock_entry_items.append(
-					{
-						"item_code": item.item_code,
-						"item_name": item.item_name,
-						"description": item.description,
-						"qty": shortage_qty,
-						"uom": stock_uom,  # Use stock UOM for Material Receipt
-						"stock_uom": stock_uom,
-						"conversion_factor": 1.0,  # Already in stock UOM
-						"t_warehouse": item.warehouse,  # Target warehouse for Material Receipt
-						"basic_rate": rate_in_stock_uom,
-						"basic_amount": flt(shortage_qty * rate_in_stock_uom),
-						"expense_account": item.expense_account,
-						"cost_center": item.cost_center or self.cost_center,
-					}
-				)
+                        if so_stock_qty > 0:
+                            # Max extra we are allowed to auto stock-in = 10% of SO qty (in stock UOM)
+                            max_extra_stock_in = so_stock_qty * 0.10
 
-			# Create Stock Entry
-			stock_entry = frappe.get_doc(
-				{
-					"doctype": "Stock Entry",
-					"stock_entry_type": "Material Receipt",
-					"company": company,
-					"set_posting_time": 1,
-					"posting_date": posting_date,
-					"posting_time": posting_time,
-					"items": stock_entry_items,
-					"remarks": _(
-						"Auto-created Material Receipt for insufficient stock in Sales Invoice {0}"
-					).format(self.name),
-				}
-			)
+                            # Check: After adding max_extra_stock_in, will we have enough to serve the invoice?
+                            available_after_max_stock_in = (
+                                available_qty + max_extra_stock_in
+                            )
 
-			# Explicitly set posting time and date
-			stock_entry.set_posting_time = 1
-			stock_entry.posting_date = posting_date
-			stock_entry.posting_time = posting_time
+                            if available_after_max_stock_in < required_qty:
+                                # Even with max 10% stock-in, we cannot serve this invoice
+                                # Calculate how much more we would need
+                                still_short = (
+                                    required_qty - available_after_max_stock_in
+                                )
+                                frappe.throw(
+                                    _(
+                                        "Row #{0}: Item {1} - Even after maximum allowed 10% stock-in ({2}), "
+                                        "available stock ({3}) will be insufficient. Required: {4}, "
+                                        "still short by: {5}. Please reduce the invoice quantity "
+                                        "or receive stock manually."
+                                    ).format(
+                                        item.idx,
+                                        frappe.bold(item.item_code),
+                                        frappe.bold(max_extra_stock_in),
+                                        frappe.bold(available_after_max_stock_in),
+                                        frappe.bold(required_qty),
+                                        frappe.bold(still_short),
+                                    ),
+                                    title=_(
+                                        "Insufficient Stock Even After Max Stock-in"
+                                    ),
+                                )
 
-			# Insert the stock entry
-			stock_entry.insert(ignore_permissions=True)
+                            # We can serve it, but only stock-in up to the shortage OR max_extra_stock_in, whichever is smaller
+                            actual_stock_in_qty = min(shortage_qty, max_extra_stock_in)
 
-			# Submit the stock entry
-			stock_entry.set_posting_time = 1
-			stock_entry.posting_date = posting_date
-			stock_entry.submit()
+                            # Only add to receipt list if we need to stock-in something
+                            if actual_stock_in_qty > 0:
+                                items_to_receipt.append(
+                                    {
+                                        "item": item,
+                                        "shortage_qty": actual_stock_in_qty,  # Use capped quantity
+                                        "available_qty": available_qty,
+                                        "required_qty": required_qty,
+                                    }
+                                )
+                else:
+                    # No SO link, use original logic (stock-in full shortage)
+                    items_to_receipt.append(
+                        {
+                            "item": item,
+                            "shortage_qty": shortage_qty,
+                            "available_qty": available_qty,
+                            "required_qty": required_qty,
+                        }
+                    )
 
-			# Final check - if posting_date was changed, force set it via SQL
-			if stock_entry.posting_date != posting_date:
-				frappe.db.sql(
-					"UPDATE `tabStock Entry` SET posting_date = %s WHERE name = %s",
-					(posting_date, stock_entry.name),
-				)
-				frappe.db.commit()
-				stock_entry.reload()
+        # If no items need stock receipt, return
+        if not items_to_receipt:
+            return
 
-			# Save Stock Entry ID to custom field
-			self.custom_stock_entry_id = stock_entry.name
-			# Update the field in database since we're in on_submit
-			frappe.db.set_value("Sales Invoice", self.name, "custom_stock_entry_id", stock_entry.name)
-			frappe.db.commit()
+        # Create Material Receipt Stock Entry
+        try:
+            # Get company from Sales Invoice
+            company = self.company
 
-			# Show success message
-			item_list = ", ".join([f"{r['item'].item_code} ({r['shortage_qty']})" for r in items_to_receipt])
-			frappe.msgprint(
-				_(
-					"Material Receipt {0} created and submitted automatically for insufficient stock items: {1}"
-				).format(frappe.bold(stock_entry.name), item_list),
-				indicator="green",
-				alert=True,
-			)
+            # Get posting date and time
+            posting_date = self.posting_date or nowdate()
+            posting_time = self.posting_time or nowtime()
 
-		except Exception as e:
-			frappe.log_error(
-				title=_("Error creating Material Receipt for Sales Invoice {0}").format(self.name),
-				message=frappe.get_traceback(),
-			)
-			frappe.throw(
-				_("Error creating Material Receipt for insufficient stock: {0}").format(str(e)),
-				title=_("Stock Entry Creation Failed"),
-			)
+            # Prepare items for Stock Entry
+            for receipt_item in items_to_receipt:
+                item = receipt_item["item"]
+                shortage_qty = receipt_item["shortage_qty"]
 
-	def get_available_stock(self, item_code, warehouse):
-		"""Get available stock quantity for an item in a warehouse.
+                # Get item details
+                item_doc = frappe.get_doc("Item", item.item_code)
+                stock_uom = item_doc.stock_uom or item.uom or "Nos"
 
-		Uses Stock Ledger Entry to get accurate stock as of the posting date.
-		"""
-		try:
-			# Use get_previous_sle to get accurate stock as of posting date
-			previous_sle = get_previous_sle(
-				{
-					"item_code": item_code,
-					"warehouse": warehouse,
-					"posting_date": self.posting_date or nowdate(),
-					"posting_time": self.posting_time or nowtime(),
-				}
-			)
+                # Calculate rate in stock UOM if needed
+                conversion_factor = flt(item.conversion_factor) or 1.0
+                rate_in_stock_uom = (
+                    flt(item.rate or 0) / conversion_factor
+                    if conversion_factor > 0
+                    else flt(item.rate or 0)
+                )
 
-			# Get actual stock quantity
-			actual_qty = flt(previous_sle.get("qty_after_transaction") or 0)
+                # Add to stock entry items (shortage_qty is already in stock UOM)
+                stock_entry_items.append(
+                    {
+                        "item_code": item.item_code,
+                        "item_name": item.item_name,
+                        "description": item.description,
+                        "qty": shortage_qty,
+                        "uom": stock_uom,  # Use stock UOM for Material Receipt
+                        "stock_uom": stock_uom,
+                        "conversion_factor": 1.0,  # Already in stock UOM
+                        "t_warehouse": item.warehouse,  # Target warehouse for Material Receipt
+                        "basic_rate": rate_in_stock_uom,
+                        "basic_amount": flt(shortage_qty * rate_in_stock_uom),
+                        "expense_account": item.expense_account,
+                        "cost_center": item.cost_center or self.cost_center,
+                    }
+                )
 
-			return actual_qty
+            # Create Stock Entry
+            stock_entry = frappe.get_doc(
+                {
+                    "doctype": "Stock Entry",
+                    "stock_entry_type": "Material Receipt",
+                    "company": company,
+                    "set_posting_time": 1,
+                    "posting_date": posting_date,
+                    "posting_time": posting_time,
+                    "items": stock_entry_items,
+                    "remarks": _(
+                        "Auto-created Material Receipt for insufficient stock in Sales Invoice {0}"
+                    ).format(self.name),
+                }
+            )
 
-		except Exception:
-			# Fallback to Bin table if SLE method fails
-			try:
-				bin_data = frappe.db.sql(
-					"""
+            # Explicitly set posting time and date
+            stock_entry.set_posting_time = 1
+            stock_entry.posting_date = posting_date
+            stock_entry.posting_time = posting_time
+
+            # Insert the stock entry
+            stock_entry.insert(ignore_permissions=True)
+
+            # Submit the stock entry
+            stock_entry.set_posting_time = 1
+            stock_entry.posting_date = posting_date
+            stock_entry.submit()
+
+            # Final check - if posting_date was changed, force set it via SQL
+            if stock_entry.posting_date != posting_date:
+                frappe.db.sql(
+                    "UPDATE `tabStock Entry` SET posting_date = %s WHERE name = %s",
+                    (posting_date, stock_entry.name),
+                )
+                frappe.db.commit()
+                stock_entry.reload()
+
+            # Save Stock Entry ID to custom field
+            self.custom_stock_entry_id = stock_entry.name
+            # Update the field in database since we're in on_submit
+            frappe.db.set_value(
+                "Sales Invoice", self.name, "custom_stock_entry_id", stock_entry.name
+            )
+            frappe.db.commit()
+
+            # Show success message
+            item_list = ", ".join(
+                [
+                    f"{r['item'].item_code} ({r['shortage_qty']})"
+                    for r in items_to_receipt
+                ]
+            )
+            frappe.msgprint(
+                _(
+                    "Material Receipt {0} created and submitted automatically for insufficient stock items: {1}"
+                ).format(frappe.bold(stock_entry.name), item_list),
+                indicator="green",
+                alert=True,
+            )
+
+        except Exception as e:
+            frappe.log_error(
+                title=_("Error creating Material Receipt for Sales Invoice {0}").format(
+                    self.name
+                ),
+                message=frappe.get_traceback(),
+            )
+            frappe.throw(
+                _("Error creating Material Receipt for insufficient stock: {0}").format(
+                    str(e)
+                ),
+                title=_("Stock Entry Creation Failed"),
+            )
+
+    def get_available_stock(self, item_code, warehouse):
+        """Get available stock quantity for an item in a warehouse.
+
+        Uses Stock Ledger Entry to get accurate stock as of the posting date.
+        """
+        try:
+            # Use get_previous_sle to get accurate stock as of posting date
+            previous_sle = get_previous_sle(
+                {
+                    "item_code": item_code,
+                    "warehouse": warehouse,
+                    "posting_date": self.posting_date or nowdate(),
+                    "posting_time": self.posting_time or nowtime(),
+                }
+            )
+
+            # Get actual stock quantity
+            actual_qty = flt(previous_sle.get("qty_after_transaction") or 0)
+
+            return actual_qty
+
+        except Exception:
+            # Fallback to Bin table if SLE method fails
+            try:
+                bin_data = frappe.db.sql(
+                    """
 					SELECT actual_qty
 					FROM `tabBin`
 					WHERE item_code = %s AND warehouse = %s
 					LIMIT 1
 					""",
-					(item_code, warehouse),
-					as_dict=True,
-				)
+                    (item_code, warehouse),
+                    as_dict=True,
+                )
 
-				if bin_data:
-					return flt(bin_data[0].get("actual_qty") or 0)
+                if bin_data:
+                    return flt(bin_data[0].get("actual_qty") or 0)
 
-			except Exception:
-				pass
+            except Exception:
+                pass
 
-			return 0
+            return 0
