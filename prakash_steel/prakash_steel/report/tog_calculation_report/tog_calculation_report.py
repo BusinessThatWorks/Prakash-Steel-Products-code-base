@@ -37,9 +37,10 @@ def get_item_tog_debug(item_code):
 	Full per-item debug for browser console.
 
 	Returns:
-	  - direct_sells     : every Sales Invoice line that sold this item (→ Sell column)
-	  - parent_sell_contributions : every BOM hop that pushed demand onto this item (→ Parent Sell column)
-	  - total_sell / total_parent_sell_raw / total_parent_sell_ceiled : summary numbers
+	  - direct_sells               : every Sales Invoice line that sold this item (→ Sell column)
+	  - parent_sell_contributions  : every BOM hop that pushed demand onto this item (→ Parent Sell column)
+	  - sd_daily_breakdown         : per-day qty, mean, deviation, squared deviation (→ SD column)
+	  - total_sell / total_parent_sell_raw / total_parent_sell_ceiled / sd / adu / cov : summary numbers
 	"""
 	if not frappe.has_permission("Item", "report"):
 		frappe.throw(_("Not permitted"), frappe.PermissionError)
@@ -60,14 +61,67 @@ def get_item_tog_debug(item_code):
 	# parent_sell accumulator = sum of path_total_accrued_to_to_item (same as acc[item_code])
 	total_parent_sell_raw = sum(flt(t.get("path_total_accrued_to_to_item", 0)) for t in contributions)
 
+	# ── SD breakdown (→ SD column) ─────────────────────────────────────────
+	end_date = today()
+	start_date = add_days(end_date, -(days - 1))
+
+	# Per-date sales for this item
+	date_rows = frappe.db.sql(
+		"""
+		SELECT si.posting_date, SUM(sii.qty) AS daily_qty
+		FROM `tabSales Invoice Item` sii
+		INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
+		WHERE si.docstatus = 1
+		  AND sii.item_code = %s
+		  AND si.posting_date BETWEEN %s AND %s
+		GROUP BY si.posting_date
+		""",
+		(item_code, start_date, end_date),
+		as_dict=True,
+	)
+	daily_map = {str(r["posting_date"]): flt(r["daily_qty"]) for r in date_rows}
+
+	mean = total_sell / days if days > 0 else 0.0
+	daily_breakdown = []
+	sum_sq = 0.0
+	for i in range(days):
+		d = str(add_days(start_date, i))
+		qty = daily_map.get(d, 0.0)
+		dev = qty - mean
+		sq = dev ** 2
+		sum_sq += sq
+		daily_breakdown.append({
+			"date": d,
+			"qty": qty,
+			"deviation": round(dev, 4),
+			"squared_deviation": round(sq, 4),
+		})
+
+	variance = sum_sq / days if days > 0 else 0.0
+	sd_val = math.sqrt(variance)
+
+	# ADU for COV
+	consumption_map = _get_consumption_by_item(days)
+	consumption = flt(consumption_map.get(item_code, 0.0))
+	total_usage = total_sell + consumption
+	adu_val = math.ceil(total_usage / days) if days > 0 and total_usage > 0 else 0
+
 	return {
 		"item_code": item_code,
 		"horizon_days": days,
+		"start_date": start_date,
+		"end_date": end_date,
 		"total_sell": int(total_sell),
+		"mean_daily_qty": round(mean, 4),
+		"variance": round(variance, 4),
+		"sd": round(sd_val, 4),
+		"adu": adu_val,
+		"cov": round(sd_val / adu_val, 4) if adu_val and sd_val else None,
 		"total_parent_sell_raw": total_parent_sell_raw,
 		"total_parent_sell_ceiled": int(math.ceil(total_parent_sell_raw)) if total_parent_sell_raw > 0 else 0,
 		"direct_sells": direct_sells,
 		"parent_sell_contributions": contributions,
+		"sd_daily_breakdown": daily_breakdown,
 	}
 
 
@@ -155,6 +209,8 @@ def get_data(filters=None):
 	sales_qty_map = _get_sales_qty_by_item()
 	# Map of item_code -> total consumption (filtered by same date range as sales)
 	consumption_map = _get_consumption_by_item(days)
+	# Map of item_code -> population SD of daily sales qty
+	sd_map = _get_sd_by_item(days)
 
 	sales_lines = _get_sales_invoice_lines()
 	parent_sell_map, propagation_trace = _compute_parent_sell_from_lines(
@@ -199,9 +255,13 @@ def get_data(filters=None):
 			# If horizon not configured or no sales/consumption, set ADU to 0
 			item["custom_adu"] = 0
 
-		# 4) SD / COV placeholders (not yet implemented)
-		item.setdefault("sd", None)
-		item.setdefault("cov", None)
+		# 4) SD: population standard deviation of daily sales qty over the horizon
+		sd_val = flt(sd_map.get(item_code, 0.0))
+		item["sd"] = round(sd_val, 2) if sd_val else None
+
+		# 5) COV: coefficient of variation = SD / ADU
+		adu_val = item.get("custom_adu", 0)
+		item["cov"] = round(sd_val / adu_val, 2) if adu_val and sd_val else None
 
 	# Browser console: one payload on first row (always present in API result; not a column).
 	if items:
@@ -209,12 +269,17 @@ def get_data(filters=None):
 		for row in items:
 			ic = row.get("item_code")
 			ps = flt(parent_sell_map.get(ic, 0.0))
+			sd_val = flt(sd_map.get(ic, 0.0))
+			adu_val = row.get("custom_adu", 0)
 			per_item.append(
 				{
 					"item_code": ic,
 					"parent_sell_float": ps,
 					"parent_sell_in_grid": int(math.ceil(ps)) if ps > 0 else 0,
 					"sell_in_grid": row.get("sell"),
+					"sd": round(sd_val, 4) if sd_val else None,
+					"adu": adu_val,
+					"cov": round(sd_val / adu_val, 4) if adu_val and sd_val else None,
 				}
 			)
 		items[0]["tog_parent_sell_debug"] = {
@@ -434,6 +499,59 @@ def _compute_parent_sell_from_lines(
 		_propagate(line["item_code"], sq, frozenset(), 0.0, line_ctx)
 
 	return dict(acc), trace
+
+
+def _get_sd_by_item(days: int) -> dict[str, float]:
+	"""
+	Return population standard deviation of daily sales qty for each item
+	over the ADU horizon.
+
+	For each day in the horizon:
+	  - If no sales invoice exists for that day → daily qty = 0
+	  - mean  = total_qty / days          (same as: sell / days)
+	  - var   = sum((daily_qty - mean)²) / days
+	  - SD    = sqrt(var)
+	"""
+	if days <= 0:
+		return {}
+
+	end_date = today()
+	start_date = add_days(end_date, -(days - 1))
+
+	rows = frappe.db.sql(
+		"""
+		SELECT
+			sii.item_code,
+			si.posting_date,
+			SUM(sii.qty) AS daily_qty
+		FROM `tabSales Invoice Item` sii
+		INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
+		WHERE
+			si.docstatus = 1
+			AND si.posting_date BETWEEN %s AND %s
+		GROUP BY sii.item_code, si.posting_date
+		""",
+		(start_date, end_date),
+		as_dict=True,
+	)
+
+	# item_code -> {date_str -> qty}
+	item_daily: dict[str, dict[str, float]] = defaultdict(dict)
+	for row in rows:
+		item_daily[row["item_code"]][str(row["posting_date"])] = flt(row["daily_qty"])
+
+	sd_map: dict[str, float] = {}
+	for item_code, daily_map in item_daily.items():
+		# Build a full list of daily quantities (0 for days with no sale)
+		daily_qtys = [
+			daily_map.get(str(add_days(start_date, i)), 0.0)
+			for i in range(days)
+		]
+		mean = sum(daily_qtys) / days
+		variance = sum((q - mean) ** 2 for q in daily_qtys) / days
+		sd_map[item_code] = math.sqrt(variance)
+
+	return sd_map
 
 
 def _get_consumption_by_item(days: int) -> dict[str, float]:

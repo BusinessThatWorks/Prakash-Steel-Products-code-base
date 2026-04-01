@@ -87,6 +87,7 @@ class BrightBarProduction(Document):
 
 			stock_entry_data = {
 				"doctype": "Stock Entry",
+				"naming_series": "BU/.####./.FY.",
 				"stock_entry_type": "Manufacture",
 				"company": company,
 				"set_posting_time": 1,  # Enable custom posting date/time

@@ -1,9 +1,16 @@
 frappe.ui.form.on("Sales Invoice", {
     onload(frm) {
         setup_sales_order_row_guard(frm);
+        if (frm.is_new() && frm.doc.company) {
+            fetch_dispatch_address(frm);
+        }
     },
     refresh(frm) {
         setup_sales_order_row_guard(frm);
+
+        if (frm.is_new() && !frm.doc.dispatch_address_name) {
+            fetch_dispatch_address(frm);
+        }
 
         // When a new amendment is opened, clear fields that must not carry over
         if (frm.is_new() && frm.doc.amended_from) {
@@ -113,6 +120,26 @@ frappe.ui.form.on("Sales Invoice", {
     },
 });
 
+function fetch_dispatch_address(frm) {
+    frappe.call({
+        method: "frappe.client.get_list",
+        args: {
+            doctype: "Address",
+            filters: [
+                ["address_title", "=", "Prakash Steel Products Pvt Ltd"],
+                ["is_shipping_address", "=", 1]
+            ],
+            fields: ["name"],
+            limit: 1
+        },
+        callback: function (r) {
+            if (r.message && r.message.length > 0) {
+                frm.set_value("dispatch_address_name", r.message[0].name);
+            }
+        }
+    });
+}
+
 function setup_sales_order_row_guard(frm) {
     const grid = frm.get_field("items")?.grid;
     if (!grid || grid.__pspl_row_guard_attached) {
@@ -121,26 +148,23 @@ function setup_sales_order_row_guard(frm) {
 
     grid.__pspl_row_guard_attached = true;
 
-    grid.on("grid-row-added", (row) => {
+    const original_add_new_row = grid.add_new_row.bind(grid);
+    grid.add_new_row = function (idx, callback, show) {
         const hasSalesOrderRows = (frm.doc.items || []).some(
             (d) => d.sales_order
         );
 
         // Only enforce when the invoice is Sales Order–based
-        if (!hasSalesOrderRows) return;
-
-        const child = row?.doc || {};
-        if (!child.sales_order) {
-            frappe.msgprint({
-                title: __("Not Allowed"),
-                message: __(
-                    "Only items linked to Sales Order are allowed in this Sales Invoice."
-                ),
-                indicator: "red",
-            });
-
-            // Remove the just-added row to prevent save with invalid data
-            grid.remove(child);
+        if (!hasSalesOrderRows) {
+            return original_add_new_row(idx, callback, show);
         }
-    });
+
+        frappe.msgprint({
+            title: __("Not Allowed"),
+            message: __(
+                "Only items linked to Sales Order are allowed in this Sales Invoice."
+            ),
+            indicator: "red",
+        });
+    };
 }
