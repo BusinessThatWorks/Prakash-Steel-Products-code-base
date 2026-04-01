@@ -1667,7 +1667,7 @@ def get_data(filters=None):
 
 			child_bom_qty = flt(row.get("child_bom_qty", 0))
 			child_bom_quantity = flt(row.get("child_bom_quantity", 1.0)) or 1.0
-			parent_per_child_factor = (child_bom_qty / child_bom_quantity) if child_bom_quantity else 0
+			parent_per_child_factor = (child_bom_quantity/child_bom_qty) if child_bom_quantity else 0
 
 			production_qty_based_on_child_stock = math.ceil(flt(stock_allocated) * parent_per_child_factor)
 			row["production_qty_based_on_child_stock"] = production_qty_based_on_child_stock
