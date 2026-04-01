@@ -107,6 +107,7 @@ class BilletCutting(Document):
 			# Create Stock Entry
 			stock_entry_data = {
 				"doctype": "Stock Entry",
+				"naming_series": "PRMI/.####./.FY.",
 				"stock_entry_type": "Material Issue",
 				"company": company,
 				"set_posting_time": 1,  # Enable custom posting date/time

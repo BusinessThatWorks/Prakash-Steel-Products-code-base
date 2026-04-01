@@ -3,6 +3,7 @@
 
 import frappe
 from frappe import _
+import re
 from erpnext.accounts.doctype.sales_invoice.sales_invoice import SalesInvoice
 from frappe.utils import flt, nowdate, nowtime
 from erpnext.stock.stock_ledger import get_previous_sle
@@ -13,6 +14,42 @@ class CustomSalesInvoice(SalesInvoice):
 	"""Custom Sales Invoice that automatically creates Material Receipt Stock Entry
 	for items with insufficient stock when custom_stock_in_for_weight_variance is checked.
 	"""
+
+	@staticmethod
+	def _extract_sales_order_serial(so_name: str) -> str | None:
+		"""
+		Extract the serial-like numeric part from Sales Order name while
+		skipping year-ranges (e.g. `25-26`).
+
+		Examples:
+		- `SO/25-26/01514` -> `01514`
+		- `SO/01007/25-26` -> `01007`
+		- `SO-0001/2025` -> `0001`
+
+		Implementation approach:
+		- remove slash-delimited year-range segments like `/25-26/` (and trailing `/25-26`)
+		- return the first remaining numeric token, skipping common 4-digit calendar years
+		"""
+		if not so_name:
+			return None
+
+		so_name = str(so_name).strip()
+		if not so_name:
+			return None
+
+		# Remove year ranges first, e.g. `25-26` from `SO/25-26/01514`.
+		# This ensures we never accidentally pick those tokens as the serial.
+		so_name = re.sub(r"(?<=/)\d{2}-\d{2}(?=/|$)", "", so_name)
+
+		# Now pick the first numeric token that is not a common 4-digit calendar year.
+		# (We keep leading zeros by returning the matched text as-is.)
+		for match in re.finditer(r"\d+", so_name):
+			token = match.group(0)
+			if len(token) == 4 and 1900 <= int(token) <= 2099:
+				continue
+			return token
+
+		return None
 
 	def before_insert(self):
 		"""On amendment, clear fields that should not carry forward from the original."""
@@ -26,16 +63,76 @@ class CustomSalesInvoice(SalesInvoice):
 			pass
 
 	def validate(self):
-		"""Run parent validate, then re-clear amendment fields in case parent restored them."""
+		"""Run parent validate, then apply loading charges and re-clear amendment fields."""
 		super().validate()
+		self.apply_loading_charges()
 		# ERPNext's validate chain may re-copy values from amended_from; clear them again here.
 		if self.is_new() and getattr(self, "amended_from", None):
 			self.custom_stock_entry_id = None
 			self.custom_cancel_reason = None
 
+	def apply_loading_charges(self):
+		"""Add loading charge per kg (custom_loading_charges / 1000) to each item's rate.
+
+		Logic:
+		- custom_base_rate tracks the original/user-set rate (without loading charges).
+		- On every save: expected_rate = custom_base_rate + loading_per_kg
+		  - If rate == expected_rate → already applied, skip (prevents stacking on multiple saves)
+		  - If rate != expected_rate → user changed rate, so update base_rate = rate, then rate += loading_per_kg
+		- If custom_base_rate is not set, initialize it from current rate.
+		"""
+		loading_charges = flt(self.get("custom_loading_charges") or 0)
+		if not loading_charges:
+			return
+
+		loading_per_kg = loading_charges / 1000.0
+		totals_changed = False
+
+		for item in self.get("items"):
+			base_rate = flt(item.get("custom_base_rate") or 0)
+			current_rate = flt(item.rate or 0)
+
+			# Initialize base_rate if not set (e.g. manually added items)
+			if not base_rate:
+				item.custom_base_rate = current_rate
+				base_rate = current_rate
+
+			expected_rate = base_rate + loading_per_kg
+
+			# Already applied — skip to avoid stacking on repeated saves
+			if abs(current_rate - expected_rate) < 0.0001:
+				continue
+
+			# User changed the rate (or first-time apply) — update base and apply loading
+			item.custom_base_rate = current_rate
+			item.rate = current_rate + loading_per_kg
+			item.amount = flt(item.rate) * flt(item.qty)
+			totals_changed = True
+
+		if totals_changed:
+			self.calculate_taxes_and_totals()
+
+	def _build_other_references(self) -> str | None:
+		"""Build ordered, unique Sales Order serial list from child item rows."""
+		seen = set()
+		ordered_serials = []
+
+		for item in self.get("items") or []:
+			so_name = getattr(item, "sales_order", None) or item.get("sales_order")
+			serial = self._extract_sales_order_serial(so_name)
+			if serial and serial not in seen:
+				seen.add(serial)
+				ordered_serials.append(serial)
+
+		return ", ".join(ordered_serials) if ordered_serials else None
+
 	def on_submit(self):
-		"""Run standard submit, then update ADU (custom)."""
+		"""Run standard submit, set custom references, then update ADU (custom)."""
 		super().on_submit()
+
+		other_references = self._build_other_references()
+		self.custom_other_references = other_references
+		self.db_set("custom_other_references", other_references, update_modified=False)
 
 		try:
 			update_adu_for_sales_invoice(self)
