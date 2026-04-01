@@ -91,6 +91,7 @@ class FinishWeight(Document):
 			stock_entry = frappe.get_doc(
 				{
 					"doctype": "Stock Entry",
+					"naming_series": "RM/.####./.FY.",
 					"stock_entry_type": "Material Receipt",
 					"company": company,
 					"set_posting_time": 1,
