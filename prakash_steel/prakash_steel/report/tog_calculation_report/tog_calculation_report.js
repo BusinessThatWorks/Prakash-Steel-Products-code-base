@@ -22,11 +22,19 @@ function tog_debug_item(item_code) {
 				`%c[Tog] ═══ Debug: ${d.item_code} ═══`,
 				"font-size:14px; font-weight:bold; color:#2196F3"
 			);
-			console.log(`Horizon: ${d.horizon_days} days`);
+			console.log(`Horizon: ${d.horizon_days} days  (${d.start_date} → ${d.end_date})`);
 			console.log(`%cSell (direct)  = ${d.total_sell}`, "font-weight:bold; color:#4CAF50");
 			console.log(
 				`%cParent Sell    = ${d.total_parent_sell_raw.toFixed(4)}  →  ceiled in grid = ${d.total_parent_sell_ceiled}`,
 				"font-weight:bold; color:#FF9800"
+			);
+			console.log(
+				`%cMean (Sell / days) = ${d.total_sell} / ${d.horizon_days} = ${d.mean_daily_qty}`,
+				"color:#9C27B0"
+			);
+			console.log(
+				`%cSD = ${d.sd}   |   ADU = ${d.adu}   |   COV (SD/ADU) = ${d.cov !== null ? d.cov : "N/A"}`,
+				"font-weight:bold; color:#E91E63"
 			);
 
 			// ── SELL: direct sales invoices ──────────────────────────────────
@@ -113,6 +121,66 @@ function tog_debug_item(item_code) {
 			}
 
 			console.groupEnd(); // PARENT SELL
+
+			// ── SD: daily breakdown ───────────────────────────────────────────
+			console.group(
+				`%c[SD] Standard Deviation breakdown for "${d.item_code}"`,
+				"color:#E91E63; font-weight:bold"
+			);
+			console.log(
+				"Formula:\n" +
+				"  mean     = total_sell / horizon_days\n" +
+				"  variance = Σ( (daily_qty − mean)² ) / horizon_days\n" +
+				"  SD       = √variance"
+			);
+			console.log(
+				`  total_sell = ${d.total_sell}   horizon_days = ${d.horizon_days}` +
+				`   mean = ${d.mean_daily_qty}   variance = ${d.variance}   SD = ${d.sd}`
+			);
+
+			if (d.sd_daily_breakdown && d.sd_daily_breakdown.length) {
+				// Highlight only days that had sales
+				const saleDays = d.sd_daily_breakdown.filter(row => row.qty > 0);
+				const zeroDays = d.sd_daily_breakdown.filter(row => row.qty === 0);
+
+				console.groupCollapsed(`Days WITH sales (${saleDays.length} day(s))`);
+				console.table(
+					saleDays.map(row => ({
+						Date: row.date,
+						"Daily Qty": row.qty,
+						"Deviation (qty − mean)": row.deviation,
+						"Squared Deviation": row.squared_deviation,
+					}))
+				);
+				console.groupEnd();
+
+				console.groupCollapsed(`Days with NO sales (${zeroDays.length} day(s))  — qty=0, deviation=${(-d.mean_daily_qty).toFixed(4)}`);
+				console.table(
+					zeroDays.map(row => ({
+						Date: row.date,
+						"Daily Qty": 0,
+						"Deviation (0 − mean)": row.deviation,
+						"Squared Deviation": row.squared_deviation,
+					}))
+				);
+				console.groupEnd();
+
+				// Full day-by-day table collapsed
+				console.groupCollapsed("All days (full table)");
+				console.table(
+					d.sd_daily_breakdown.map(row => ({
+						Date: row.date,
+						"Daily Qty": row.qty,
+						"Deviation": row.deviation,
+						"Squared Deviation": row.squared_deviation,
+					}))
+				);
+				console.groupEnd();
+			} else {
+				console.log("No sales data in horizon — SD = 0");
+			}
+			console.groupEnd(); // SD
+
 			console.groupEnd(); // main group
 		},
 		error: function (err) {
