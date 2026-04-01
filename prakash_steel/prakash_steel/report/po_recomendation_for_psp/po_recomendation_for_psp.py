@@ -45,6 +45,8 @@ def build_calculation_breakdown_po_report(
 	parent_demand_details_list,
 	till_today=None,
 	spike=None,
+	from_date=None,
+	to_date=None,
 ):
 	lines = []
 	lines.append(f"\n  Item: {item_code}")
@@ -52,13 +54,19 @@ def build_calculation_breakdown_po_report(
 	if sku_type and sku_type != "N/A":
 		lines.append(f"  SKU Type: {sku_type}")
 
+	# Show date range used
+	if from_date or to_date:
+		lines.append(f"  Date Range: {from_date or 'All'} to {to_date or 'All'}")
+
 	if is_buffer:
 		lines.append(f"  TOG: {tog}")
 		# Show till_today and spike separately if provided
 		if till_today is not None and spike is not None:
-			lines.append(f"  Till Today: {till_today}")
-			lines.append(f"  Spike: {spike}")
-			lines.append(f"  Qualified Demand (Till Today + Spike): {qualified_demand}")
+			till_label = f"Till {to_date}" if to_date else "Till Today"
+			spike_label = f"Spike ({from_date} to {to_date})" if from_date and to_date else "Spike"
+			lines.append(f"  {till_label}: {till_today}")
+			lines.append(f"  {spike_label}: {spike}")
+			lines.append(f"  Qualified Demand ({till_label} + Spike): {qualified_demand}")
 		else:
 			lines.append(f"  Qualified Demand: {qualified_demand}")
 		lines.append(f"  Total Parent Demand: {total_parent_demand}")
@@ -142,7 +150,8 @@ def build_calculation_breakdown_po_report(
 		lines.append(f"  Open SO: {open_so_for_breakdown}")
 		# Show till_today and spike separately if provided (spike should always be 0 for non-buffer)
 		if till_today is not None and spike is not None:
-			lines.append(f"    - Till Today: {till_today}")
+			till_label = f"Till {to_date}" if to_date else "Till Today"
+			lines.append(f"    - {till_label}: {till_today}")
 			lines.append(f"    - Spike: {spike} (always 0 for non-buffer items)")
 		lines.append(f"  Stock: {stock}")
 		lines.append(f"  WIP: {wip}")
@@ -1357,8 +1366,10 @@ def get_data(filters=None):
 			final_order_rec,
 			net_order_rec_breakdown,
 			parent_demand_details_list,
-			till_today=till_today,  # Pass till_today for breakdown
-			spike=spike,  # Pass spike for breakdown
+			till_today=till_today,
+			spike=spike,
+			from_date=filters.get("from_date"),
+			to_date=filters.get("to_date"),
 		)
 
 		if is_item_buffer:
@@ -1479,15 +1490,29 @@ def get_data(filters=None):
 					child_sku_type = calculate_sku_type(child_buffer_flag, child_item_type)
 
 					if child_item_code not in child_stock_map:
-						stock_data = frappe.db.sql(
-							"""
-							SELECT SUM(actual_qty) as stock
-							FROM `tabBin`
-							WHERE item_code = %s
-							""",
-							(child_item_code,),
-							as_dict=True,
-						)
+						as_of_date = filters.get("to_date") or filters.get("from_date")
+						if as_of_date:
+							stock_data = frappe.db.sql(
+								"""
+								SELECT SUM(actual_qty) as stock
+								FROM `tabStock Ledger Entry`
+								WHERE item_code = %s
+								AND posting_date <= %s
+								AND is_cancelled = 0
+								""",
+								(child_item_code, as_of_date),
+								as_dict=True,
+							)
+						else:
+							stock_data = frappe.db.sql(
+								"""
+								SELECT SUM(actual_qty) as stock
+								FROM `tabBin`
+								WHERE item_code = %s
+								""",
+								(child_item_code,),
+								as_dict=True,
+							)
 						total_stock = math.ceil(
 							flt(stock_data[0].stock if stock_data and stock_data[0].stock else 0)
 						)
@@ -1592,15 +1617,29 @@ def get_data(filters=None):
 				else:
 					# Fetch stock if not in map
 					try:
-						stock_data = frappe.db.sql(
-							"""
-							SELECT SUM(actual_qty) as stock
-							FROM `tabBin`
-							WHERE item_code = %s
-							""",
-							(child_item_code,),
-							as_dict=True,
-						)
+						as_of_date = filters.get("to_date") or filters.get("from_date")
+						if as_of_date:
+							stock_data = frappe.db.sql(
+								"""
+								SELECT SUM(actual_qty) as stock
+								FROM `tabStock Ledger Entry`
+								WHERE item_code = %s
+								AND posting_date <= %s
+								AND is_cancelled = 0
+								""",
+								(child_item_code, as_of_date),
+								as_dict=True,
+							)
+						else:
+							stock_data = frappe.db.sql(
+								"""
+								SELECT SUM(actual_qty) as stock
+								FROM `tabBin`
+								WHERE item_code = %s
+								""",
+								(child_item_code,),
+								as_dict=True,
+							)
 						total_stock = int(
 							flt(stock_data[0].stock if stock_data and stock_data[0].stock else 0)
 						)
@@ -1935,7 +1974,7 @@ def get_sales_order_qty_map(filters):
 def get_qualified_demand_map(filters):
 	from frappe.utils import today
 
-	today_date = filters.get("from_date") or today()
+	today_date = filters.get("to_date") or today()
 
 	so_rows = frappe.db.sql(
 		"""
@@ -1973,7 +2012,7 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 
 	if not filters:
 		filters = {}
-	today_date = filters.get("from_date") or today()
+	today_date = filters.get("to_date") or today()
 	spike_map = {}
 
 	# Get all Spike Master records
