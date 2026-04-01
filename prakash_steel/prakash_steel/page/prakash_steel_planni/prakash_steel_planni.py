@@ -43,8 +43,6 @@ def get_sku_type_on_hand_status(filters=None):
 	- Calculate percentage: (count_of_color / total_items) * 100
 	- Return data in format suitable for pie charts
 	"""
-	print("[PLANNING DASHBOARD] ====== SKU TYPE CHART CALCULATION STARTING ======")
-	
 	if not filters:
 		filters = {}
 
@@ -63,8 +61,6 @@ def get_sku_type_on_hand_status(filters=None):
 		""",
 		as_dict=1,
 	)
-
-	print(f"[PLANNING DASHBOARD] Found {len(items_data)} buffer items")
 
 	if not items_data:
 		return {}
@@ -88,29 +84,22 @@ def get_sku_type_on_hand_status(filters=None):
 	)
 
 	stock_map = {d.item_code: flt(d.stock) for d in stock_data}
-	print(f"[PLANNING DASHBOARD] Stock map loaded for {len(stock_map)} items")
 
 	# Get qualified demand map (Open SO with delivery_date <= today) - same as po_recomendation_for_psp report
 	qualified_demand_map = get_qualified_demand_map({})
-	print(f"[PLANNING DASHBOARD] Qualified demand map loaded for {len(qualified_demand_map)} items")
 
 	# Calculate SKU type for ALL items first (same as report does)
 	# Then filter to only the SKU types we want for charts
 	items_with_sku_type = []
-	sku_type_counts = {}  # Count items by SKU type for debugging
 
 	for item in items_data:
 		item_code = item.item_code
 		buffer_flag = item.get("buffer_flag") or "Non-Buffer"
 		item_type = item.get("item_type")
-		
+
 		# Calculate SKU type exactly as report does (all items are buffer, so use "Buffer" flag)
 		sku_type = calculate_sku_type("Buffer", item_type)
-		
-		# Count by SKU type
-		if sku_type:
-			sku_type_counts[sku_type] = sku_type_counts.get(sku_type, 0) + 1
-		
+
 		# Store item with its calculated SKU type
 		items_with_sku_type.append({
 			"item_code": item_code,
@@ -120,15 +109,12 @@ def get_sku_type_on_hand_status(filters=None):
 			"sku_type": sku_type
 		})
 
-	print(f"[PLANNING DASHBOARD] Items by SKU type: {sku_type_counts}")
-
 	# Now filter to only the SKU types we want for charts: BBMTA, RBMTA, BOTA, RMTA, PTA
 	# But handle RM buffer items: they calculate as PTA but should display as RMTA
 	target_sku_types = ["BBMTA", "RBMTA", "BOTA", "RMTA", "PTA"]
 	
 	# Group items by SKU type and calculate on-hand status
 	sku_type_data = {}
-	item_calc_log = []  # Store calculation details for logging
 
 	for item in items_with_sku_type:
 		item_code = item["item_code"]
@@ -153,11 +139,11 @@ def get_sku_type_on_hand_status(filters=None):
 		# Initialize SKU type if not exists
 		if display_sku_type not in sku_type_data:
 			sku_type_data[display_sku_type] = {
-				"BLACK": {"count": 0, "items": []},
-				"RED": {"count": 0, "items": []},
-				"YELLOW": {"count": 0, "items": []},
-				"GREEN": {"count": 0, "items": []},
-				"WHITE": {"count": 0, "items": []},
+				"BLACK": {"count": 0},
+				"RED": {"count": 0},
+				"YELLOW": {"count": 0},
+				"GREEN": {"count": 0},
+				"WHITE": {"count": 0},
 			}
 
 		# Calculate on-hand status and colour - EXACTLY as in po_recomendation_for_psp report
@@ -195,43 +181,11 @@ def get_sku_type_on_hand_status(filters=None):
 		else:  # > 100
 			on_hand_colour = "WHITE"
 
-		# Log calculation for this item
-		calc_detail = (
-			f"Item: {item_code} | SKU: {display_sku_type} (calc: {sku_type}) | "
-			f"Stock: {on_hand_stock} | TOG: {tog} | Qualify_Demand: {qualify_demand} | "
-			f"Denominator: {denominator} | On_Hand_Value: {on_hand_status_value} | "
-			f"Numeric_Status: {numeric_status} | Colour: {on_hand_colour or 'BLACK (None)'}"
-		)
-		item_calc_log.append(calc_detail)
-
 		# Count items by colour - ALWAYS count every item
 		# If on_hand_colour is None (numeric_status is None), count as BLACK
 		final_colour = on_hand_colour if on_hand_colour else "BLACK"
 		if final_colour in sku_type_data[display_sku_type]:
 			sku_type_data[display_sku_type][final_colour]["count"] += 1
-			sku_type_data[display_sku_type][final_colour]["items"].append(item_code)
-
-
-	# Count items by colour for each SKU type for debugging
-	for sku_type, colour_data in sku_type_data.items():
-		colour_counts = {colour: data["count"] for colour, data in colour_data.items()}
-		print(f"[PLANNING DASHBOARD] {sku_type} colour counts: {colour_counts}")
-		
-		# Print all BLACK items for BBMTA
-		if sku_type == "BBMTA" and "BLACK" in colour_data:
-			black_items = colour_data["BLACK"]["items"]
-			print(f"[PLANNING DASHBOARD] ====== BBMTA BLACK Items ({len(black_items)} total) ======")
-			for idx, item_code in enumerate(black_items, 1):
-				print(f"[PLANNING DASHBOARD] {idx}. {item_code}")
-			print(f"[PLANNING DASHBOARD] ====== End BBMTA BLACK Items ======")
-	
-	# Log first 20 item calculations (to avoid too much logging)
-	if item_calc_log:
-		print(f"[PLANNING DASHBOARD] Sample item calculations (first 20):")
-		for calc in item_calc_log[:20]:
-			print(f"  {calc}")
-		if len(item_calc_log) > 20:
-			print(f"[PLANNING DASHBOARD] ... and {len(item_calc_log) - 20} more items")
 
 	# Calculate percentages and format data for charts
 	chart_data = {}
@@ -241,14 +195,12 @@ def get_sku_type_on_hand_status(filters=None):
 		total_items = sum(colour["count"] for colour in colour_data.values())
 
 		if total_items == 0:
-			print(f"[PLANNING DASHBOARD] SKU {sku_type}: No items found")
 			continue
 
 		# Prepare chart data
 		chart_data[sku_type] = {"total_items": total_items, "colours": []}
 
 		# Process each colour
-		colour_summary = []
 		for colour_name in ["BLACK", "RED", "YELLOW", "GREEN", "WHITE"]:
 			count = colour_data[colour_name]["count"]
 			if count > 0:
@@ -256,11 +208,7 @@ def get_sku_type_on_hand_status(filters=None):
 				chart_data[sku_type]["colours"].append(
 					{"name": colour_name, "count": count, "percentage": round(percentage)}
 				)
-				colour_summary.append(f"{colour_name}: {count} items ({round(percentage)}%)")
 
-		print(f"[PLANNING DASHBOARD] SKU {sku_type}: Total={total_items} | " + " | ".join(colour_summary))
-
-	print(f"[PLANNING DASHBOARD] Final chart_data keys: {list(chart_data.keys())}")
 	return chart_data
 
 
@@ -306,8 +254,6 @@ def get_pending_so_status():
 	"""
 	from frappe.utils import date_diff, today
 
-	print(f"[PLANNING DASHBOARD] ====== PENDING SO CHART CALCULATION STARTING (today: {today()}) ======")
-
 	so_data = frappe.db.sql(
 		"""
 		SELECT
@@ -331,13 +277,10 @@ def get_pending_so_status():
 		as_dict=1,
 	)
 
-	print(f"[PLANNING DASHBOARD] Found {len(so_data)} sales orders")
-
 	if not so_data:
 		return {"total_orders": 0, "colours": []}
 
 	status_counts = {"BLACK": 0, "RED": 0, "YELLOW": 0, "GREEN": 0, "WHITE": 0}
-	so_calc_log = []  # Store calculation details for logging
 
 	for so in so_data:
 		delivery_date = so.get("delivery_date")
@@ -346,7 +289,6 @@ def get_pending_so_status():
 
 		if not delivery_date or not transaction_date:
 			status_counts["BLACK"] += 1
-			so_calc_log.append(f"SO: {so_name} | Missing dates → BLACK")
 			continue
 
 		delay_days = date_diff(today(), delivery_date)
@@ -381,32 +323,14 @@ def get_pending_so_status():
 		else:
 			order_status = "WHITE"
 
-		# Log calculation for this SO
-		calc_detail = (
-			f"SO: {so_name} | Transaction: {transaction_date} | Delivery: {delivery_date} | "
-			f"Delay_Days: {delay_days} | Remaining_Days: {remaining_days} | Lead_Time: {lead_time} | "
-			f"Buffer_Status: {buffer_status} | Numeric_Status: {numeric_status} | Order_Status: {order_status}"
-		)
-		so_calc_log.append(calc_detail)
-
 		if order_status in status_counts:
 			status_counts[order_status] += 1
 
-	# Log first 20 SO calculations
-	if so_calc_log:
-		print(f"[PLANNING DASHBOARD] Sample SO calculations (first 20):")
-		for calc in so_calc_log[:20]:
-			print(f"  {calc}")
-		if len(so_calc_log) > 20:
-			print(f"[PLANNING DASHBOARD] ... and {len(so_calc_log) - 20} more SOs")
-
 	total_orders = sum(status_counts.values())
 	if total_orders == 0:
-		print(f"[PLANNING DASHBOARD] No orders found after processing")
 		return {"total_orders": 0, "colours": []}
 
 	colours = []
-	status_summary = []
 	for colour in ["BLACK", "RED", "YELLOW", "GREEN", "WHITE"]:
 		count = status_counts[colour]
 		if count:
@@ -418,9 +342,6 @@ def get_pending_so_status():
 					"percentage": round(percentage),
 				}
 			)
-			status_summary.append(f"{colour}: {count} orders ({round(percentage)}%)")
-
-	print(f"[PLANNING DASHBOARD] Pending SO Summary: Total={total_orders} | " + " | ".join(status_summary))
 
 	return {"total_orders": total_orders, "colours": colours}
 
