@@ -63,54 +63,12 @@ class CustomSalesInvoice(SalesInvoice):
 			pass
 
 	def validate(self):
-		"""Run parent validate, then apply loading charges and re-clear amendment fields."""
+		"""Run parent validate, then re-clear amendment fields in case parent restored them."""
 		super().validate()
-		self.apply_loading_charges()
 		# ERPNext's validate chain may re-copy values from amended_from; clear them again here.
 		if self.is_new() and getattr(self, "amended_from", None):
 			self.custom_stock_entry_id = None
 			self.custom_cancel_reason = None
-
-	def apply_loading_charges(self):
-		"""Add loading charge per kg (custom_loading_charges / 1000) to each item's rate.
-
-		Logic:
-		- custom_base_rate tracks the original/user-set rate (without loading charges).
-		- On every save: expected_rate = custom_base_rate + loading_per_kg
-		  - If rate == expected_rate → already applied, skip (prevents stacking on multiple saves)
-		  - If rate != expected_rate → user changed rate, so update base_rate = rate, then rate += loading_per_kg
-		- If custom_base_rate is not set, initialize it from current rate.
-		"""
-		loading_charges = flt(self.get("custom_loading_charges") or 0)
-		if not loading_charges:
-			return
-
-		loading_per_kg = loading_charges / 1000.0
-		totals_changed = False
-
-		for item in self.get("items"):
-			base_rate = flt(item.get("custom_base_rate") or 0)
-			current_rate = flt(item.rate or 0)
-
-			# Initialize base_rate if not set (e.g. manually added items)
-			if not base_rate:
-				item.custom_base_rate = current_rate
-				base_rate = current_rate
-
-			expected_rate = base_rate + loading_per_kg
-
-			# Already applied — skip to avoid stacking on repeated saves
-			if abs(current_rate - expected_rate) < 0.0001:
-				continue
-
-			# User changed the rate (or first-time apply) — update base and apply loading
-			item.custom_base_rate = current_rate
-			item.rate = current_rate + loading_per_kg
-			item.amount = flt(item.rate) * flt(item.qty)
-			totals_changed = True
-
-		if totals_changed:
-			self.calculate_taxes_and_totals()
 
 	def _build_other_references(self) -> str | None:
 		"""Build ordered, unique Sales Order serial list from child item rows."""
