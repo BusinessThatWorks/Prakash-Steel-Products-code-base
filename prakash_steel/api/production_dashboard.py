@@ -605,6 +605,66 @@ def _fmt_date(date_val):
     return str(date_val)
 
 
+# ── Per-tab column definitions: key, label, extractor ──────────────────────
+_ROLLED_COLS = [
+    {"key": "production_plan",               "label": "Production Plan",               "get": lambda r: r.get("production_plan") or ""},
+    {"key": "production_date",               "label": "Production Date",               "get": lambda r: _fmt_date(r.get("production_date"))},
+    {"key": "rm",                            "label": "RM",                            "get": lambda r: r.get("rm") or ""},
+    {"key": "rm_category_name",              "label": "RM Category Name",              "get": lambda r: r.get("rm_category_name") or ""},
+    {"key": "rm_consumption",                "label": "Actual RM Consumption",         "get": lambda r: flt(r.get("rm_consumption"))},
+    {"key": "billet_pcs",                    "label": "Total Billet Pcs",              "get": lambda r: flt(r.get("billet_pcs"))},
+    {"key": "description_of_cutting_billet", "label": "Description of Cutting Billet", "get": lambda r: r.get("description_of_cutting_billet") or ""},
+    {"key": "total_raw_material_pcs",        "label": "Total Raw Material Pcs",        "get": lambda r: flt(r.get("total_raw_material_pcs"))},
+    {"key": "total_rm_weight",               "label": "Total RM Weight",               "get": lambda r: flt(r.get("rm_consumption")) + flt(r.get("miss_billet_weight"))},
+    {"key": "miss_billet_pcs",               "label": "Miss Billet Pcs",               "get": lambda r: flt(r.get("miss_billet_pcs"))},
+    {"key": "miss_billet_weight",            "label": "Miss Billet Weight",            "get": lambda r: flt(r.get("miss_billet_weight"))},
+    {"key": "heat_no",                       "label": "Heat No",                       "get": lambda r: r.get("heat_no") or ""},
+    {"key": "finished_item",                 "label": "Finished Item",                 "get": lambda r: r.get("finished_item") or ""},
+    {"key": "finished_item_category_name",   "label": "Finished Item Category Name",   "get": lambda r: r.get("finished_item_category_name") or ""},
+    {"key": "fg_planned_qty",                "label": "FG Planned Qty",                "get": lambda r: flt(r.get("fg_planned_qty"))},
+    {"key": "actual_qty",                    "label": "Actual Qty",                    "get": lambda r: flt(r.get("actual_qty"))},
+    {"key": "finish_pcs",                    "label": "Finish Pcs",                    "get": lambda r: flt(r.get("finish_pcs"))},
+    {"key": "fg_length",                     "label": "FG Length",                     "get": lambda r: r.get("fg_length") or ""},
+    {"key": "total_miss_roll_pcs",           "label": "Total Miss Roll (Pcs)",         "get": lambda r: flt(r.get("total_miss_roll_pcs"))},
+    {"key": "total_miss_roll_weight",        "label": "Total Miss Roll Weight",        "get": lambda r: flt(r.get("total_miss_roll_weight"))},
+    {"key": "total_miss_ingot_pcs",          "label": "Total Miss Ingot",              "get": lambda r: flt(r.get("total_miss_ingot_pcs"))},
+    {"key": "total_miss_ingot_weight",       "label": "Total Miss Ingot / Billet Weight", "get": lambda r: flt(r.get("total_miss_ingot_weight"))},
+    {"key": "melting_weight",                "label": "Melting Weight",                "get": lambda r: flt(r.get("melting_weight"))},
+    {"key": "burning_loss",                  "label": "Burning Loss %",                "get": lambda r: flt(r.get("burning_loss"))},
+    {"key": "total_hr_consumed",             "label": "Total Hr Consumed",             "get": lambda r: flt(r.get("total_hr_consumed"))},
+]
+
+_BRIGHT_COLS = [
+    {"key": "production_plan",             "label": "Production Plan",             "get": lambda r: r.get("production_plan") or ""},
+    {"key": "production_date",             "label": "Production Date",             "get": lambda r: _fmt_date(r.get("production_date"))},
+    {"key": "rm",                          "label": "RM",                          "get": lambda r: r.get("rm") or ""},
+    {"key": "rm_category_name",            "label": "RM Category Name",            "get": lambda r: r.get("rm_category_name") or ""},
+    {"key": "rm_consumption",              "label": "Actual RM Consumption",       "get": lambda r: flt(r.get("rm_consumption"))},
+    {"key": "machine_name",                "label": "Machine Name",                "get": lambda r: r.get("machine_name") or ""},
+    {"key": "finished_item",               "label": "Finished Item",               "get": lambda r: r.get("finished_item") or ""},
+    {"key": "finished_item_category_name", "label": "Finished Item Category Name", "get": lambda r: r.get("finished_item_category_name") or ""},
+    {"key": "fg_planned_qty",              "label": "FG Planned Qty",              "get": lambda r: flt(r.get("fg_planned_qty"))},
+    {"key": "actual_qty",                  "label": "Actual Qty",                  "get": lambda r: flt(r.get("actual_qty"))},
+    {"key": "finish_length",               "label": "Finish Length",               "get": lambda r: r.get("finish_length") or ""},
+    {"key": "tolerance",                   "label": "Tolerance",                   "get": lambda r: r.get("tolerance") or ""},
+    {"key": "melting_weight",              "label": "Melting Weight",              "get": lambda r: flt(r.get("fg_weight"))},
+    {"key": "wastage",                     "label": "Wastage %",                   "get": lambda r: flt(r.get("wastage"))},
+]
+
+_BEND_COLS = [
+    {"key": "id",                   "label": "ID",                   "get": lambda r: r.get("id") or r.get("name") or ""},
+    {"key": "item_code",            "label": "Item Code",            "get": lambda r: r.get("item_code") or ""},
+    {"key": "category_name",        "label": "Category Name",        "get": lambda r: r.get("category_name") or ""},
+    {"key": "bend_material_weight", "label": "Bend Material Weight", "get": lambda r: flt(r.get("bend_material_weight"))},
+]
+
+_TAB_COLS = {
+    "rolled_production": _ROLLED_COLS,
+    "bright_production": _BRIGHT_COLS,
+    "bend_weight_details": _BEND_COLS,
+}
+
+
 @frappe.whitelist()
 def export_production_dashboard(
     tab_id,
@@ -614,146 +674,62 @@ def export_production_dashboard(
     production_plan=None,
     machine_name=None,
     category_name=None,
+    selected_columns=None,
 ):
     """
     Build an Excel file (XLSX) for the Production Dashboard tables.
+    selected_columns: comma-separated list of column keys; if empty, all columns are included.
     """
     if tab_id == "rolled_production":
         data = get_rolled_production_data(
             from_date, to_date, item_code, production_plan, machine_name, category_name
         )
-        rows = data.get("rows", [])
-        header = [
-            _("Production Plan"),
-            _("Production Date"),
-            _("RM"),
-            _("RM Category Name"),
-            _("Actual RM Consumption"),
-            _("Total Billet Pcs"),
-            _("Description of Cutting Billet"),
-            _("Total Raw Material Pcs"),
-            _("Total RM Weight"),
-            _("Miss Billet Pcs"),
-            _("Miss Billet Weight"),
-            _("Heat No"),
-            _("Finished Item"),
-            _("Finished Item Category Name"),
-            _("FG Planned Qty"),
-            _("Actual Qty"),
-            _("Finish Pcs"),
-            _("FG Length"),
-            _("Total Miss Roll (Pcs)"),
-            _("Total Miss Roll Weight"),
-            _("Total Miss Ingot"),
-            _("Total Miss Ingot / Billet Weight"),
-            _("Melting Weight"),
-            _("Burning Loss %"),
-            _("Total Hr Consumed"),
-        ]
-
-        def map_row(r):
-            return [
-                r.get("production_plan") or "",
-                _fmt_date(r.get("production_date")),
-                r.get("rm") or "",
-                r.get("rm_category_name") or "",
-                flt(r.get("rm_consumption")) or 0,
-                flt(r.get("billet_pcs")) or 0,
-                r.get("description_of_cutting_billet") or "",
-                flt(r.get("total_raw_material_pcs")) or 0,
-                (flt(r.get("rm_consumption")) or 0)
-                + (flt(r.get("miss_billet_weight")) or 0),
-                flt(r.get("miss_billet_pcs")) or 0,
-                flt(r.get("miss_billet_weight")) or 0,
-                r.get("heat_no") or "",
-                r.get("finished_item") or "",
-                r.get("finished_item_category_name") or "",
-                flt(r.get("fg_planned_qty")) or 0,
-                flt(r.get("actual_qty")) or 0,
-                flt(r.get("finish_pcs")) or 0,
-                r.get("fg_length") or "",
-                flt(r.get("total_miss_roll_pcs")) or 0,
-                flt(r.get("total_miss_roll_weight")) or 0,
-                flt(r.get("total_miss_ingot_pcs")) or 0,
-                flt(r.get("total_miss_ingot_weight")) or 0,
-                flt(r.get("melting_weight")) or 0,
-                flt(r.get("burning_loss")) or 0,
-                flt(r.get("total_hr_consumed")) or 0,
-            ]
-
     elif tab_id == "bright_production":
         data = get_bright_production_data(
             from_date, to_date, item_code, production_plan, machine_name, category_name
         )
-        rows = data.get("rows", [])
-        header = [
-            _("Production Plan"),
-            _("Production Date"),
-            _("RM"),
-            _("RM Category Name"),
-            _("Actual RM Consumption"),
-            _("Machine Name"),
-            _("Finished Item"),
-            _("Finished Item Category Name"),
-            _("FG Planned Qty"),
-            _("Actual Qty"),
-            _("Melting Weight"),
-            _("Finish Length"),
-            _("Tolerance"),
-            _("Wastage %"),
-        ]
-
-        def map_row(r):
-            return [
-                r.get("production_plan") or "",
-                _fmt_date(r.get("production_date")),
-                r.get("rm") or "",
-                r.get("rm_category_name") or "",
-                flt(r.get("rm_consumption")) or 0,
-                r.get("machine_name") or "",
-                r.get("finished_item") or "",
-                r.get("finished_item_category_name") or "",
-                flt(r.get("fg_planned_qty")) or 0,
-                flt(r.get("actual_qty")) or 0,
-                flt(r.get("fg_weight")) or 0,
-                r.get("finish_length") or "",
-                r.get("tolerance") or "",
-                flt(r.get("wastage")) or 0,
-            ]
-
     elif tab_id == "bend_weight_details":
-        data = get_bend_weight_details(from_date, to_date, item_code, production_plan, category_name=category_name)
-        rows = data.get("rows", [])
-        header = [
-            _("ID"),
-            _("Item Code"),
-            _("Category Name"),
-            _("Bend Material Weight"),
-        ]
-
-        def map_row(r):
-            return [
-                r.get("id") or r.get("name") or "",
-                r.get("item_code") or "",
-                r.get("category_name") or "",
-                flt(r.get("bend_material_weight")) or 0,
-            ]
-
+        data = get_bend_weight_details(
+            from_date, to_date, item_code, production_plan, category_name=category_name
+        )
     else:
         frappe.throw(_("Invalid tab selected for export."))
 
-    data_rows = [map_row(r) for r in rows]
+    rows = data.get("rows", [])
+
+    # Resolve which columns to include
+    all_cols = _TAB_COLS.get(tab_id, [])
+    if selected_columns:
+        keys = [k.strip() for k in selected_columns.split(",") if k.strip()]
+        key_set = set(keys)
+        # Preserve original column order
+        cols = [c for c in all_cols if c["key"] in key_set]
+    else:
+        cols = all_cols
+
+    if not cols:
+        cols = all_cols
+
+    header = [_(c["label"]) for c in cols]
+    data_rows = [[c["get"](r) for c in cols] for r in rows]
     table_data = [header] + data_rows
 
     file_name = f"{tab_id}_export.xlsx"
     xlsx_file = make_xlsx(table_data, _("Production Dashboard"))
 
     # Post-process: apply DD-MM-YYYY number format to the Production Date column
-    # (column 2 in Excel, 1-indexed) for tabs that have a date field
+    # Find the date column index dynamically (1-indexed for openpyxl)
+    date_col_idx = None
     if tab_id in ("rolled_production", "bright_production"):
+        for i, c in enumerate(cols, start=1):
+            if c["key"] == "production_date":
+                date_col_idx = i
+                break
+
+    if date_col_idx:
         wb = openpyxl.load_workbook(BytesIO(xlsx_file.getvalue()))
         ws = wb.active
-        for row in ws.iter_rows(min_row=2, min_col=2, max_col=2):
+        for row in ws.iter_rows(min_row=2, min_col=date_col_idx, max_col=date_col_idx):
             for cell in row:
                 if cell.value:
                     cell.number_format = "DD-MM-YYYY"

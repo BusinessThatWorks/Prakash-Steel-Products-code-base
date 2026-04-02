@@ -23,6 +23,7 @@ frappe.pages['production-dashboard'].on_page_load = function (wrapper) {
         $tabs: null,
         controls: {},
         currentTab: 'rolled_production',
+        selectedColumns: {},
         _refreshTimer: null,
         _refreshGen: 0,
     };
@@ -785,59 +786,59 @@ function buildTableRow(tabId, row) {
 function getTableColumns(tabId) {
     if (tabId === 'rolled_production') {
         return [
-            { label: __('Production Plan'), align: 'left' },
-            { label: __('Production Date'), align: 'left' },
-            { label: __('RM'), align: 'left' },
-            { label: __('RM Category Name'), align: 'left' },
-            { label: __('Actual RM Consumption'), align: 'left' },
-            { label: __('Total Billet Pcs'), align: 'left' },
-            { label: __('Description of Cutting Billet'), align: 'left' },
-            { label: __('Total Raw Material Pcs'), align: 'left' },
-            { label: __('Total RM Weight'), align: 'left' },
-            { label: __('Miss Billet Pcs'), align: 'left' },
-            { label: __('Miss Billet Weight'), align: 'left' },
-            { label: __('Heat No'), align: 'left' },
-            { label: __('Finished Item'), align: 'left' },
-            { label: __('Finished Item Category Name'), align: 'left' },
-            { label: __('FG Planned Qty'), align: 'left' },
-            { label: __('Actual Qty'), align: 'left' },
-            { label: __('Finish Pcs'), align: 'left' },
-            { label: __('FG Length'), align: 'left' },
-            { label: __('Total Miss Roll (Pcs)'), align: 'left' },
-            { label: __('Total Miss Roll Weight'), align: 'left' },
-            { label: __('Total Miss Ingot'), align: 'left' },
-            { label: __('Total Miss Ingot / Billet Weight'), align: 'left' },
-            { label: __('Melting Weight'), align: 'left' },
-            { label: __('Burning Loss %'), align: 'left' },
-            { label: __('Total Hr Consumed'), align: 'left' },
+            { key: 'production_plan', label: __('Production Plan'), align: 'left' },
+            { key: 'production_date', label: __('Production Date'), align: 'left' },
+            { key: 'rm', label: __('RM'), align: 'left' },
+            { key: 'rm_category_name', label: __('RM Category Name'), align: 'left' },
+            { key: 'rm_consumption', label: __('Actual RM Consumption'), align: 'left' },
+            { key: 'billet_pcs', label: __('Total Billet Pcs'), align: 'left' },
+            { key: 'description_of_cutting_billet', label: __('Description of Cutting Billet'), align: 'left' },
+            { key: 'total_raw_material_pcs', label: __('Total Raw Material Pcs'), align: 'left' },
+            { key: 'total_rm_weight', label: __('Total RM Weight'), align: 'left' },
+            { key: 'miss_billet_pcs', label: __('Miss Billet Pcs'), align: 'left' },
+            { key: 'miss_billet_weight', label: __('Miss Billet Weight'), align: 'left' },
+            { key: 'heat_no', label: __('Heat No'), align: 'left' },
+            { key: 'finished_item', label: __('Finished Item'), align: 'left' },
+            { key: 'finished_item_category_name', label: __('Finished Item Category Name'), align: 'left' },
+            { key: 'fg_planned_qty', label: __('FG Planned Qty'), align: 'left' },
+            { key: 'actual_qty', label: __('Actual Qty'), align: 'left' },
+            { key: 'finish_pcs', label: __('Finish Pcs'), align: 'left' },
+            { key: 'fg_length', label: __('FG Length'), align: 'left' },
+            { key: 'total_miss_roll_pcs', label: __('Total Miss Roll (Pcs)'), align: 'left' },
+            { key: 'total_miss_roll_weight', label: __('Total Miss Roll Weight'), align: 'left' },
+            { key: 'total_miss_ingot_pcs', label: __('Total Miss Ingot'), align: 'left' },
+            { key: 'total_miss_ingot_weight', label: __('Total Miss Ingot / Billet Weight'), align: 'left' },
+            { key: 'melting_weight', label: __('Melting Weight'), align: 'left' },
+            { key: 'burning_loss', label: __('Burning Loss %'), align: 'left' },
+            { key: 'total_hr_consumed', label: __('Total Hr Consumed'), align: 'left' },
         ];
     }
 
     if (tabId === 'bend_weight_details') {
         return [
-            { label: __('ID'), align: 'left' },
-            { label: __('Item Code'), align: 'left' },
-            { label: __('Category Name'), align: 'left' },
-            { label: __('Bend Material Weight'), align: 'left' },
+            { key: 'id', label: __('ID'), align: 'left' },
+            { key: 'item_code', label: __('Item Code'), align: 'left' },
+            { key: 'category_name', label: __('Category Name'), align: 'left' },
+            { key: 'bend_material_weight', label: __('Bend Material Weight'), align: 'left' },
         ];
     }
 
     // bright_production
     return [
-        { label: __('Production Plan'), align: 'left' },
-        { label: __('Production Date'), align: 'left' },
-        { label: __('RM'), align: 'left' },
-        { label: __('RM Category Name'), align: 'left' },
-        { label: __('Actual RM Consumption'), align: 'left' },
-        { label: __('Machine Name'), align: 'left' },
-        { label: __('Finished Item'), align: 'left' },
-        { label: __('Finished Item Category Name'), align: 'left' },
-        { label: __('FG Planned Qty'), align: 'left' },
-        { label: __('Actual Qty'), align: 'left' },
-        { label: __('Finish Length'), align: 'left' },
-        { label: __('Tolerance'), align: 'left' },
-        { label: __('Melting Weight'), align: 'left' },
-        { label: __('Wastage %'), align: 'left' },
+        { key: 'production_plan', label: __('Production Plan'), align: 'left' },
+        { key: 'production_date', label: __('Production Date'), align: 'left' },
+        { key: 'rm', label: __('RM'), align: 'left' },
+        { key: 'rm_category_name', label: __('RM Category Name'), align: 'left' },
+        { key: 'rm_consumption', label: __('Actual RM Consumption'), align: 'left' },
+        { key: 'machine_name', label: __('Machine Name'), align: 'left' },
+        { key: 'finished_item', label: __('Finished Item'), align: 'left' },
+        { key: 'finished_item_category_name', label: __('Finished Item Category Name'), align: 'left' },
+        { key: 'fg_planned_qty', label: __('FG Planned Qty'), align: 'left' },
+        { key: 'actual_qty', label: __('Actual Qty'), align: 'left' },
+        { key: 'finish_length', label: __('Finish Length'), align: 'left' },
+        { key: 'tolerance', label: __('Tolerance'), align: 'left' },
+        { key: 'melting_weight', label: __('Melting Weight'), align: 'left' },
+        { key: 'wastage', label: __('Wastage %'), align: 'left' },
     ];
 }
 
@@ -846,7 +847,13 @@ function getTableColumns(tabId) {
 // ────────────────────────────────────────────────────────────────
 function buildExportToolbar(state, tabId, columns, rows) {
     const $wrapper = $(`
-        <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:8px;">
+            <button type="button" class="btn btn-sm btn-default col-picker-btn"
+                    style="padding:6px 14px;border-radius:4px;border:1px solid #ced4da;
+                           display:flex;align-items:center;gap:6px;">
+                <i class="fa fa-columns"></i>
+                <span>${__('Columns')}</span>
+            </button>
             <div class="export-dropdown" style="position:relative;">
                 <button type="button"
                         class="btn btn-sm"
@@ -876,7 +883,11 @@ function buildExportToolbar(state, tabId, columns, rows) {
         </div>
     `);
 
-    const $btn = $wrapper.find('button');
+    $wrapper.find('.col-picker-btn').on('click', () => {
+        showColumnPickerDialog(state, tabId);
+    });
+
+    const $btn = $wrapper.find('.export-dropdown button');
     const $menu = $wrapper.find('.export-menu');
 
     $btn.on('click', (e) => {
@@ -892,7 +903,7 @@ function buildExportToolbar(state, tabId, columns, rows) {
 
     $menu.find('.export-option[data-format="pdf"]').on('click', (e) => {
         e.stopPropagation();
-        exportTableToPDF(tabId, columns, rows);
+        exportTableToPDF(state, tabId, columns, rows);
         $menu.hide();
     });
 
@@ -904,11 +915,76 @@ function buildExportToolbar(state, tabId, columns, rows) {
     return $wrapper;
 }
 
+function showColumnPickerDialog(state, tabId) {
+    const allColumns = getTableColumns(tabId);
+    const selectedKeys = state.selectedColumns[tabId] || allColumns.map(c => c.key);
+
+    const listHtml = allColumns.map(col => `
+        <div style="padding:6px 4px;border-bottom:1px solid #f5f5f5;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
+                <input type="checkbox"
+                       class="col-picker-check"
+                       value="${col.key}"
+                       ${selectedKeys.includes(col.key) ? 'checked' : ''}
+                       style="width:14px;height:14px;cursor:pointer;flex-shrink:0;">
+                <span style="font-size:0.9rem;color:#333;">${col.label}</span>
+            </label>
+        </div>
+    `).join('');
+
+    const d = new frappe.ui.Dialog({
+        title: __('Pick Columns for Export'),
+        fields: [
+            {
+                fieldtype: 'HTML',
+                fieldname: 'col_html',
+                options: `
+                    <div style="margin-bottom:10px;display:flex;gap:8px;">
+                        <button class="btn btn-xs btn-default col-select-all"
+                                style="padding:4px 10px;">${__('Select All')}</button>
+                        <button class="btn btn-xs btn-default col-deselect-all"
+                                style="padding:4px 10px;">${__('Deselect All')}</button>
+                    </div>
+                    <div style="max-height:360px;overflow-y:auto;padding-right:4px;">
+                        ${listHtml}
+                    </div>
+                `
+            }
+        ],
+        primary_action_label: __('Apply'),
+        primary_action() {
+            const selected = [];
+            d.$wrapper.find('.col-picker-check:checked').each(function () {
+                selected.push($(this).val());
+            });
+            if (!selected.length) {
+                frappe.show_alert({ message: __('Please select at least one column'), indicator: 'orange' });
+                return;
+            }
+            state.selectedColumns[tabId] = selected;
+            d.hide();
+            frappe.show_alert({ message: __('Column selection applied'), indicator: 'green' });
+        },
+    });
+
+    d.show();
+
+    d.$wrapper.find('.col-select-all').on('click', function () {
+        d.$wrapper.find('.col-picker-check').prop('checked', true);
+    });
+    d.$wrapper.find('.col-deselect-all').on('click', function () {
+        d.$wrapper.find('.col-picker-check').prop('checked', false);
+    });
+}
+
 function exportTableToExcel(state, tabId) {
     const filters = getFilters(state);
 
     const from_date = filters.from_date || '';
     const to_date = filters.to_date || (filters.from_date ? '' : frappe.datetime.get_today());
+
+    const allColumns = getTableColumns(tabId);
+    const selectedKeys = state.selectedColumns[tabId] || allColumns.map(c => c.key);
 
     const params = {
         tab_id: tabId,
@@ -918,6 +994,7 @@ function exportTableToExcel(state, tabId) {
         production_plan: filters.production_plan || '',
         machine_name: filters.machine_name || '',
         category_name: filters.category_name || '',
+        selected_columns: selectedKeys.join(','),
     };
 
     const query = Object.keys(params)
@@ -928,47 +1005,71 @@ function exportTableToExcel(state, tabId) {
     window.open(url, '_blank');
 }
 
-function exportTableToPDF(tabId, columns, rows) {
+function exportTableToPDF(state, tabId, columns, rows) {
     if (!rows || !rows.length) {
         frappe.show_alert({ message: __('No data to export'), indicator: 'orange' });
         return;
     }
 
-    const header = columns.map(c => frappe.utils.escape_html(c.label));
-    const dataRows = rows.map(r => mapRowForExport(tabId, r).map(val =>
-        frappe.utils.escape_html(val == null ? '' : String(val))
-    ));
+    const selectedKeys = state.selectedColumns[tabId] || columns.map(c => c.key);
+    const filteredColumns = columns.filter(c => selectedKeys.includes(c.key));
+
+    const header = filteredColumns.map(c => frappe.utils.escape_html(c.label));
+    const dataRows = rows.map(r =>
+        filteredColumns.map(c => {
+            const val = getExportValueByKey(tabId, c.key, r);
+            return frappe.utils.escape_html(val == null ? '' : String(val));
+        })
+    );
 
     const thead = `<tr>${header.map(h => `<th style="border:1px solid #000;padding:4px;">${h}</th>`).join('')}</tr>`;
     const tbody = dataRows.map(rowArr =>
         `<tr>${rowArr.map(v => `<td style="border:1px solid #000;padding:4px;">${v}</td>`).join('')}</tr>`
     ).join('');
 
-    const html = `
-        <html>
-        <head>
-            <title>${__('Production Dashboard Export')}</title>
-        </head>
-        <body>
-            <h3>${__('Production Dashboard')} - ${__(tabId.replace(/_/g, ' '))}</h3>
-            <table style="border-collapse:collapse;width:100%;font-size:11px;">
-                <thead>${thead}</thead>
-                <tbody>${tbody}</tbody>
-            </table>
-        </body>
-        </html>
-    `;
+    const title = `${__('Production Dashboard')} - ${__(tabId.replace(/_/g, ' '))}`;
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>${title}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 16px; }
+        h3 { margin-bottom: 12px; font-size: 14px; }
+        table { border-collapse: collapse; width: 100%; font-size: 10px; }
+        th { background: #495057; color: #fff; padding: 5px 6px; border: 1px solid #000; text-align: center; white-space: nowrap; }
+        td { padding: 4px 6px; border: 1px solid #ccc; text-align: center; }
+        tr:nth-child(even) td { background: #f9f9f9; }
+        @media print {
+            body { margin: 0; }
+            button { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <h3>${title}</h3>
+    <table>
+        <thead>${thead}</thead>
+        <tbody>${tbody}</tbody>
+    </table>
+    <script>
+        window.onload = function () {
+            setTimeout(function () { window.print(); }, 250);
+        };
+    <\/script>
+</body>
+</html>`;
 
-    const win = window.open('', '_blank');
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const win = window.open(url, '_blank');
     if (!win) {
         frappe.msgprint(__('Please allow popups to export PDF.'));
+        URL.revokeObjectURL(url);
         return;
     }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    win.focus();
-    win.print();
+    // Revoke the object URL after the window has loaded
+    win.addEventListener('load', () => URL.revokeObjectURL(url));
 }
 
 function buildCSVContent(rows) {
@@ -982,6 +1083,70 @@ function buildCSVContent(rows) {
     };
 
     return rows.map(rowArr => rowArr.map(escapeCell).join(',')).join('\n');
+}
+
+function getExportValueByKey(tabId, key, row) {
+    const fmtDate = (d) => d ? frappe.format(d, { fieldtype: 'Date' }) : '';
+
+    if (tabId === 'rolled_production') {
+        const map = {
+            production_plan: row.production_plan || '',
+            production_date: fmtDate(row.production_date),
+            rm: row.rm || '',
+            rm_category_name: row.rm_category_name || '',
+            rm_consumption: row.rm_consumption || 0,
+            billet_pcs: row.billet_pcs || 0,
+            description_of_cutting_billet: row.description_of_cutting_billet || '',
+            total_raw_material_pcs: row.total_raw_material_pcs || 0,
+            total_rm_weight: (parseFloat(row.rm_consumption) || 0) + (parseFloat(row.miss_billet_weight) || 0),
+            miss_billet_pcs: row.miss_billet_pcs || 0,
+            miss_billet_weight: row.miss_billet_weight || 0,
+            heat_no: row.heat_no || '',
+            finished_item: row.finished_item || '',
+            finished_item_category_name: row.finished_item_category_name || '',
+            fg_planned_qty: row.fg_planned_qty || 0,
+            actual_qty: row.actual_qty || 0,
+            finish_pcs: row.finish_pcs || 0,
+            fg_length: row.fg_length || '',
+            total_miss_roll_pcs: row.total_miss_roll_pcs || 0,
+            total_miss_roll_weight: row.total_miss_roll_weight || 0,
+            total_miss_ingot_pcs: row.total_miss_ingot_pcs || 0,
+            total_miss_ingot_weight: row.total_miss_ingot_weight || 0,
+            melting_weight: row.melting_weight || 0,
+            burning_loss: row.burning_loss || 0,
+            total_hr_consumed: row.total_hr_consumed || 0,
+        };
+        return map[key] !== undefined ? map[key] : '';
+    }
+
+    if (tabId === 'bend_weight_details') {
+        const map = {
+            id: row.id || row.name || '',
+            item_code: row.item_code || '',
+            category_name: row.category_name || '',
+            bend_material_weight: row.bend_material_weight || 0,
+        };
+        return map[key] !== undefined ? map[key] : '';
+    }
+
+    // bright_production
+    const map = {
+        production_plan: row.production_plan || '',
+        production_date: fmtDate(row.production_date),
+        rm: row.rm || '',
+        rm_category_name: row.rm_category_name || '',
+        rm_consumption: row.rm_consumption || 0,
+        machine_name: row.machine_name || '',
+        finished_item: row.finished_item || '',
+        finished_item_category_name: row.finished_item_category_name || '',
+        fg_planned_qty: row.fg_planned_qty || 0,
+        actual_qty: row.actual_qty || 0,
+        finish_length: row.finish_length || '',
+        tolerance: row.tolerance || 0,
+        melting_weight: row.fg_weight || 0,
+        wastage: row.wastage || 0,
+    };
+    return map[key] !== undefined ? map[key] : '';
 }
 
 function mapRowForExport(tabId, row) {
