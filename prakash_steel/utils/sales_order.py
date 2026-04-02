@@ -31,11 +31,6 @@ def make_sales_invoice(source_name, target_doc=None, ignore_permissions=False):
 	for idx, item in enumerate(doc.items, 1):
 		item.idx = idx
 
-	# Populate custom_base_rate from rate so loading charges can be tracked correctly
-	for item in doc.items:
-		if not item.get("custom_base_rate"):
-			item.custom_base_rate = item.rate
-
 	closed_count = original_count - len(doc.items)
 	if closed_count:
 		frappe.msgprint(
