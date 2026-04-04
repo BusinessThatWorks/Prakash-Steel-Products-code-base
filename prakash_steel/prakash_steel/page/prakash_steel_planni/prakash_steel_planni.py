@@ -265,10 +265,10 @@ def get_pending_so_status():
 		INNER JOIN
 			`tabSales Order Item` soi ON soi.parent = so.name
 		WHERE
-			so.status = 'To Deliver and Bill'
-			AND so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled')
+			so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled')
 			AND so.docstatus = 1
 			AND (soi.qty - IFNULL(soi.delivered_qty, 0)) > 0
+			AND IFNULL(soi.custom_closed, 0) = 0
 			AND so.transaction_date <= %s
 		GROUP BY
 			so.name, so.transaction_date
