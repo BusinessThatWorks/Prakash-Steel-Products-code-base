@@ -368,6 +368,10 @@ function calculate_burning_loss_per(frm) {
         let miss_billet_weight = parseFloat(billet_cutting_doc.miss_billet_weight) || 0;
         let finish_weight = parseFloat(frm.doc.finish_weight) || 0;
 
+        // If miss_billet_weight > 0, display billet_weight + miss_billet_weight
+        let effective_billet_weight = miss_billet_weight > 0 ? billet_weight + miss_billet_weight : billet_weight;
+        frm.set_value("billet_weight", effective_billet_weight);
+
         console.log("burning_loss_per formula: ((billet_weight - miss_billet_weight - finish_weight) / billet_weight) * 100");
         console.log("  billet_weight:", billet_weight, "miss_billet_weight:", miss_billet_weight, "finish_weight:", finish_weight);
 

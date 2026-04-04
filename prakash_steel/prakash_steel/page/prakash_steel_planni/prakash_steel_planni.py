@@ -43,8 +43,12 @@ def get_sku_type_on_hand_status(filters=None):
 	- Calculate percentage: (count_of_color / total_items) * 100
 	- Return data in format suitable for pie charts
 	"""
+	import json
+
 	if not filters:
 		filters = {}
+	if isinstance(filters, str):
+		filters = json.loads(filters)
 
 	# Get ALL buffer items - same as po_recomendation_for_psp report
 	items_data = frappe.db.sql(
@@ -72,21 +76,37 @@ def get_sku_type_on_hand_status(filters=None):
 	else:
 		item_codes_tuple = tuple(item_codes)
 
-	stock_data = frappe.db.sql(
-		"""
-		SELECT item_code, SUM(actual_qty) as stock
-		FROM `tabBin`
-		WHERE item_code IN %s
-		GROUP BY item_code
-		""",
-		(item_codes_tuple,),
-		as_dict=True,
-	)
+	as_of_date = filters.get("to_date") or filters.get("from_date")
+
+	if as_of_date:
+		stock_data = frappe.db.sql(
+			"""
+			SELECT item_code, SUM(actual_qty) as stock
+			FROM `tabStock Ledger Entry`
+			WHERE item_code IN %s
+			AND posting_date <= %s
+			AND is_cancelled = 0
+			GROUP BY item_code
+			""",
+			(item_codes_tuple, as_of_date),
+			as_dict=True,
+		)
+	else:
+		stock_data = frappe.db.sql(
+			"""
+			SELECT item_code, SUM(actual_qty) as stock
+			FROM `tabBin`
+			WHERE item_code IN %s
+			GROUP BY item_code
+			""",
+			(item_codes_tuple,),
+			as_dict=True,
+		)
 
 	stock_map = {d.item_code: flt(d.stock) for d in stock_data}
 
 	# Get qualified demand map (Open SO with delivery_date <= today) - same as po_recomendation_for_psp report
-	qualified_demand_map = get_qualified_demand_map({})
+	qualified_demand_map = get_qualified_demand_map(filters if filters else {})
 
 	# Calculate SKU type for ALL items first (same as report does)
 	# Then filter to only the SKU types we want for charts
@@ -149,7 +169,6 @@ def get_sku_type_on_hand_status(filters=None):
 		# Calculate on-hand status and colour - EXACTLY as in po_recomendation_for_psp report
 		on_hand_stock = flt(stock_map.get(item_code, 0))
 		tog = flt(item["tog"])
-		# Use qualified_demand directly (Open SO with delivery_date <= today) - same as po_recomendation_for_psp report
 		qualify_demand = flt(qualified_demand_map.get(item_code, 0))
 
 		# Calculate On Hand Status = (on_hand_stock / (TOG + qualify_demand)) * 100, then rounded up
@@ -214,15 +233,22 @@ def get_sku_type_on_hand_status(filters=None):
 
 def get_qualified_demand_map(filters):
 	"""Get qualified demand map - same as po_recomendation_for_psp report
-	Qualified Demand = Open SO quantity where delivery_date <= today
+	Qualified Demand = Open SO quantity where delivery_date <= to_date (or today)
 	Open SO = qty - delivered_qty (quantity left to deliver)
 	"""
 	from frappe.utils import today
 
-	today_date = today()
+	cutoff_date = filters.get("to_date") or today()
+
+	date_condition = "AND IFNULL(soi.delivery_date, '1900-01-01') <= %s"
+	params = [cutoff_date]
+
+	if filters.get("from_date"):
+		date_condition += " AND IFNULL(soi.delivery_date, '1900-01-01') >= %s"
+		params.append(filters["from_date"])
 
 	so_rows = frappe.db.sql(
-		"""
+		f"""
 		SELECT
 			soi.item_code,
 			SUM(soi.qty - IFNULL(soi.delivered_qty, 0)) as so_qty
@@ -233,11 +259,11 @@ def get_qualified_demand_map(filters):
 		WHERE
 			so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
 			AND so.docstatus = 1
-			AND IFNULL(soi.delivery_date, '1900-01-01') <= %s
+			{date_condition}
 		GROUP BY
 			soi.item_code
 		""",
-		(today_date,),
+		params,
 		as_dict=True,
 	)
 
@@ -245,21 +271,43 @@ def get_qualified_demand_map(filters):
 
 
 @frappe.whitelist()
-def get_pending_so_status():
+def get_pending_so_status(filters=None):
 	"""
 	Summary for Pending SO pie chart.
-	All sales orders with status = 'To Deliver and Bill' till today.
+	All sales orders with pending delivery, optionally filtered by delivery date range.
 	We calculate order_status using the same buffer logic as open_so_analysis
 	(but at SO header level).
 	"""
+	import json
+
 	from frappe.utils import date_diff, today
 
+	if not filters:
+		filters = {}
+	if isinstance(filters, str):
+		filters = json.loads(filters)
+
+	from_date = filters.get("from_date")
+	to_date = filters.get("to_date")
+
+	date_condition = ""
+	params = []
+	if from_date and to_date:
+		date_condition = "AND soi.delivery_date BETWEEN %s AND %s"
+		params = [from_date, to_date]
+	elif to_date:
+		date_condition = "AND soi.delivery_date <= %s"
+		params = [to_date]
+	elif from_date:
+		date_condition = "AND soi.delivery_date >= %s"
+		params = [from_date]
+
 	so_data = frappe.db.sql(
-		"""
+		f"""
 		SELECT
 			so.name as sales_order,
 			so.transaction_date as date,
-			MIN(soi.delivery_date) as delivery_date
+			soi.delivery_date as delivery_date
 		FROM
 			`tabSales Order` so
 		INNER JOIN
@@ -267,18 +315,17 @@ def get_pending_so_status():
 		WHERE
 			so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled')
 			AND so.docstatus = 1
-			AND (soi.qty - IFNULL(soi.delivered_qty, 0)) > 0
+			AND (soi.qty - soi.delivered_qty) > 0
 			AND IFNULL(soi.custom_closed, 0) = 0
-			AND so.transaction_date <= %s
-		GROUP BY
-			so.name, so.transaction_date
+			{date_condition}
+		GROUP BY soi.name
 		""",
-		(today(),),
+		tuple(params),
 		as_dict=1,
 	)
 
 	if not so_data:
-		return {"total_orders": 0, "colours": []}
+		return {"total_items": 0, "colours": []}
 
 	status_counts = {"BLACK": 0, "RED": 0, "YELLOW": 0, "GREEN": 0, "WHITE": 0}
 
@@ -326,15 +373,15 @@ def get_pending_so_status():
 		if order_status in status_counts:
 			status_counts[order_status] += 1
 
-	total_orders = sum(status_counts.values())
-	if total_orders == 0:
-		return {"total_orders": 0, "colours": []}
+	total_items = sum(status_counts.values())
+	if total_items == 0:
+		return {"total_items": 0, "colours": []}
 
 	colours = []
 	for colour in ["BLACK", "RED", "YELLOW", "GREEN", "WHITE"]:
 		count = status_counts[colour]
 		if count:
-			percentage = (count / total_orders) * 100
+			percentage = (count / total_items) * 100
 			colours.append(
 				{
 					"name": colour,
@@ -343,7 +390,7 @@ def get_pending_so_status():
 				}
 			)
 
-	return {"total_orders": total_orders, "colours": colours}
+	return {"total_items": total_items, "colours": colours}
 
 
 @frappe.whitelist()
