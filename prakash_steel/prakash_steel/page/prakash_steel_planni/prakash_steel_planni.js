@@ -1,8 +1,3 @@
-// Prakash Steel Planning Dashboard
-// Shows:
-// - On Hand Status pies for SKU types (BBMTA, RBMTA, BOTA, RMTA, PTA)
-// - Pending SO Status pie (by order_status colour)
-// - Open PO Status pie (currently all BLACK)
 
 frappe.pages['prakash-steel-planni'].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({
@@ -11,9 +6,29 @@ frappe.pages['prakash-steel-planni'].on_page_load = function (wrapper) {
 		single_column: true,
 	});
 
-	// Main container
+	// Main container with filter bar + charts grid
 	const $container = $(`
 		<div class="planning-dashboard" style="padding: 15px;">
+			<div class="filter-bar" style="
+				display: flex;
+				align-items: center;
+				gap: 16px;
+				margin-bottom: 16px;
+				padding: 12px 16px;
+				background: #fff;
+				border-radius: 8px;
+				box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+			">
+				<div style="display:flex;align-items:center;gap:8px;">
+					<label style="margin:0;font-weight:600;font-size:0.85rem;white-space:nowrap;">${__('From Date')}</label>
+					<div class="from-date-wrapper"></div>
+				</div>
+				<div style="display:flex;align-items:center;gap:8px;">
+					<label style="margin:0;font-weight:600;font-size:0.85rem;white-space:nowrap;">${__('To Date')}</label>
+					<div class="to-date-wrapper"></div>
+				</div>
+				<button class="btn btn-primary btn-sm refresh-btn">${__('Refresh')}</button>
+			</div>
 			<div class="charts-grid" style="
 				display: grid;
 				grid-template-columns: repeat(3, 1fr);
@@ -25,11 +40,37 @@ frappe.pages['prakash-steel-planni'].on_page_load = function (wrapper) {
 	page.main.empty();
 	page.main.append($container);
 
+	// Create Frappe date controls inside filter bar
+	const fromDateControl = frappe.ui.form.make_control({
+		df: { fieldtype: 'Date', fieldname: 'from_date', label: __('From Date') },
+		parent: $container.find('.from-date-wrapper')[0],
+		only_input: true,
+	});
+	fromDateControl.refresh();
+
+	const toDateControl = frappe.ui.form.make_control({
+		df: { fieldtype: 'Date', fieldname: 'to_date', label: __('To Date') },
+		parent: $container.find('.to-date-wrapper')[0],
+		only_input: true,
+	});
+	toDateControl.refresh();
+
 	const $chartsContainer = $container.find('.charts-grid');
+
+	// Refresh button handler
+	$container.find('.refresh-btn').on('click', function () {
+		const filters = {
+			from_date: fromDateControl.get_value() || null,
+			to_date: toDateControl.get_value() || null,
+		};
+		$chartsContainer.empty();
+		page.set_indicator(__('Loading chart data...'), 'blue');
+		load_all_charts(page, $chartsContainer, filters);
+	});
 
 	page.set_indicator(__('Loading chart data...'), 'blue');
 
-	const afterChartReady = () => load_all_charts(page, $chartsContainer);
+	const afterChartReady = () => load_all_charts(page, $chartsContainer, {});
 
 	// Ensure Chart.js is available
 	if (typeof Chart === 'undefined') {
@@ -39,14 +80,14 @@ frappe.pages['prakash-steel-planni'].on_page_load = function (wrapper) {
 	}
 };
 
-function load_all_charts(page, $chartsContainer) {
+function load_all_charts(page, $chartsContainer, filters) {
 	const colorMap = getColorMap();
 
 	Promise.all([
 		new Promise((resolve, reject) => {
 			frappe.call({
 				method: 'prakash_steel.prakash_steel.page.prakash_steel_planni.prakash_steel_planni.get_sku_type_on_hand_status',
-				args: { filters: {} },
+				args: { filters: filters || {} },
 				callback: resolve,
 				error: reject,
 			});
@@ -54,6 +95,7 @@ function load_all_charts(page, $chartsContainer) {
 		new Promise((resolve, reject) => {
 			frappe.call({
 				method: 'prakash_steel.prakash_steel.page.prakash_steel_planni.prakash_steel_planni.get_pending_so_status',
+				args: { filters: filters || {} },
 				callback: resolve,
 				error: reject,
 			});
@@ -162,7 +204,7 @@ function createChartCard(key, data, colorMap) {
 	`);
 
 	// Calculate and display total
-	const total = data.total_items || data.total_orders || (data.colours ? data.colours.reduce((sum, c) => sum + c.count, 0) : 0);
+	const total = data.total_items ?? data.total_orders ?? (data.colours ? data.colours.reduce((sum, c) => sum + c.count, 0) : 0);
 
 	const $legend = $card.find(`.chart-legend-${chartId}`);
 	const $legendLeft = $legend.find('.legend-left');
@@ -187,7 +229,7 @@ function createChartCard(key, data, colorMap) {
 	// Define middle and right column colors
 	const middleColors = ['BLACK', 'RED', 'WHITE'];
 	const rightColors = ['YELLOW', 'GREEN'];
-	
+
 	// Create a map of existing colors from data
 	const colorDataMap = {};
 	if (data.colours && data.colours.length) {
@@ -195,7 +237,7 @@ function createChartCard(key, data, colorMap) {
 			colorDataMap[c.name] = c;
 		});
 	}
-	
+
 	// Helper function to create legend item
 	const createLegendItem = (colorName) => {
 		const colorData = colorDataMap[colorName] || { name: colorName, count: 0, percentage: 0 };
@@ -223,12 +265,12 @@ function createChartCard(key, data, colorMap) {
 			</div>
 		`);
 	};
-	
+
 	// Always show all left column colors (BLACK, RED, WHITE)
 	middleColors.forEach((colorName) => {
 		$legendLeft.append(createLegendItem(colorName));
 	});
-	
+
 	// Always show all right column colors (YELLOW, GREEN)
 	rightColors.forEach((colorName) => {
 		$legendRight.append(createLegendItem(colorName));
@@ -291,11 +333,3 @@ function renderPieChart(key, data, colorMap) {
 		},
 	});
 }
-
-
-
-
-
-
-
-
