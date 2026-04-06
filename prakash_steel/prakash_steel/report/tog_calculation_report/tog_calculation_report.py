@@ -100,10 +100,10 @@ def get_item_tog_debug(item_code):
 	variance = sum_sq / days if days > 0 else 0.0
 	sd_val = math.sqrt(variance)
 
-	# ADU for COV
+	# ADU for COV (Sell + Parent Sell + Consumption)
 	consumption_map = _get_consumption_by_item(days)
 	consumption = flt(consumption_map.get(item_code, 0.0))
-	total_usage = total_sell + consumption
+	total_usage = total_sell + total_parent_sell_raw + consumption
 	adu_val = math.ceil(total_usage / days) if days > 0 and total_usage > 0 else 0
 
 	return {
@@ -195,9 +195,9 @@ def get_data(filters=None):
 	- item_code (from Item.name)
 	- custom_category_name
 	- custom_item_type
-	- custom_adu
+	- custom_adu (ceil((Sell + Parent Sell + Consumption) / horizon days))
 
-	Leaves other fields (consumption, sd, cov) empty.
+	Also fills sell, parent_sell, consumption, sd, cov.
 
 	Debug payload is stored on the first row as `tog_parent_sell_debug` and also
 	exposed via `get_tog_parent_sell_console_payload` (used by report JS) so it
@@ -246,13 +246,13 @@ def get_data(filters=None):
 		consumption_qty = flt(consumption_map.get(item_code, 0.0))
 		item["consumption"] = int(consumption_qty) if consumption_qty else 0
 
-		# 3) ADU: always recalculate from (Sell + Consumption) / days (ceiled to whole number)
-		total_usage = sell_qty + consumption_qty
+		# 3) ADU: (Sell + Parent Sell + Consumption) / days (ceiled to whole number)
+		total_usage = sell_qty + consumption_qty + ps
 		if days > 0 and total_usage > 0:
 			adu_raw = total_usage / days
 			item["custom_adu"] = math.ceil(adu_raw)
 		else:
-			# If horizon not configured or no sales/consumption, set ADU to 0
+			# If horizon not configured or no sell/parent sell/consumption, set ADU to 0
 			item["custom_adu"] = 0
 
 		# 4) SD: population standard deviation of daily sales qty over the horizon
@@ -499,6 +499,16 @@ def _compute_parent_sell_from_lines(
 		_propagate(line["item_code"], sq, frozenset(), 0.0, line_ctx)
 
 	return dict(acc), trace
+
+
+def _get_parent_sell_map_for_horizon() -> dict[str, float]:
+	"""BOM-exploded demand from all sales in the ADU horizon (same as Parent Sell column)."""
+	days = _get_horizon_days()
+	if days <= 0:
+		return {}
+	sales_lines = _get_sales_invoice_lines()
+	parent_sell_map, _ = _compute_parent_sell_from_lines(sales_lines, collect_trace=False)
+	return parent_sell_map
 
 
 def _get_sd_by_item(days: int) -> dict[str, float]:

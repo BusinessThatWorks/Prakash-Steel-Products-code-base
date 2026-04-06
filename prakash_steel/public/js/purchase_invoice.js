@@ -305,3 +305,47 @@ frappe.ui.form.on("Purchase Invoice", {
         frappe.validated = false;
     },
 });
+
+function compute_purchase_invoice_item_gross(row) {
+    const taxableValue = flt(row.taxable_value || row.net_amount || row.amount || 0);
+    const igstAmount = flt(row.igst_amount || 0);
+    const cgstAmount = flt(row.cgst_amount || 0);
+    const sgstAmount = flt(row.sgst_amount || 0);
+    const gstComponent = igstAmount ? igstAmount : (cgstAmount + sgstAmount);
+
+    return taxableValue + gstComponent;
+}
+
+function set_purchase_invoice_item_gross(cdt, cdn) {
+    const row = locals[cdt] && locals[cdt][cdn];
+    if (!row) return;
+
+    const grossAmount = compute_purchase_invoice_item_gross(row);
+    if (flt(row.custom_gross_amount || 0) !== flt(grossAmount || 0)) {
+        frappe.model.set_value(cdt, cdn, "custom_gross_amount", grossAmount);
+    }
+}
+
+frappe.ui.form.on("Purchase Invoice Item", {
+    taxable_value(frm, cdt, cdn) {
+        set_purchase_invoice_item_gross(cdt, cdn);
+    },
+    igst_amount(frm, cdt, cdn) {
+        set_purchase_invoice_item_gross(cdt, cdn);
+    },
+    cgst_amount(frm, cdt, cdn) {
+        set_purchase_invoice_item_gross(cdt, cdn);
+    },
+    sgst_amount(frm, cdt, cdn) {
+        set_purchase_invoice_item_gross(cdt, cdn);
+    },
+    amount(frm, cdt, cdn) {
+        set_purchase_invoice_item_gross(cdt, cdn);
+    },
+    net_amount(frm, cdt, cdn) {
+        set_purchase_invoice_item_gross(cdt, cdn);
+    },
+    items_add(frm, cdt, cdn) {
+        set_purchase_invoice_item_gross(cdt, cdn);
+    },
+});
