@@ -108,8 +108,6 @@ def get_sku_type_on_hand_status(filters=None):
 	# Get qualified demand map (Open SO with delivery_date <= today) - same as po_recomendation_for_psp report
 	qualified_demand_map = get_qualified_demand_map(filters if filters else {})
 
-	# Calculate SKU type for ALL items first (same as report does)
-	# Then filter to only the SKU types we want for charts
 	items_with_sku_type = []
 
 	for item in items_data:
@@ -121,18 +119,20 @@ def get_sku_type_on_hand_status(filters=None):
 		sku_type = calculate_sku_type("Buffer", item_type)
 
 		# Store item with its calculated SKU type
-		items_with_sku_type.append({
-			"item_code": item_code,
-			"buffer_flag": buffer_flag,
-			"item_type": item_type,
-			"tog": item.get("tog", 0),
-			"sku_type": sku_type
-		})
+		items_with_sku_type.append(
+			{
+				"item_code": item_code,
+				"buffer_flag": buffer_flag,
+				"item_type": item_type,
+				"tog": item.get("tog", 0),
+				"sku_type": sku_type,
+			}
+		)
 
 	# Now filter to only the SKU types we want for charts: BBMTA, RBMTA, BOTA, RMTA, PTA
 	# But handle RM buffer items: they calculate as PTA but should display as RMTA
 	target_sku_types = ["BBMTA", "RBMTA", "BOTA", "RMTA", "PTA"]
-	
+
 	# Group items by SKU type and calculate on-hand status
 	sku_type_data = {}
 

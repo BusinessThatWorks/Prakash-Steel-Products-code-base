@@ -1,8 +1,3 @@
-// Prakash Steel Planning Dashboard
-// Shows:
-// - On Hand Status pies for SKU types (BBMTA, RBMTA, BOTA, RMTA, PTA)
-// - Pending SO Status pie (by order_status colour)
-// - Open PO Status pie (currently all BLACK)
 
 frappe.pages['prakash-steel-planni'].on_page_load = function (wrapper) {
 	const page = frappe.ui.make_app_page({
