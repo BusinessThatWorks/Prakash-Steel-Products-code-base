@@ -49,12 +49,31 @@
 
 import frappe
 from frappe import _
+from frappe.utils import flt
 
 
 def clear_cancel_reason_on_amend(doc, method=None):
     """Clear cancel reason on an amended (draft) Purchase Invoice."""
     if doc.amended_from and doc.docstatus == 0 and doc.custom_cancel_reason:
         doc.custom_cancel_reason = ""
+
+def update_gross_amount_on_items(doc, method=None):
+    """Compute custom_gross_amount on each Purchase Invoice Item row.
+
+    Formula:
+      gross = taxable_value + (igst_amount if igst_amount else (cgst_amount + sgst_amount))
+    """
+    if not getattr(doc, "items", None):
+        return
+
+    for item in doc.get("items"):
+        taxable_value = flt(item.get("taxable_value") or item.get("net_amount") or item.get("amount") or 0)
+        igst_amount = flt(item.get("igst_amount") or 0)
+        cgst_amount = flt(item.get("cgst_amount") or 0)
+        sgst_amount = flt(item.get("sgst_amount") or 0)
+
+        gst_component = igst_amount if igst_amount else (cgst_amount + sgst_amount)
+        item.custom_gross_amount = taxable_value + gst_component
 
 
 def validate_cancel_reason(doc, method=None):
