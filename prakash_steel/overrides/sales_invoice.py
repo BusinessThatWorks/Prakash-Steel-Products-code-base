@@ -15,6 +15,36 @@ class CustomSalesInvoice(SalesInvoice):
 	for items with insufficient stock when custom_stock_in_for_weight_variance is checked.
 	"""
 
+	def _update_gross_amount_on_items(self) -> None:
+		"""Set custom_gross_amount on each child row based on taxable value and GST split.
+
+		Formula:
+		  gross = taxable_value + (igst_amount if igst_amount else (cgst_amount + sgst_amount))
+
+		Fallbacks:
+		  - taxable_value falls back to net_amount, then amount if not present
+		  - GST fields default to 0 if missing
+		"""
+		if not getattr(self, "items", None):
+			return
+
+		for item in self.get("items"):
+			# Taxable base
+			taxable_value = flt(
+				item.get("taxable_value")
+				or item.get("net_amount")
+				or item.get("amount")
+				or 0
+			)
+
+			# GST split
+			igst_amount = flt(item.get("igst_amount") or 0)
+			cgst_amount = flt(item.get("cgst_amount") or 0)
+			sgst_amount = flt(item.get("sgst_amount") or 0)
+
+			gst_component = igst_amount if igst_amount else (cgst_amount + sgst_amount)
+			item.custom_gross_amount = taxable_value + gst_component
+
 	@staticmethod
 	def _extract_sales_order_serial(so_name: str) -> str | None:
 		"""
@@ -63,8 +93,9 @@ class CustomSalesInvoice(SalesInvoice):
 			pass
 
 	def validate(self):
-		"""Run parent validate, then re-clear amendment fields in case parent restored them."""
+		"""Run parent validate, recompute gross amounts, then re-clear amendment fields if needed."""
 		super().validate()
+		self._update_gross_amount_on_items()
 		# ERPNext's validate chain may re-copy values from amended_from; clear them again here.
 		if self.is_new() and getattr(self, "amended_from", None):
 			self.custom_stock_entry_id = None
