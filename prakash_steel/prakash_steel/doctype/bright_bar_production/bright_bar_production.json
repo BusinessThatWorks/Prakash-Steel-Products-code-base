@@ -8,9 +8,10 @@
   "section_break_t64h",
   "amended_from",
   "production_plan",
+  "shift_type",
   "column_break_diqx",
   "production_date",
-  "shift_type",
+  "posting_time",
   "raw_material_details_section",
   "raw_material",
   "column_break_xzpd",
@@ -269,13 +270,19 @@
    "fieldtype": "Data",
    "label": "Shift Type",
    "read_only": 1
+  },
+  {
+   "fieldname": "posting_time",
+   "fieldtype": "Time",
+   "label": "Posting Time",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-23 21:10:52.325107",
+ "modified": "2026-04-07 12:16:01.872361",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Bright Bar Production",
