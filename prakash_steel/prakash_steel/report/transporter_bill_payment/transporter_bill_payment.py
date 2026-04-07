@@ -169,16 +169,18 @@ def get_purchase_data(filters):
             pi.bill_no AS bill_no,
             pi.vehicle_no AS truck_no,
             pi.transporter_name AS transporter_name,
-            pii.qty AS billing_qty,
+            SUM(pii.qty) AS billing_qty,
             -- Receiving qty from Purchase Receipt Item
-            IFNULL(
-                (
-                    SELECT SUM(pri.qty)
-                    FROM `tabPurchase Receipt Item` pri
-                    WHERE pri.parent = pii.purchase_receipt
-                      AND pri.item_code = pii.item_code
-                ),
-                0
+            SUM(
+                IFNULL(
+                    (
+                        SELECT SUM(pri.qty)
+                        FROM `tabPurchase Receipt Item` pri
+                        WHERE pri.parent = pii.purchase_receipt
+                          AND pri.item_code = pii.item_code
+                    ),
+                    0
+                )
             ) AS receiving_qty
         FROM
             `tabPurchase Invoice` pi
@@ -188,6 +190,8 @@ def get_purchase_data(filters):
             pi.name = pii.parent
         WHERE
             {where_clause}
+        GROUP BY
+            pi.name
         ORDER BY
             pi.posting_date ASC,
             pi.name ASC

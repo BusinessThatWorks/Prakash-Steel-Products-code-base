@@ -42,9 +42,8 @@ class BrightBarProduction(Document):
 			fg_item_doc = frappe.get_doc("Item", self.finished_good)
 			fg_stock_uom = fg_item_doc.stock_uom or "Kg"
 
-			# Get posting_date from Production Plan
-			production_plan_doc = frappe.get_doc("Production Plan", self.production_plan)
-			posting_date = production_plan_doc.posting_date or self.production_date
+			# Get posting_date from production_date field
+			posting_date = self.production_date
 
 			# Create Stock Entry with Manufacture type
 			items = [
@@ -92,7 +91,7 @@ class BrightBarProduction(Document):
 				"company": company,
 				"set_posting_time": 1,  # Enable custom posting date/time
 				"posting_date": posting_date,
-				"posting_time": frappe.utils.nowtime(),
+				"posting_time": self.custom_posting_time or frappe.utils.nowtime(),
 				"items": items,
 			}
 
