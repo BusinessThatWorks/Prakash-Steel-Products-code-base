@@ -92,7 +92,7 @@ class BrightBarProduction(Document):
 				"company": company,
 				"set_posting_time": 1,  # Enable custom posting date/time
 				"posting_date": posting_date,
-				"posting_time": frappe.utils.nowtime(),
+				"posting_time": self.custom_posting_time or frappe.utils.nowtime(),
 				"items": items,
 			}
 
