@@ -293,13 +293,13 @@ def get_pending_so_status(filters=None):
 	date_condition = ""
 	params = []
 	if from_date and to_date:
-		date_condition = "AND soi.delivery_date BETWEEN %s AND %s"
+		date_condition = "AND so.transaction_date BETWEEN %s AND %s"
 		params = [from_date, to_date]
 	elif to_date:
-		date_condition = "AND soi.delivery_date <= %s"
+		date_condition = "AND so.transaction_date <= %s"
 		params = [to_date]
 	elif from_date:
-		date_condition = "AND soi.delivery_date >= %s"
+		date_condition = "AND so.transaction_date >= %s"
 		params = [from_date]
 
 	so_data = frappe.db.sql(
