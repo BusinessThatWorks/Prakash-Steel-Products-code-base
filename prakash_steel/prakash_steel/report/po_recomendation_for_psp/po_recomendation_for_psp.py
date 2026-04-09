@@ -1667,7 +1667,7 @@ def get_data(filters=None):
 
 			child_bom_qty = flt(row.get("child_bom_qty", 0))
 			child_bom_quantity = flt(row.get("child_bom_quantity", 1.0)) or 1.0
-			parent_per_child_factor = (child_bom_quantity/child_bom_qty) if child_bom_quantity else 0
+			parent_per_child_factor = (child_bom_quantity / child_bom_qty) if child_bom_quantity else 0
 
 			production_qty_based_on_child_stock = math.ceil(flt(stock_allocated) * parent_per_child_factor)
 			row["production_qty_based_on_child_stock"] = production_qty_based_on_child_stock
@@ -1960,6 +1960,7 @@ def get_sales_order_qty_map(filters):
 		WHERE
 			so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
 			AND so.docstatus = 1
+			AND IFNULL(soi.custom_closed, 0) = 0
 			{conditions}
 		GROUP BY
 			soi.item_code
@@ -1988,6 +1989,7 @@ def get_qualified_demand_map(filters):
 		WHERE
 			so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
 			AND so.docstatus = 1
+			AND IFNULL(soi.custom_closed, 0) = 0
 			AND IFNULL(soi.delivery_date, '1900-01-01') <= %s
 		GROUP BY
 			soi.item_code
@@ -2108,6 +2110,7 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 				WHERE
 					so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
 					AND so.docstatus = 1
+					AND IFNULL(soi.custom_closed, 0) = 0
 					AND soi.item_code IN %s
 					AND IFNULL(soi.delivery_date, '1900-01-01') >= %s
 					AND IFNULL(soi.delivery_date, '1900-01-01') <= %s
@@ -2132,6 +2135,7 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 				WHERE
 					so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
 					AND so.docstatus = 1
+					AND IFNULL(soi.custom_closed, 0) = 0
 					AND soi.item_code IN %s
 					AND IFNULL(soi.delivery_date, '1900-01-01') > %s
 				""",
@@ -2417,6 +2421,7 @@ def get_open_po_map(filters=None):
 		WHERE
 			po.docstatus = 1
 			AND po.status NOT IN ('Cancelled', 'Closed')
+			AND IFNULL(poi.custom_closed, 0) = 0
 			{conditions}
 		""",
 		tuple(params),
