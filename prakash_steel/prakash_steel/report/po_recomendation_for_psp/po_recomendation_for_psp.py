@@ -1282,8 +1282,8 @@ def get_data(filters=None):
 		# Get item name
 		item_name = item_info.get("item_name", "")
 
-		# Get WIP value
-		wip = flt(wip_map.get(item_code, 0))
+		# Get WIP value (RBMTA and RBMTO do not consider WIP)
+		wip = 0 if sku_type in ["RBMTA", "RBMTO"] else flt(wip_map.get(item_code, 0))
 
 		# Get batch size from item
 		batch_size = flt(item_info.get("batch_size", 0))
@@ -1526,7 +1526,7 @@ def get_data(filters=None):
 				normalized_bom_qty = child_bom_qty / child_bom_quantity if child_bom_quantity else 0
 				child_requirement = math.ceil(flt(or_with_moq_batch_size) * normalized_bom_qty)
 
-				child_wip = flt(wip_map.get(child_item_code, 0))
+				child_wip = 0 if child_sku_type in ["RBMTA", "RBMTO"] else flt(wip_map.get(child_item_code, 0))
 				child_open_po = flt(open_po_map.get(child_item_code, 0))
 				child_wip_open_po = math.ceil(flt(child_wip) + flt(child_open_po))
 				if child_item_code not in child_wip_open_po_map:
@@ -2607,8 +2607,8 @@ def traverse_bom_for_parent_demand(
 			child_qualified_demand = flt(open_so_map.get(child_item_code, 0))  # This is qualified_demand_map
 			child_parent_demand = flt(parent_demand_map.get(child_item_code, 0))
 			child_stock = flt(stock_map.get(child_item_code, 0))
-			child_wip = flt(wip_map.get(child_item_code, 0))
 			child_sku_type = item_sku_type_map.get(child_item_code)
+			child_wip = 0 if child_sku_type in ["RBMTA", "RBMTO"] else flt(wip_map.get(child_item_code, 0))
 			child_open_po = flt(open_po_map.get(child_item_code, 0))
 			child_mrq = flt(mrq_map.get(child_item_code, 0))
 
