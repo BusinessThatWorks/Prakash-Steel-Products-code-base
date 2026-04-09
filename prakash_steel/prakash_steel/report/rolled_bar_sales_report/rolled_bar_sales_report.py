@@ -52,10 +52,16 @@ def get_columns():
 		{"label": "Place of Supply", "fieldname": "place_of_supply", "fieldtype": "Data", "width": 130},
 		{"label": "Category Name", "fieldname": "category_name", "fieldtype": "Data", "width": 150},
 		{
-			"label": "Item Name",
-			"fieldname": "item_name",
+			"label": "Item Code",
+			"fieldname": "item_code",
 			"fieldtype": "Link",
 			"options": "Item",
+			"width": 160,
+		},
+		{
+			"label": "Item Name",
+			"fieldname": "item_name",
+			"fieldtype": "Data",
 			"width": 200,
 		},
 		{"label": "Quantity", "fieldname": "qty", "fieldtype": "Float", "width": 100},
@@ -103,6 +109,7 @@ def get_data(filters):
 			si.customer,
 			si.place_of_supply,
 			i.custom_category_name AS category_name,
+			sii.item_code,
 			sii.item_name,
 			sii.qty,
 			sii.rate,
@@ -113,7 +120,7 @@ def get_data(filters):
 		LEFT JOIN
 			`tabSales Invoice Item` sii ON sii.parent = si.name
 		LEFT JOIN
-			`tabItem` i ON i.name = sii.item_code
+			`tabItem` i ON i.name = sii.item_name
 
 		WHERE {conditions}
 
