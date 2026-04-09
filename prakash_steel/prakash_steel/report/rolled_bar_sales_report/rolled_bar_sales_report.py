@@ -120,7 +120,7 @@ def get_data(filters):
 		LEFT JOIN
 			`tabSales Invoice Item` sii ON sii.parent = si.name
 		LEFT JOIN
-			`tabItem` i ON i.name = sii.item_name
+			`tabItem` i ON i.name = sii.item_code
 
 		WHERE {conditions}
 
