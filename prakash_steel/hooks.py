@@ -142,4 +142,6 @@ override_doctype_class = {
 override_whitelisted_methods = {
     "erpnext.selling.doctype.sales_order.sales_order.make_sales_invoice": "prakash_steel.utils.sales_order.make_sales_invoice",
     "erpnext.buying.doctype.purchase_order.purchase_order.make_purchase_receipt": "prakash_steel.utils.purchase_order.make_purchase_receipt",
+    # Ensure our custom_cancel_reason validation doesn't block e-Invoice cancellation
+    "india_compliance.gst_india.utils.e_invoice.cancel_e_invoice": "prakash_steel.utils.e_invoice.cancel_e_invoice",
 }

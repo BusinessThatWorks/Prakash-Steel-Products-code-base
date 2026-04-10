@@ -21,8 +21,23 @@ frappe.ui.form.on("Sales Invoice", {
                 frm.set_value("custom_cancel_reason", "");
             }
         }
+
+        // e-Invoice flow: collect NIC reason + our internal reason, then cancel IRN/e-Waybill & Invoice
+        if (frm.doc.docstatus === 1 && frm.doc.irn) {
+            frm.add_custom_button(
+                __("Cancel IRN/e-Waybill & Invoice (Internal Reason)"),
+                () => pspl_cancel_e_invoice_with_internal_reason(frm),
+                __("e-Invoice")
+            );
+        }
     },
     before_cancel(frm) {
+        // If IRN exists, India Compliance handles the cancellation flow (incl. IRN/e-Waybill cancel dialog).
+        // Our custom cancel flow should not run in that case.
+        if (frm.doc.irn) {
+            return;
+        }
+
         // If a cancel reason is already set, allow normal cancellation
         if (frm.doc.custom_cancel_reason && frm.doc.custom_cancel_reason.trim()) {
             return;
@@ -119,6 +134,108 @@ frappe.ui.form.on("Sales Invoice", {
         frappe.validated = false;
     },
 });
+
+async function pspl_cancel_e_invoice_with_internal_reason(frm) {
+    const d = new frappe.ui.Dialog({
+        title: frm.doc.ewaybill ? __("Cancel e-Invoice and e-Waybill") : __("Cancel e-Invoice"),
+        fields: [
+            {
+                label: __("IRN Number"),
+                fieldname: "irn",
+                fieldtype: "Data",
+                read_only: 1,
+                default: frm.doc.irn,
+            },
+            {
+                label: __("e-Waybill Number"),
+                fieldname: "ewaybill",
+                fieldtype: "Data",
+                read_only: 1,
+                default: frm.doc.ewaybill || "",
+            },
+            {
+                label: __("Reason (e-Invoice)"),
+                fieldname: "reason",
+                fieldtype: "Select",
+                reqd: 1,
+                default: "Data Entry Mistake",
+                options: ["Duplicate", "Data Entry Mistake", "Order Cancelled", "Others"],
+            },
+            {
+                label: __("Remark (required if e-Invoice reason is Others)"),
+                fieldname: "remark",
+                fieldtype: "Data",
+                reqd: 0,
+                mandatory_depends_on: "eval: doc.reason == 'Others'",
+            },
+            { fieldtype: "Section Break", label: __("Internal Cancel Reason") },
+            {
+                fieldname: "internal_reason_option",
+                label: __("Cancel Reason"),
+                fieldtype: "Select",
+                options: ["Party Name Mistake", "Rate Mistake", "Size Mistake", "Others"],
+                reqd: 1,
+            },
+            {
+                fieldname: "internal_reason_text",
+                label: __("Remark (required for Party Name Mistake / Others)"),
+                fieldtype: "Small Text",
+                depends_on:
+                    "eval: doc.internal_reason_option == 'Others' || doc.internal_reason_option == 'Party Name Mistake'",
+            },
+        ],
+        primary_action_label: frm.doc.ewaybill
+            ? __("Cancel IRN, e-Waybill & Invoice")
+            : __("Cancel IRN & Invoice"),
+        primary_action: async (values) => {
+            if (!values?.reason) return;
+            if (!values?.internal_reason_option) return;
+
+            const internal_needs_text =
+                values.internal_reason_option === "Others" ||
+                values.internal_reason_option === "Party Name Mistake";
+
+            const extra_text = (values.internal_reason_text || "").trim();
+            if (internal_needs_text && !extra_text) {
+                frappe.msgprint({
+                    title: __("Cancel Reason Required"),
+                    message: __("Please enter remark for selected internal cancel reason."),
+                    indicator: "red",
+                });
+                return;
+            }
+
+            const internal_reason = internal_needs_text
+                ? `${values.internal_reason_option}, ${extra_text}`
+                : values.internal_reason_option;
+
+            await frappe.call({
+                method: "prakash_steel.utils.e_invoice.cancel_e_invoice",
+                args: {
+                    docname: frm.doc.name,
+                    values: {
+                        reason: values.reason,
+                        remark: values.remark,
+                        custom_cancel_reason: internal_reason,
+                    },
+                },
+                freeze: true,
+                freeze_message: __("Cancelling IRN/e-Waybill and Invoice..."),
+            });
+
+            d.hide();
+            frm.reload_doc();
+        },
+    });
+
+    d.show();
+
+    $(`
+        <div class="alert alert-warning" role="alert">
+            ${__("Sales invoice will be cancelled along with the IRN.")}
+        </div>
+    `).prependTo(d.wrapper);
+}
 
 function fetch_dispatch_address(frm) {
     frappe.call({
