@@ -42,7 +42,7 @@ def get_rolled_production_data(
         conditions += " AND bc.posting_date <= %(to_date)s"
         params["to_date"] = to_date
     if item_code:
-        conditions += " AND bc.finish_size = %(item_code)s"
+        conditions += " AND (bc.finish_size = %(item_code)s OR bc.billet_size = %(item_code)s)"
         params["item_code"] = item_code
     if production_plan:
         conditions += " AND bc.production_plan = %(production_plan)s"
@@ -114,15 +114,20 @@ def get_rolled_production_data(
         for pr in planned_rows:
             planned_qty_map[(pr.production_plan, pr.item_code)] = flt(pr.planned_qty)
 
-    # ── 3.  Batch-fetch Actual Qty, Length, Melting Weight, Finish Pcs, and Miss Roll/Ingot fields from Finish Weight
+    # ── 3.  Batch-fetch Actual Qty/Length/Melting/Miss fields from Finish Weight
+    # Map by Billet Cutting ID so values stay tied to the exact RM row.
     fw_map = {}
-    if pp_names:
-        pp_list = list(pp_names)
-        fw_rows = frappe.db.sql(
-            """
+    if billet_cutting_data:
+        bc_names = [
+            row.billet_cutting_name
+            for row in billet_cutting_data
+            if row.get("billet_cutting_name")
+        ]
+        if bc_names:
+            fw_rows = frappe.db.sql(
+                """
 			SELECT
-				fw.production_plan,
-				fw.item_code,
+				fw.billet_cutting_id AS billet_cutting_name,
 				SUM(fw.finish_weight)               AS total_finish_weight,
 				SUM(fw.melting_weight)              AS total_melting_weight,
 				SUM(fw.finish_pcs)                 AS total_finish_pcs,
@@ -133,31 +138,30 @@ def get_rolled_production_data(
 				(SELECT fw2.length
 				 FROM `tabFinish Weight` fw2
 				 WHERE fw2.docstatus = 1
-				   AND fw2.production_plan = fw.production_plan
-				   AND fw2.item_code = fw.item_code
+				   AND fw2.billet_cutting_id = fw.billet_cutting_id
 				   AND fw2.length IS NOT NULL
 				   AND fw2.length != ''
 				 ORDER BY fw2.creation DESC
 				 LIMIT 1) AS length
 			FROM `tabFinish Weight` fw
 			WHERE fw.docstatus = 1
-			  AND fw.production_plan IN %(pp_list)s
-			GROUP BY fw.production_plan, fw.item_code
+			  AND fw.billet_cutting_id IN %(bc_names)s
+			GROUP BY fw.billet_cutting_id
 			""",
-            {"pp_list": pp_list},
-            as_dict=True,
-        )
-        for fr in fw_rows:
-            fw_map[(fr.production_plan, fr.item_code)] = {
-                "actual_qty": flt(fr.total_finish_weight),
-                "length": fr.length or "",
-                "melting_weight": flt(fr.total_melting_weight),
-                "finish_pcs": flt(fr.total_finish_pcs),
-                "total_miss_roll_pcs": flt(fr.total_miss_roll_pcs),
-                "total_miss_roll_weight": flt(fr.total_miss_roll_weight),
-                "total_miss_ingot_pcs": flt(fr.total_miss_ingot_pcs),
-                "total_miss_ingot_weight": flt(fr.total_miss_ingot_weight),
-            }
+                {"bc_names": tuple(bc_names)},
+                as_dict=True,
+            )
+            for fr in fw_rows:
+                fw_map[fr.billet_cutting_name] = {
+                    "actual_qty": flt(fr.total_finish_weight),
+                    "length": fr.length or "",
+                    "melting_weight": flt(fr.total_melting_weight),
+                    "finish_pcs": flt(fr.total_finish_pcs),
+                    "total_miss_roll_pcs": flt(fr.total_miss_roll_pcs),
+                    "total_miss_roll_weight": flt(fr.total_miss_roll_weight),
+                    "total_miss_ingot_pcs": flt(fr.total_miss_ingot_pcs),
+                    "total_miss_ingot_weight": flt(fr.total_miss_ingot_weight),
+                }
 
     # ── 3.a  Compute Total Hr Consumed from Hourly Production (per Billet Cutting) ──
     hours_map = {}
@@ -217,7 +221,7 @@ def get_rolled_production_data(
         fi = row.finished_item or ""
 
         fg_planned_qty = planned_qty_map.get((pp, fi), 0)
-        fw_data = fw_map.get((pp, fi), {})
+        fw_data = fw_map.get(row.billet_cutting_name, {})
         actual_qty = fw_data.get("actual_qty", 0)
         melting_weight = fw_data.get("melting_weight", 0)
         finish_pcs = fw_data.get("finish_pcs", 0)
@@ -347,7 +351,9 @@ def get_bright_production_data(
         conditions += " AND bbp.production_date <= %(to_date)s"
         params["to_date"] = to_date
     if item_code:
-        conditions += " AND bbp.finished_good = %(item_code)s"
+        conditions += (
+            " AND (bbp.finished_good = %(item_code)s OR bbp.raw_material = %(item_code)s)"
+        )
         params["item_code"] = item_code
     if production_plan:
         conditions += " AND bbp.production_plan = %(production_plan)s"
