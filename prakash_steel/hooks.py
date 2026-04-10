@@ -117,7 +117,7 @@ scheduler_events = {
 			"prakash_steel.prakash_steel.report.po_recomendation_for_psp.po_recomendation_for_psp.save_daily_on_hand_colour"
 		],
 		# Sends daily Sales Invoice summary email at 1:40 PM
-		"32 17 * * *": ["prakash_steel.utils.daily_sales_invoice_email.send_daily_sales_invoice_email"],
+		"58 23 * * *": ["prakash_steel.utils.daily_sales_invoice_email.send_daily_sales_invoice_email"],
 		# Captures PO Recommendation Snapshot daily at 2:06 PM
 		"34 14 * * *": [
 			"prakash_steel.po_recommendation_history.doctype.po_recommendation_snapshot.po_recommendation_snapshot.capture_daily_po_snapshot"
