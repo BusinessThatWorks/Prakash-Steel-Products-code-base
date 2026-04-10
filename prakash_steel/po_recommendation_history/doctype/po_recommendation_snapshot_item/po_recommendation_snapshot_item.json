@@ -1,0 +1,287 @@
+{
+ "actions": [],
+ "creation": "2026-04-06 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "sku_type",
+  "requirement",
+  "tog",
+  "toy",
+  "tor",
+  "column_break_1",
+  "open_so",
+  "total_so",
+  "open_so_qualified",
+  "on_hand_stock",
+  "wip",
+  "open_po",
+  "open_subcon_po",
+  "additional_demand",
+  "column_break_2",
+  "qualified_demand",
+  "on_hand_status",
+  "on_hand_colour",
+  "net_flow",
+  "column_break_3",
+  "order_recommendation",
+  "mrq",
+  "balance_order_recommendation",
+  "net_order_recommendation",
+  "moq",
+  "batch_size",
+  "section_break_child",
+  "production_qty_based_on_child_stock",
+  "child_full_kit_status",
+  "production_qty_based_on_child_stock_wip_open_po",
+  "child_wip_open_po_full_kit_status",
+  "column_break_child_1",
+  "child_item_code",
+  "child_item_type",
+  "child_sku_type",
+  "child_requirement",
+  "child_stock",
+  "child_stock_soft_allocation_qty",
+  "child_stock_shortage",
+  "column_break_child_2",
+  "child_wip_open_po",
+  "child_wip_open_po_soft_allocation_qty",
+  "child_wip_open_po_shortage"
+ ],
+ "fields": [
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Item Code",
+   "options": "Item",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "sku_type",
+   "fieldtype": "Data",
+   "label": "SKU Type",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "requirement",
+   "fieldtype": "Float",
+   "label": "Requirement"
+  },
+  {
+   "fieldname": "tog",
+   "fieldtype": "Float",
+   "label": "TOG"
+  },
+  {
+   "fieldname": "toy",
+   "fieldtype": "Float",
+   "label": "TOY"
+  },
+  {
+   "fieldname": "tor",
+   "fieldtype": "Float",
+   "label": "TOR"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "open_so",
+   "fieldtype": "Float",
+   "label": "Open SO"
+  },
+  {
+   "fieldname": "total_so",
+   "fieldtype": "Float",
+   "label": "Total SO"
+  },
+  {
+   "fieldname": "open_so_qualified",
+   "fieldtype": "Float",
+   "label": "Open SO (Qualified)"
+  },
+  {
+   "fieldname": "on_hand_stock",
+   "fieldtype": "Float",
+   "label": "On Hand Stock"
+  },
+  {
+   "fieldname": "wip",
+   "fieldtype": "Float",
+   "label": "WIP"
+  },
+  {
+   "fieldname": "open_po",
+   "fieldtype": "Float",
+   "label": "Open PO"
+  },
+  {
+   "fieldname": "open_subcon_po",
+   "fieldtype": "Float",
+   "label": "Open Subcon PO"
+  },
+  {
+   "fieldname": "additional_demand",
+   "fieldtype": "Float",
+   "label": "Additional Demand"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "qualified_demand",
+   "fieldtype": "Float",
+   "label": "Qualified Demand"
+  },
+  {
+   "fieldname": "on_hand_status",
+   "fieldtype": "Data",
+   "label": "On Hand Status"
+  },
+  {
+   "fieldname": "on_hand_colour",
+   "fieldtype": "Data",
+   "label": "On Hand Colour"
+  },
+  {
+   "fieldname": "net_flow",
+   "fieldtype": "Float",
+   "label": "Net Flow"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "order_recommendation",
+   "fieldtype": "Float",
+   "label": "Order Recommendation"
+  },
+  {
+   "fieldname": "mrq",
+   "fieldtype": "Float",
+   "label": "MRQ"
+  },
+  {
+   "fieldname": "balance_order_recommendation",
+   "fieldtype": "Float",
+   "label": "Balance Order Recommendation"
+  },
+  {
+   "fieldname": "net_order_recommendation",
+   "fieldtype": "Float",
+   "label": "Net Order Recommendation",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "moq",
+   "fieldtype": "Float",
+   "label": "MOQ"
+  },
+  {
+   "fieldname": "batch_size",
+   "fieldtype": "Float",
+   "label": "Order Multiple Qty"
+  },
+  {
+   "fieldname": "section_break_child",
+   "fieldtype": "Section Break",
+   "label": "Child Item Details"
+  },
+  {
+   "fieldname": "production_qty_based_on_child_stock",
+   "fieldtype": "Float",
+   "label": "Production qty based on child stock"
+  },
+  {
+   "fieldname": "child_full_kit_status",
+   "fieldtype": "Data",
+   "label": "Child Stock Full-Kit Status"
+  },
+  {
+   "fieldname": "production_qty_based_on_child_stock_wip_open_po",
+   "fieldtype": "Float",
+   "label": "Production qty based on child stock+WIP/Open PO"
+  },
+  {
+   "fieldname": "child_wip_open_po_full_kit_status",
+   "fieldtype": "Data",
+   "label": "Child Stock + WIP/Open PO Full-Kit Status"
+  },
+  {
+   "fieldname": "column_break_child_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "child_item_code",
+   "fieldtype": "Link",
+   "label": "Child Item Code",
+   "options": "Item"
+  },
+  {
+   "fieldname": "child_item_type",
+   "fieldtype": "Data",
+   "label": "Child Item Type"
+  },
+  {
+   "fieldname": "child_sku_type",
+   "fieldtype": "Data",
+   "label": "Child SKU Type"
+  },
+  {
+   "fieldname": "child_requirement",
+   "fieldtype": "Float",
+   "label": "Child Requirement"
+  },
+  {
+   "fieldname": "child_stock",
+   "fieldtype": "Float",
+   "label": "Child Stock"
+  },
+  {
+   "fieldname": "child_stock_soft_allocation_qty",
+   "fieldtype": "Float",
+   "label": "Child Stock Soft Allocation Qty"
+  },
+  {
+   "fieldname": "child_stock_shortage",
+   "fieldtype": "Float",
+   "label": "Child Stock Shortage"
+  },
+  {
+   "fieldname": "column_break_child_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "child_wip_open_po",
+   "fieldtype": "Float",
+   "label": "Child WIP/Open PO"
+  },
+  {
+   "fieldname": "child_wip_open_po_soft_allocation_qty",
+   "fieldtype": "Float",
+   "label": "Child WIP/Open PO Soft Allocation Qty"
+  },
+  {
+   "fieldname": "child_wip_open_po_shortage",
+   "fieldtype": "Float",
+   "label": "Child WIP/Open PO Shortage"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-06 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "PO Recommendation History",
+ "name": "PO Recommendation Snapshot Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}
