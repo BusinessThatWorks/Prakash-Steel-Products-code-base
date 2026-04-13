@@ -6,6 +6,7 @@ RECIPIENTS = [
 	"beetashoke.chakraborty@clapgrow.com",
 	"beetashokechakraborty721@gmail.com",
 	"ritika@clapgrow.com",
+	"avinash@prakashsteel.com"
 ]
 
 
