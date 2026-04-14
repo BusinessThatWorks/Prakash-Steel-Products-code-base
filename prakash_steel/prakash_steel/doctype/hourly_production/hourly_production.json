@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format: {production_date}-{###}",
+ "autoname": "format: {billet_cutting_id}-{time_from}",
  "creation": "2025-08-23 12:46:00.165418",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -232,7 +232,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-23 21:12:06.522176",
+ "modified": "2026-04-14 10:30:30.602319",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Hourly Production",
