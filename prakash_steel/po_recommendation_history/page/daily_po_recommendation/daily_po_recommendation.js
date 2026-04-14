@@ -88,8 +88,18 @@ class DailyPORecommendation {
 					background: linear-gradient(135deg, #f0f4ff, #e8ecf8) !important;
 					color: #2d3a8c;
 					font-weight: 700;
+					position: sticky;
+					top: 0;
+					z-index: 2;
 				}
 				.daily-po-page tbody tr:hover { background: #f5f8ff !important; }
+				.daily-po-page .sku-table-scroll {
+					overflow: auto;
+					max-height: calc(100vh - 340px);
+					min-height: 120px;
+					border: 1px solid #dee2e6;
+					border-radius: 4px;
+				}
 			</style>
 
 			<div class="daily-po-page" style="padding: 15px;">
@@ -375,9 +385,9 @@ class DailyPORecommendation {
 		const accent = sku_colors[sku_type] || "#4361ee";
 
 		$wrapper.html(`
-			<div style="overflow-x:auto; margin-top:5px;">
+			<div style="margin-top:5px;">
 				<div style="
-					margin-bottom:10px;
+					margin-bottom:8px;
 					padding:8px 14px;
 					background:linear-gradient(135deg, ${accent}18, ${accent}08);
 					border-left:4px solid ${accent};
@@ -391,12 +401,14 @@ class DailyPORecommendation {
 						&nbsp;·&nbsp; Snapshot Date: <strong>${this.fmt_date(snapshot_date)}</strong>
 					</span>
 				</div>
-				<table class="table table-bordered table-hover" style="font-size:12px; margin-bottom:0;">
-					<thead style="position:sticky; top:0; z-index:1;">
-						<tr>${header_html}</tr>
-					</thead>
-					<tbody>${rows_html}</tbody>
-				</table>
+				<div class="sku-table-scroll">
+					<table class="table table-bordered table-hover" style="font-size:12px; margin-bottom:0; min-width:max-content;">
+						<thead>
+							<tr>${header_html}</tr>
+						</thead>
+						<tbody>${rows_html}</tbody>
+					</table>
+				</div>
 			</div>
 		`);
 	}
