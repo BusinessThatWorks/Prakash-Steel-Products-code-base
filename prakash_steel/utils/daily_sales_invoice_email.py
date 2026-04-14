@@ -6,7 +6,9 @@ RECIPIENTS = [
 	"beetashoke.chakraborty@clapgrow.com",
 	"beetashokechakraborty721@gmail.com",
 	"ritika@clapgrow.com",
-	"avinash@prakashsteel.com"
+	"avinash@prakashsteel.com",
+	"srimanta@prakashsteel.com",
+	"psprm@prakashsteel.com",
 ]
 
 
@@ -17,6 +19,7 @@ def send_daily_sales_invoice_email():
 	Triggered daily at 1:40 PM via hooks.py cron.
 	"""
 	posting_date = today()
+	posting_date_display = frappe.utils.formatdate(posting_date, "dd-MM-yyyy")
 
 	invoices = frappe.db.sql(
 		"""
@@ -52,7 +55,7 @@ def send_daily_sales_invoice_email():
 			<td style="padding:6px 12px;border:1px solid #ddd;">{inv.name}</td>
 			<td style="padding:6px 12px;border:1px solid #ddd;">{inv.customer}</td>
 			<td style="padding:6px 12px;border:1px solid #ddd;text-align:right;">{fmt_money(inv.grand_total, currency="INR")}</td>
-			<td style="padding:6px 12px;border:1px solid #ddd;text-align:right;">{inv.total_qty}</td>
+			<td style="padding:6px 12px;border:1px solid #ddd;text-align:right;">{int(inv.total_qty)}</td>
 		</tr>"""
 
 	total_grand = sum(inv.grand_total for inv in invoices)
@@ -60,7 +63,7 @@ def send_daily_sales_invoice_email():
 
 	body = f"""
 	<p>Dear Team,</p>
-	<p>Please find below the summary of all submitted Sales Invoices for <b>{posting_date}</b>. PDFs of each invoice are attached.</p>
+	<p>Please find below the summary of all submitted Sales Invoices for <b>{posting_date_display}</b>. PDFs of each invoice are attached.</p>
 
 	<table style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:13px;">
 		<thead>
@@ -78,7 +81,7 @@ def send_daily_sales_invoice_email():
 			<tr style="font-weight:bold;background:#fafafa;">
 				<td colspan="2" style="padding:8px 12px;border:1px solid #ddd;">Total ({len(invoices)} invoices)</td>
 				<td style="padding:8px 12px;border:1px solid #ddd;text-align:right;">{fmt_money(total_grand, currency="INR")}</td>
-				<td style="padding:8px 12px;border:1px solid #ddd;text-align:right;">{total_qty}</td>
+				<td style="padding:8px 12px;border:1px solid #ddd;text-align:right;">{int(total_qty)}</td>
 			</tr>
 		</tfoot>
 	</table>
