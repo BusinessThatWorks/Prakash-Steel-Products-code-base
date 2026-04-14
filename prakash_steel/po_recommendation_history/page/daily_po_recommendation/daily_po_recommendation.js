@@ -93,12 +93,8 @@ class DailyPORecommendation {
 					z-index: 2;
 				}
 				.daily-po-page tbody tr:hover { background: #f5f8ff !important; }
-				.daily-po-page .sku-table-scroll {
-					overflow: auto;
+				.daily-po-page .dt-wrapper .dt-scrollable {
 					max-height: calc(100vh - 340px);
-					min-height: 120px;
-					border: 1px solid #dee2e6;
-					border-radius: 4px;
 				}
 			</style>
 
@@ -329,52 +325,12 @@ class DailyPORecommendation {
 		$no_data.hide();
 
 		if (!result.data || result.data.length === 0) {
+			// destroy any existing datatable
+			if (this.datatable) { this.datatable.destroy(); this.datatable = null; }
 			$wrapper.empty();
 			$no_data.show();
 			return;
 		}
-
-		const columns = result.columns;
-		const data = result.data;
-
-		const colour_map = {
-			BLACK:  { bg: "#000000", text: "#FFFFFF" },
-			RED:    { bg: "#FF0000", text: "#FFFFFF" },
-			YELLOW: { bg: "#FFFF00", text: "#000000" },
-			GREEN:  { bg: "#00C853", text: "#FFFFFF" },
-			WHITE:  { bg: "#F5F5F5", text: "#000000" },
-		};
-
-		const header_html = columns.map(col =>
-			`<th style="white-space:nowrap; font-size:12px; padding:6px 8px;">${__(col.label)}</th>`
-		).join("");
-
-		const rows_html = data.map(row => {
-			const cells = columns.map(col => {
-				let val = row[col.fieldname];
-				if (val === null || val === undefined) val = "";
-
-				if (col.fieldname === "on_hand_colour" && val) {
-					const c = colour_map[val] || {};
-					return `<td style="padding:4px 8px;">
-						<div style="background:${c.bg || ""};color:${c.text || ""};padding:3px 6px;border-radius:3px;text-align:center;font-weight:bold;font-size:11px;white-space:nowrap;">
-							${val}
-						</div>
-					</td>`;
-				}
-
-				if (col.fieldtype === "Float" && val !== "") {
-					val = frappe.format(val, { fieldtype: "Float" });
-				}
-				if (col.fieldname === "item_code" && val) {
-					val = `<a href="/app/item/${encodeURIComponent(val)}">${val}</a>`;
-				}
-
-				return `<td style="padding:4px 8px; font-size:12px; white-space:nowrap;">${val}</td>`;
-			}).join("");
-
-			return `<tr>${cells}</tr>`;
-		}).join("");
 
 		const sku_colors = {
 			BBMTA: "#4361ee", RBMTA: "#7209b7", BOTA: "#f72585",
@@ -384,33 +340,90 @@ class DailyPORecommendation {
 		};
 		const accent = sku_colors[sku_type] || "#4361ee";
 
+		const colour_map = {
+			BLACK:  { bg: "#000000", text: "#FFFFFF" },
+			RED:    { bg: "#FF0000", text: "#FFFFFF" },
+			YELLOW: { bg: "#FFFF00", text: "#000000" },
+			GREEN:  { bg: "#00C853", text: "#FFFFFF" },
+			WHITE:  { bg: "#F5F5F5", text: "#000000" },
+		};
+
+		// Build info bar + datatable container
 		$wrapper.html(`
-			<div style="margin-top:5px;">
-				<div style="
-					margin-bottom:8px;
-					padding:8px 14px;
-					background:linear-gradient(135deg, ${accent}18, ${accent}08);
-					border-left:4px solid ${accent};
-					border-radius:0 6px 6px 0;
-					display:flex; align-items:center; gap:10px;
-					font-size:12px;
-				">
-					<span style="font-weight:700; color:${accent}; font-size:13px;">${sku_type}</span>
-					<span style="color:#6c757d;">
-						${data.length} record${data.length !== 1 ? "s" : ""}
-						&nbsp;·&nbsp; Snapshot Date: <strong>${this.fmt_date(snapshot_date)}</strong>
-					</span>
-				</div>
-				<div class="sku-table-scroll">
-					<table class="table table-bordered table-hover" style="font-size:12px; margin-bottom:0; min-width:max-content;">
-						<thead>
-							<tr>${header_html}</tr>
-						</thead>
-						<tbody>${rows_html}</tbody>
-					</table>
-				</div>
+			<div style="
+				margin-bottom:8px;
+				padding:8px 14px;
+				background:linear-gradient(135deg, ${accent}18, ${accent}08);
+				border-left:4px solid ${accent};
+				border-radius:0 6px 6px 0;
+				display:flex; align-items:center; gap:10px;
+				font-size:12px;
+			">
+				<span style="font-weight:700; color:${accent}; font-size:13px;">${sku_type}</span>
+				<span style="color:#6c757d;">
+					${result.data.length} record${result.data.length !== 1 ? "s" : ""}
+					&nbsp;·&nbsp; Snapshot Date: <strong>${this.fmt_date(snapshot_date)}</strong>
+				</span>
 			</div>
+			<div class="dt-wrapper"></div>
 		`);
+
+		// Prepare columns for Frappe DataTable
+		const dt_columns = result.columns.map(col => {
+			const base = {
+				id: col.fieldname,
+				name: col.label,
+				width: col.width || 120,
+				editable: false,
+				resizable: true,
+			};
+
+			if (col.fieldname === "on_hand_colour") {
+				base.format = (value) => {
+					if (!value) return "";
+					const c = colour_map[value] || {};
+					return `<span style="display:inline-block;background:${c.bg || ""};color:${c.text || ""};padding:2px 8px;border-radius:10px;font-weight:700;font-size:11px;">${value}</span>`;
+				};
+			} else if (col.fieldname === "item_code") {
+				base.format = (value) => {
+					if (!value) return "";
+					return `<a href="/app/item/${encodeURIComponent(value)}" style="color:#4361ee;">${value}</a>`;
+				};
+			} else if (col.fieldtype === "Float") {
+				base.format = (value) => {
+					if (value === null || value === undefined || value === "") return "";
+					return frappe.format(value, { fieldtype: "Float" });
+				};
+			}
+
+			return base;
+		});
+
+		// Prepare data rows as objects keyed by fieldname
+		const dt_data = result.data.map(row => {
+			const obj = {};
+			result.columns.forEach(col => {
+				obj[col.fieldname] = row[col.fieldname] ?? "";
+			});
+			return obj;
+		});
+
+		// Destroy previous instance if any
+		if (this.datatable) { this.datatable.destroy(); this.datatable = null; }
+
+		const container = $wrapper.find(".dt-wrapper")[0];
+		this.datatable = new DataTable(container, {
+			columns: dt_columns,
+			data: dt_data,
+			inlineFilters: true,
+			layout: "fixed",
+			cellHeight: 32,
+			serialNoColumn: false,
+			checkboxColumn: false,
+			language: frappe.boot.lang,
+			translations: frappe.utils.datatable.get_translations(),
+			noDataMessage: __("No data found"),
+		});
 	}
 
 	show_loading(state) {

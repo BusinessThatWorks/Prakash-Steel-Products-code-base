@@ -151,12 +151,17 @@ def get_sku_data(sku_type, snapshot_date, item_code=None):
 		order_by="item_code asc",
 	)
 
+	COLOUR_ORDER = {"BLACK": 0, "RED": 1, "YELLOW": 2, "GREEN": 3, "WHITE": 4}
+
 	snap_time = str(snap.snapshot_time)[:8] if snap.snapshot_time else ""
 	data = []
 	for row in rows:
 		row = dict(row)
 		row["snapshot_time"] = snap_time
 		data.append(row)
+
+	if is_buffer:
+		data.sort(key=lambda r: COLOUR_ORDER.get(r.get("on_hand_colour") or "", 99))
 
 	return {"columns": columns, "data": data}
 
