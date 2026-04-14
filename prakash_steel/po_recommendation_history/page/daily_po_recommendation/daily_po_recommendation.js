@@ -97,9 +97,9 @@ class DailyPORecommendation {
 				<!-- Filter Bar -->
 				<div class="filter-bar" style="
 					display: flex;
-					align-items: flex-end;
-					gap: 12px;
-					padding: 14px 20px;
+					align-items: center;
+					gap: 16px;
+					padding: 12px 20px;
 					background: linear-gradient(135deg, #eef2ff, #f8f0fc);
 					border: 1px solid #c5cdf8;
 					border-radius: 10px;
@@ -107,9 +107,9 @@ class DailyPORecommendation {
 					flex-wrap: wrap;
 					box-shadow: 0 2px 8px #4361ee18;
 				">
-					<div style="display:flex; align-items:center; gap:8px; margin-right:4px;">
-						<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-						<span style="font-size:13px; font-weight:700; color:#4361ee;">PO Snapshot Filters</span>
+					<div style="display:flex; align-items:center; gap:7px; padding-right:12px; border-right:2px solid #c5cdf8;">
+						<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#4361ee" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+						<span style="font-size:12px; font-weight:700; color:#4361ee; white-space:nowrap;">PO Snapshot Filters</span>
 					</div>
 					<div style="display:flex; flex-direction:column; gap:3px;">
 						<label style="font-size:11px; font-weight:700; color:#4361ee; margin:0; letter-spacing:0.3px;">SNAPSHOT DATE <span style="color:#e63946;">*</span></label>
@@ -119,7 +119,7 @@ class DailyPORecommendation {
 						<label style="font-size:11px; font-weight:700; color:#7209b7; margin:0; letter-spacing:0.3px;">ITEM CODE</label>
 						<div class="item-code-control" style="min-width:200px;"></div>
 					</div>
-					<button class="btn btn-primary btn-sm apply-btn" style="height:32px; padding:0 20px; margin-bottom:1px;">
+					<button class="btn btn-primary btn-sm apply-btn" style="height:32px; padding:0 20px; margin-top:14px;">
 						Apply
 					</button>
 				</div>
@@ -425,42 +425,42 @@ class DailyPORecommendation {
 		}
 
 		const sku_type = this.active_sku_tab;
-		const cache_key = `${sku_type}__${snapshot_date}__${item_code || ""}`;
-		const result = this.data_cache[cache_key];
+		const $btn = $(this.page.body).find(".export-btn");
+		$btn.prop("disabled", true).text("Exporting...");
 
-		if (!result || !result.data || result.data.length === 0) {
-			frappe.msgprint(__("No data to export. Please load the report first."));
-			return;
-		}
+		frappe.call({
+			method: "prakash_steel.po_recommendation_history.page.daily_po_recommendation.daily_po_recommendation.export_sku_xlsx",
+			args: { sku_type, snapshot_date, item_code },
+			callback: (r) => {
+				$btn.prop("disabled", false).html(`
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+					Export Excel
+				`);
+				if (!r.message) return;
 
-		const columns = result.columns;
-		const data = result.data;
+				const { content, filename } = r.message;
+				const fmt_name = filename.replace(
+					/(\d{4})-(\d{2})-(\d{2})\.xlsx$/,
+					(_, y, m, d) => `${d}-${m}-${y.slice(2)}.xlsx`
+				);
 
-		// Build CSV rows
-		const escape = (val) => {
-			if (val === null || val === undefined) return "";
-			const s = String(val);
-			return s.includes(",") || s.includes('"') || s.includes("\n")
-				? `"${s.replace(/"/g, '""')}"`
-				: s;
-		};
-
-		const header_row = columns.map(col => escape(col.label)).join(",");
-		const data_rows = data.map(row =>
-			columns.map(col => escape(row[col.fieldname])).join(",")
-		);
-
-		const csv_content = [header_row, ...data_rows].join("\r\n");
-		const blob = new Blob(["\uFEFF" + csv_content], { type: "text/csv;charset=utf-8;" });
-		const url = URL.createObjectURL(blob);
-
-		const filename = `${sku_type}_Snapshot_${this.fmt_date(snapshot_date)}.csv`;
-		const link = document.createElement("a");
-		link.setAttribute("href", url);
-		link.setAttribute("download", filename);
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-		URL.revokeObjectURL(url);
+				const bytes = Uint8Array.from(atob(content), c => c.charCodeAt(0));
+				const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement("a");
+				link.href = url;
+				link.download = fmt_name;
+				document.body.appendChild(link);
+				link.click();
+				document.body.removeChild(link);
+				URL.revokeObjectURL(url);
+			},
+			error: () => {
+				$btn.prop("disabled", false).html(`
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+					Export Excel
+				`);
+			},
+		});
 	}
 }

@@ -159,3 +159,24 @@ def get_sku_data(sku_type, snapshot_date, item_code=None):
 		data.append(row)
 
 	return {"columns": columns, "data": data}
+
+
+@frappe.whitelist()
+def export_sku_xlsx(sku_type, snapshot_date, item_code=None):
+	import base64
+	from frappe.utils.xlsxutils import make_xlsx
+
+	result = get_sku_data(sku_type, snapshot_date, item_code)
+	columns = result["columns"]
+	data = result["data"]
+
+	# Header row + data rows
+	rows = [[col["label"] for col in columns]]
+	for row in data:
+		rows.append([row.get(col["fieldname"], "") for col in columns])
+
+	xlsx_file = make_xlsx(rows, sku_type)
+	return {
+		"filename": f"{sku_type}_Snapshot_{snapshot_date}.xlsx",
+		"content": base64.b64encode(xlsx_file.getvalue()).decode("utf-8"),
+	}
