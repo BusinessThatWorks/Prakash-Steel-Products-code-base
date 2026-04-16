@@ -154,7 +154,6 @@ frappe.ui.form.on("Item", {
 
 function toggle_fields_visibility(frm) {
     const fields_to_hide = [
-        'custom_item_type',
         'custom_category_name',
         'custom_item_size',
         'custom_grade',
@@ -165,7 +164,6 @@ function toggle_fields_visibility(frm) {
         'custom_box',
         'custom_desc_code',
         'custom_mqp',
-        'min_order_qty',
         'custom_per_hour_production_qty',
         'custom_group_for_sub_assemblies',
         'custom_item_sub_group_batch_qty'
