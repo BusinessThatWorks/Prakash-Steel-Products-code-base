@@ -1,0 +1,208 @@
+{
+ "actions": [],
+ "creation": "2026-04-14 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sales_order",
+  "so_date",
+  "customer",
+  "item_code",
+  "status",
+  "column_break_1",
+  "qty",
+  "rate",
+  "payment_terms_template",
+  "lead_time",
+  "special_condition",
+  "column_break_2",
+  "delivered_qty",
+  "delivery_date",
+  "pending_qty",
+  "column_break_3",
+  "item_type",
+  "sku_type",
+  "remaining_days",
+  "buffer_status",
+  "order_status",
+  "section_break_stock",
+  "stock",
+  "stock_allocation",
+  "shortage",
+  "column_break_4",
+  "line_fullkit",
+  "order_fullkit",
+  "amount",
+  "pending_amount"
+ ],
+ "fields": [
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "label": "Sales Order",
+   "options": "Sales Order",
+   "in_list_view": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "so_date",
+   "fieldtype": "Date",
+   "label": "Sales Order Date",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer Name",
+   "options": "Customer",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Item Code",
+   "options": "Item",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Data",
+   "label": "Status",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Int",
+   "label": "Order Qty"
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "label": "Rate"
+  },
+  {
+   "fieldname": "payment_terms_template",
+   "fieldtype": "Link",
+   "label": "Payment Terms Template",
+   "options": "Payment Terms Template"
+  },
+  {
+   "fieldname": "lead_time",
+   "fieldtype": "Int",
+   "label": "Lead Time"
+  },
+  {
+   "fieldname": "special_condition",
+   "fieldtype": "Data",
+   "label": "Special Condition"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "delivered_qty",
+   "fieldtype": "Int",
+   "label": "Delivered Qty"
+  },
+  {
+   "fieldname": "delivery_date",
+   "fieldtype": "Date",
+   "label": "Delivery Date"
+  },
+  {
+   "fieldname": "pending_qty",
+   "fieldtype": "Int",
+   "label": "Qty to Deliver"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_type",
+   "fieldtype": "Data",
+   "label": "Item Type"
+  },
+  {
+   "fieldname": "sku_type",
+   "fieldtype": "Data",
+   "label": "SKU Type"
+  },
+  {
+   "fieldname": "remaining_days",
+   "fieldtype": "Int",
+   "label": "Remaining Days"
+  },
+  {
+   "fieldname": "buffer_status",
+   "fieldtype": "Data",
+   "label": "Buffer Status (%)"
+  },
+  {
+   "fieldname": "order_status",
+   "fieldtype": "Data",
+   "label": "Order Status"
+  },
+  {
+   "fieldname": "section_break_stock",
+   "fieldtype": "Section Break",
+   "label": "Stock & Fullkit"
+  },
+  {
+   "fieldname": "stock",
+   "fieldtype": "Int",
+   "label": "Stock"
+  },
+  {
+   "fieldname": "stock_allocation",
+   "fieldtype": "Int",
+   "label": "Stock Allocation"
+  },
+  {
+   "fieldname": "shortage",
+   "fieldtype": "Int",
+   "label": "Shortage"
+  },
+  {
+   "fieldname": "column_break_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "line_fullkit",
+   "fieldtype": "Data",
+   "label": "Line Fullkit"
+  },
+  {
+   "fieldname": "order_fullkit",
+   "fieldtype": "Data",
+   "label": "Order Fullkit"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount"
+  },
+  {
+   "fieldname": "pending_amount",
+   "fieldtype": "Currency",
+   "label": "Pending Amount"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-14 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Prakash Steel",
+ "name": "SO Recommendation Snapshot Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

@@ -113,15 +113,25 @@ doc_events = {
 scheduler_events = {
 	"cron": {
 		# Runs daily at 14:52 server time
-		"52 14 * * *": [
+		"05 08 * * *": [
 			"prakash_steel.prakash_steel.report.po_recomendation_for_psp.po_recomendation_for_psp.save_daily_on_hand_colour"
 		],
 		# Sends daily Sales Invoice summary email at 1:40 PM
 		"58 23 * * *": ["prakash_steel.utils.daily_sales_invoice_email.send_daily_sales_invoice_email"],
 		# Captures PO Recommendation Snapshot daily at 2:06 PM
-		"00 08 * * *": [
+		"00 04 * * *": [
 			"prakash_steel.po_recommendation_history.doctype.po_recommendation_snapshot.po_recommendation_snapshot.capture_daily_po_snapshot"
 		],
+		# Captures SO Recommendation Snapshot daily at 4:30 PM IST
+		"01 04 * * *": [
+			"prakash_steel.prakash_steel.doctype.so_recommendation_snapshot.so_recommendation_snapshot.capture_daily_so_snapshot"
+		],
+		# Captures Stock Balance Snapshot (Item Wise Stock Balance) daily, after SO snapshot
+		"02 04 * * *": [
+			"prakash_steel.prakash_steel.doctype.stock_balance_snapshot.stock_balance_snapshot.capture_daily_stock_balance_snapshot"
+		],
+		# Captures Purchase Order Recommendation Snapshot daily at 4:00 PM IST
+		"03 04 * * *": ["prakash_steel.utils.po_rec_snapshot.capture_daily_po_rec_snapshot"],
 	},
 	# Recalculate ADU for all items once per day so Item.custom_adu stays in sync
 	"daily": [
