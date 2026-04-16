@@ -2,12 +2,209 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
+from frappe.utils import cint, flt
 
 
 class JOBWorkOrder(Document):
 	def on_submit(self):
 		self.db_set("status", "Pending")
+
+
+def _jwo_pr_received_fg_qty_by_item(jwo_name):
+	rows = frappe.db.sql(
+		"""
+		SELECT pri.item_code, COALESCE(SUM(pri.qty), 0)
+		FROM `tabPurchase Receipt Item` pri
+		INNER JOIN `tabPurchase Receipt` pr ON pr.name = pri.parent
+		WHERE pr.custom_job_work_order = %s AND pr.docstatus = 1
+		GROUP BY pri.item_code
+		""",
+		(jwo_name,),
+	)
+	return {r[0]: flt(r[1]) for r in rows}
+
+
+def _jwo_transferred_rm_qty_by_item(jwo_name, job_work_type):
+	if job_work_type == "Subcontracting":
+		rows = frappe.db.sql(
+			"""
+			SELECT dni.item_code, COALESCE(SUM(dni.qty), 0)
+			FROM `tabDelivery Note Item` dni
+			INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
+			WHERE dn.custom_job_work_order = %s AND dn.docstatus = 1
+			GROUP BY dni.item_code
+			""",
+			(jwo_name,),
+		)
+	elif job_work_type == "Sale-Purchase":
+		rows = frappe.db.sql(
+			"""
+			SELECT sii.item_code, COALESCE(SUM(sii.qty), 0)
+			FROM `tabSales Invoice Item` sii
+			INNER JOIN `tabSales Invoice` si ON si.name = sii.parent
+			WHERE si.custom_job_work_order = %s AND si.docstatus = 1
+			GROUP BY sii.item_code
+			""",
+			(jwo_name,),
+		)
+	else:
+		return {}
+	return {r[0]: flt(r[1]) for r in rows}
+
+
+def _jwo_has_submitted_rm_transfer(jwo_name, job_work_type):
+	if job_work_type == "Subcontracting":
+		return bool(
+			frappe.db.exists("Delivery Note", {"custom_job_work_order": jwo_name, "docstatus": 1})
+		)
+	if job_work_type == "Sale-Purchase":
+		return bool(
+			frappe.db.exists("Sales Invoice", {"custom_job_work_order": jwo_name, "docstatus": 1})
+		)
+	return False
+
+
+def _validate_jwo_update_items(doc, items, original_by_name, incoming_names):
+	received_fg = _jwo_pr_received_fg_qty_by_item(doc.name)
+	transferred_rm = _jwo_transferred_rm_qty_by_item(doc.name, doc.job_work_type)
+	lock_raw_material = _jwo_has_submitted_rm_transfer(doc.name, doc.job_work_type)
+
+	# Cannot remove a work-item row if a submitted Purchase Receipt already references that FG item.
+	for row in doc.work_item_table:
+		if row.name in incoming_names:
+			continue
+		fg = row.fg_item
+		if fg and flt(received_fg.get(fg, 0)) > 0:
+			frappe.throw(
+				_(
+					"Cannot remove this row ({0}): a submitted Purchase Receipt already includes "
+					"finished good {1}. You can add new rows or change quantities above the received quantity."
+				).format(row.idx, frappe.bold(fg)),
+				title=_("Purchase Receipt"),
+			)
+
+	new_rm_totals = {}
+	new_fg_totals = {}
+	for item in items:
+		rm = item.get("raw_material")
+		fg = item.get("fg_item")
+		rmq = cint(item.get("rm_qty_required") or 0)
+		fgq = cint(item.get("fg_production_qty") or 0)
+		if rm:
+			new_rm_totals[rm] = new_rm_totals.get(rm, 0) + rmq
+		if fg:
+			new_fg_totals[fg] = new_fg_totals.get(fg, 0) + fgq
+
+	# RM required (summed by item) must stay at least what was already transferred on SI/DN.
+	for rm_item, delivered in transferred_rm.items():
+		if delivered <= 0:
+			continue
+		total_req = flt(new_rm_totals.get(rm_item, 0))
+		if total_req + 1e-9 < delivered:
+			frappe.throw(
+				_(
+					"Total RM Qty Required for {0} is {1}, but submitted transfer documents already "
+					"show {2} for this Job Work Order. Increase the total to at least {2}."
+				).format(frappe.bold(rm_item), int(total_req), delivered),
+				title=_("Transfer quantity"),
+			)
+
+	# Total FG production (summed by FG item) must cover what Purchase Receipt already received.
+	for fg_item, rec in received_fg.items():
+		if rec <= 0:
+			continue
+		total_fg = flt(new_fg_totals.get(fg_item, 0))
+		if total_fg + 1e-9 < rec:
+			frappe.throw(
+				_(
+					"Total FG Production Qty for {0} is {1}, but submitted Purchase Receipts already "
+					"show {2} for this Job Work Order. Increase the total to at least {2}."
+				).format(frappe.bold(fg_item), int(total_fg), rec),
+				title=_("Purchase Receipt"),
+			)
+
+	# After a Delivery Note (Subcontracting) or Sales Invoice (Sale-Purchase), do not change Raw Material on existing rows.
+	if lock_raw_material:
+		for item in items:
+			name = item.get("name")
+			if not name or name not in original_by_name:
+				continue
+			old_rm = original_by_name[name].get("raw_material") or ""
+			new_rm = item.get("raw_material") or ""
+			if old_rm != new_rm:
+				frappe.throw(
+					_(
+						"Cannot change Raw Material on an existing row after a transfer document "
+						"(Delivery Note / Sales Invoice) is submitted for this Job Work Order."
+					),
+					title=_("Raw Material"),
+				)
+
+		# All rows that have a Raw Material must use the same item (no mixing RM types after transfer).
+		rms = {item.get("raw_material") for item in items if item.get("raw_material")}
+		if len(rms) > 1:
+			frappe.throw(
+				_(
+					"After a transfer document is submitted, every line must use the same Raw Material item."
+				),
+				title=_("Raw Material"),
+			)
+
+
+@frappe.whitelist()
+def update_work_items(source_name, items):
+	"""Sync work_item_table from the Update Items dialog: update, append new rows, and delete removed rows.
+
+	Same idea as ERPNext ``validate_and_delete_children`` + update: any existing child name not present
+	in the submitted list is removed.
+	"""
+	import json
+
+	if isinstance(items, str):
+		items = json.loads(items)
+	if not items:
+		items = []
+
+	doc = frappe.get_doc("JOB Work Order", source_name)
+	original_by_name = {
+		r.name: {"fg_item": r.fg_item, "raw_material": r.raw_material} for r in doc.work_item_table
+	}
+	incoming_names = {item.get("name") for item in items if item.get("name")}
+
+	_validate_jwo_update_items(doc, items, original_by_name, incoming_names)
+
+	for row in list(doc.work_item_table):
+		if row.name not in incoming_names:
+			doc.remove(row)
+
+	existing_by_name = {row.name: row for row in doc.work_item_table}
+
+	for item in items:
+		docname = item.get("name")
+		if docname and docname in existing_by_name:
+			row = existing_by_name[docname]
+			row.fg_item = item.get("fg_item")
+			row.default_bom = item.get("default_bom")
+			row.fg_production_qty = item.get("fg_production_qty")
+			row.raw_material = item.get("raw_material")
+			row.rm_qty_required = item.get("rm_qty_required")
+		else:
+			doc.append(
+				"work_item_table",
+				{
+					"fg_item": item.get("fg_item"),
+					"default_bom": item.get("default_bom"),
+					"fg_production_qty": item.get("fg_production_qty"),
+					"raw_material": item.get("raw_material"),
+					"rm_qty_required": item.get("rm_qty_required"),
+				},
+			)
+
+	doc.flags.ignore_validate_update_after_submit = True
+	doc.save(ignore_permissions=True)
+	frappe.db.commit()
 
 
 @frappe.whitelist()

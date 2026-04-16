@@ -1,0 +1,246 @@
+{
+ "actions": [],
+ "creation": "2026-04-14 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sales_order",
+  "so_date",
+  "delivery_date",
+  "status",
+  "customer",
+  "item_code",
+  "category_name",
+  "description",
+  "column_break_1",
+  "item_type",
+  "sku_type",
+  "order_status",
+  "remaining_days",
+  "lead_time",
+  "buffer_status",
+  "warehouse",
+  "company",
+  "column_break_2",
+  "stock",
+  "stock_allocation",
+  "shortage",
+  "line_fullkit",
+  "order_fullkit",
+  "section_break_qty",
+  "qty",
+  "rate",
+  "delivered_qty",
+  "pending_qty",
+  "billed_qty",
+  "qty_to_bill",
+  "column_break_3",
+  "amount",
+  "billed_amount",
+  "pending_amount",
+  "delivered_qty_amount",
+  "delay"
+ ],
+ "fields": [
+  {
+   "fieldname": "sales_order",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Sales Order",
+   "options": "Sales Order",
+   "reqd": 1
+  },
+  {
+   "fieldname": "so_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "SO Date"
+  },
+  {
+   "fieldname": "delivery_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Delivery Date"
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Data",
+   "label": "Status"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Item Code",
+   "options": "Item"
+  },
+  {
+   "fieldname": "category_name",
+   "fieldtype": "Data",
+   "label": "Category Name"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_type",
+   "fieldtype": "Data",
+   "label": "Item Type"
+  },
+  {
+   "fieldname": "sku_type",
+   "fieldtype": "Data",
+   "label": "SKU Type"
+  },
+  {
+   "fieldname": "order_status",
+   "fieldtype": "Data",
+   "label": "Order Status"
+  },
+  {
+   "fieldname": "remaining_days",
+   "fieldtype": "Int",
+   "label": "Remaining Days"
+  },
+  {
+   "fieldname": "lead_time",
+   "fieldtype": "Int",
+   "label": "Lead Time"
+  },
+  {
+   "fieldname": "buffer_status",
+   "fieldtype": "Data",
+   "label": "Buffer Status (%)"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "column_break_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "stock",
+   "fieldtype": "Int",
+   "label": "Stock"
+  },
+  {
+   "fieldname": "stock_allocation",
+   "fieldtype": "Int",
+   "label": "Stock Allocation"
+  },
+  {
+   "fieldname": "shortage",
+   "fieldtype": "Int",
+   "label": "Shortage"
+  },
+  {
+   "fieldname": "line_fullkit",
+   "fieldtype": "Data",
+   "label": "Line Fullkit"
+  },
+  {
+   "fieldname": "order_fullkit",
+   "fieldtype": "Data",
+   "label": "Order Fullkit"
+  },
+  {
+   "fieldname": "section_break_qty",
+   "fieldtype": "Section Break",
+   "label": "Quantities & Amounts"
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Int",
+   "label": "Order Qty"
+  },
+  {
+   "fieldname": "rate",
+   "fieldtype": "Currency",
+   "label": "Rate"
+  },
+  {
+   "fieldname": "delivered_qty",
+   "fieldtype": "Int",
+   "label": "Delivered Qty"
+  },
+  {
+   "fieldname": "pending_qty",
+   "fieldtype": "Int",
+   "label": "Qty to Deliver"
+  },
+  {
+   "fieldname": "billed_qty",
+   "fieldtype": "Int",
+   "label": "Billed Qty"
+  },
+  {
+   "fieldname": "qty_to_bill",
+   "fieldtype": "Int",
+   "label": "Qty to Bill"
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount"
+  },
+  {
+   "fieldname": "billed_amount",
+   "fieldtype": "Currency",
+   "label": "Billed Amount"
+  },
+  {
+   "fieldname": "pending_amount",
+   "fieldtype": "Currency",
+   "label": "Pending Amount"
+  },
+  {
+   "fieldname": "delivered_qty_amount",
+   "fieldtype": "Currency",
+   "label": "Amount Delivered"
+  },
+  {
+   "fieldname": "delay",
+   "fieldtype": "Data",
+   "label": "Delay (in Days)"
+  }
+ ],
+ "istable": 1,
+ "links": [],
+ "modified": "2026-04-14 16:24:50.217650",
+ "modified_by": "Administrator",
+ "module": "PO Recommendation History",
+ "name": "SO Recommendation Snapshot Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}
