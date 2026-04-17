@@ -76,7 +76,7 @@ def _validate_jwo_update_items(doc, items, original_by_name, incoming_names):
 			frappe.throw(
 				_(
 					"Cannot remove this row ({0}): a submitted Purchase Receipt already includes "
-					"finished good {1}. You can add new rows or change quantities above the received quantity."
+					"finished good {1}. You can add new rows or increase quantities beyond the received quantity."
 				).format(row.idx, frappe.bold(fg)),
 				title=_("Purchase Receipt"),
 			)
