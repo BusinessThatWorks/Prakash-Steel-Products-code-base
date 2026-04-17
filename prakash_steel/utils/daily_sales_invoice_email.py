@@ -3,9 +3,6 @@ from frappe.utils import today, fmt_money
 
 
 RECIPIENTS = [
-	"beetashoke.chakraborty@clapgrow.com",
-	"beetashokechakraborty721@gmail.com",
-	"ritika@clapgrow.com",
 	"avinash@prakashsteel.com",
 	"srimanta@prakashsteel.com",
 	"psprm@prakashsteel.com",
@@ -13,11 +10,6 @@ RECIPIENTS = [
 
 
 def send_daily_sales_invoice_email():
-	"""
-	Scheduled job: sends a summary email of all submitted Sales Invoices
-	for the current date, with each invoice's PDF attached.
-	Triggered daily at 1:40 PM via hooks.py cron.
-	"""
 	posting_date = today()
 	posting_date_display = frappe.utils.formatdate(posting_date, "dd-MM-yyyy")
 
