@@ -103,7 +103,7 @@ def _validate_jwo_update_items(doc, items, original_by_name, incoming_names):
 				_(
 					"Total RM Qty Required for {0} is {1}, but submitted transfer documents already "
 					"show {2} for this Job Work Order. Increase the total to at least {2}."
-				).format(frappe.bold(rm_item), int(total_req), delivered),
+				).format(frappe.bold(rm_item), int(total_req), int(delivered)),
 				title=_("Transfer quantity"),
 			)
 
@@ -117,7 +117,7 @@ def _validate_jwo_update_items(doc, items, original_by_name, incoming_names):
 				_(
 					"Total FG Production Qty for {0} is {1}, but submitted Purchase Receipts already "
 					"show {2} for this Job Work Order. Increase the total to at least {2}."
-				).format(frappe.bold(fg_item), int(total_fg), rec),
+				).format(frappe.bold(fg_item), int(total_fg), int(rec)),
 				title=_("Purchase Receipt"),
 			)
 
