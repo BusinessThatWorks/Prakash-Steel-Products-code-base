@@ -2075,13 +2075,17 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 		demand_horizon = spike_config["demand_horizon"]
 		spike_threshold_pct = spike_config["spike_threshold"]
 
+		# If demand_horizon is 0, spike is disabled for this item type
+		if not demand_horizon or demand_horizon <= 0:
+			for item_info in items_list:
+				spike_map[item_info["item_code"]] = 0.0
+			continue
+
 		start_date = add_days(today_date, 1)  # Tomorrow
 		if filters.get("to_date"):
 			end_date = filters.get("to_date")
-		elif demand_horizon and demand_horizon > 0:
-			end_date = add_days(today_date, demand_horizon)
 		else:
-			end_date = None
+			end_date = add_days(today_date, demand_horizon)
 
 		# Get item codes for this item_type
 		item_codes_for_type = [item["item_code"] for item in items_list]
