@@ -1990,7 +1990,7 @@ def get_qualified_demand_map(filters):
 			so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
 			AND so.docstatus = 1
 			AND IFNULL(soi.custom_closed, 0) = 0
-			AND IFNULL(soi.delivery_date, '1900-01-01') <= %s
+			AND IFNULL(so.transaction_date, '1900-01-01') <= %s
 		GROUP BY
 			soi.item_code
 		""",
