@@ -45,8 +45,6 @@ def build_calculation_breakdown_po_report(
 	parent_demand_details_list,
 	till_today=None,
 	spike=None,
-	from_date=None,
-	to_date=None,
 ):
 	lines = []
 	lines.append(f"\n  Item: {item_code}")
@@ -54,19 +52,13 @@ def build_calculation_breakdown_po_report(
 	if sku_type and sku_type != "N/A":
 		lines.append(f"  SKU Type: {sku_type}")
 
-	# Show date range used
-	if from_date or to_date:
-		lines.append(f"  Date Range: {from_date or 'All'} to {to_date or 'All'}")
-
 	if is_buffer:
 		lines.append(f"  TOG: {tog}")
 		# Show till_today and spike separately if provided
 		if till_today is not None and spike is not None:
-			till_label = f"Till {to_date}" if to_date else "Till Today"
-			spike_label = f"Spike ({from_date} to {to_date})" if from_date and to_date else "Spike"
-			lines.append(f"  {till_label}: {till_today}")
-			lines.append(f"  {spike_label}: {spike}")
-			lines.append(f"  Qualified Demand ({till_label} + Spike): {qualified_demand}")
+			lines.append(f"  Till Today: {till_today}")
+			lines.append(f"  Spike: {spike}")
+			lines.append(f"  Qualified Demand (Till Today + Spike): {qualified_demand}")
 		else:
 			lines.append(f"  Qualified Demand: {qualified_demand}")
 		lines.append(f"  Total Parent Demand: {total_parent_demand}")
@@ -150,8 +142,7 @@ def build_calculation_breakdown_po_report(
 		lines.append(f"  Open SO: {open_so_for_breakdown}")
 		# Show till_today and spike separately if provided (spike should always be 0 for non-buffer)
 		if till_today is not None and spike is not None:
-			till_label = f"Till {to_date}" if to_date else "Till Today"
-			lines.append(f"    - {till_label}: {till_today}")
+			lines.append(f"    - Till Today: {till_today}")
 			lines.append(f"    - Spike: {spike} (always 0 for non-buffer items)")
 		lines.append(f"  Stock: {stock}")
 		lines.append(f"  WIP: {wip}")
@@ -857,7 +848,7 @@ def get_data(filters=None):
 
 	so_qty_map = get_sales_order_qty_map(filters)
 
-	till_today_map, spike_map = get_qualified_demand_map(filters)
+	till_today_map, spike_map = get_qualified_demand_map()
 
 	if buffer_flag:
 		items_query = """
@@ -877,11 +868,11 @@ def get_data(filters=None):
 
 	so_qty_map = {k: v for k, v in so_qty_map.items() if k in item_codes}
 
-	wip_map = get_wip_map(filters)
+	wip_map = get_wip_map()
 
-	mrq_map = get_mrq_map(filters)
+	mrq_map = get_mrq_map()
 
-	open_po_map = get_open_po_map(filters)
+	open_po_map = get_open_po_map()
 
 	items_with_po = set(open_po_map.keys())
 	items_with_po_selected = {item for item in items_with_po if item in item_codes}
@@ -891,7 +882,7 @@ def get_data(filters=None):
 	if not all_items_to_process:
 		return []
 
-	initial_stock_map = get_stock_map(all_items_to_process, filters)
+	initial_stock_map = get_stock_map(all_items_to_process)
 
 	remaining_stock = dict(initial_stock_map)
 
@@ -978,7 +969,7 @@ def get_data(filters=None):
 		}
 
 	calculated_spike_map = calculate_spike_map(
-		all_item_codes, item_buffer_map_all, item_type_map_all, item_tog_map_all, filters
+		all_item_codes, item_buffer_map_all, item_type_map_all, item_tog_map_all
 	)
 	spike_map.update(calculated_spike_map)
 
@@ -1368,8 +1359,6 @@ def get_data(filters=None):
 			parent_demand_details_list,
 			till_today=till_today,
 			spike=spike,
-			from_date=filters.get("from_date"),
-			to_date=filters.get("to_date"),
 		)
 
 		if is_item_buffer:
@@ -1490,29 +1479,15 @@ def get_data(filters=None):
 					child_sku_type = calculate_sku_type(child_buffer_flag, child_item_type)
 
 					if child_item_code not in child_stock_map:
-						as_of_date = filters.get("to_date") or filters.get("from_date")
-						if as_of_date:
-							stock_data = frappe.db.sql(
-								"""
-								SELECT SUM(actual_qty) as stock
-								FROM `tabStock Ledger Entry`
-								WHERE item_code = %s
-								AND posting_date <= %s
-								AND is_cancelled = 0
-								""",
-								(child_item_code, as_of_date),
-								as_dict=True,
-							)
-						else:
-							stock_data = frappe.db.sql(
-								"""
-								SELECT SUM(actual_qty) as stock
-								FROM `tabBin`
-								WHERE item_code = %s
-								""",
-								(child_item_code,),
-								as_dict=True,
-							)
+						stock_data = frappe.db.sql(
+							"""
+							SELECT SUM(actual_qty) as stock
+							FROM `tabBin`
+							WHERE item_code = %s
+							""",
+							(child_item_code,),
+							as_dict=True,
+						)
 						total_stock = math.ceil(
 							flt(stock_data[0].stock if stock_data and stock_data[0].stock else 0)
 						)
@@ -1617,29 +1592,15 @@ def get_data(filters=None):
 				else:
 					# Fetch stock if not in map
 					try:
-						as_of_date = filters.get("to_date") or filters.get("from_date")
-						if as_of_date:
-							stock_data = frappe.db.sql(
-								"""
-								SELECT SUM(actual_qty) as stock
-								FROM `tabStock Ledger Entry`
-								WHERE item_code = %s
-								AND posting_date <= %s
-								AND is_cancelled = 0
-								""",
-								(child_item_code, as_of_date),
-								as_dict=True,
-							)
-						else:
-							stock_data = frappe.db.sql(
-								"""
-								SELECT SUM(actual_qty) as stock
-								FROM `tabBin`
-								WHERE item_code = %s
-								""",
-								(child_item_code,),
-								as_dict=True,
-							)
+						stock_data = frappe.db.sql(
+							"""
+							SELECT SUM(actual_qty) as stock
+							FROM `tabBin`
+							WHERE item_code = %s
+							""",
+							(child_item_code,),
+							as_dict=True,
+						)
 						total_stock = int(
 							flt(stock_data[0].stock if stock_data and stock_data[0].stock else 0)
 						)
@@ -1888,39 +1849,16 @@ def create_material_requests_automatically(filters=None):
 	}
 
 
-def get_stock_map(item_codes, filters=None):
+def get_stock_map(item_codes):
 	if not item_codes:
 		return {}
-
-	if not filters:
-		filters = {}
 
 	if len(item_codes) == 1:
 		item_codes_tuple = (next(iter(item_codes)),)
 	else:
 		item_codes_tuple = tuple(item_codes)
 
-	from_date = filters.get("from_date")
-	to_date = filters.get("to_date")
-
-	if from_date or to_date:
-		# Use Stock Ledger Entry to get historical stock balance
-		as_of_date = to_date or from_date
-		sle_rows = frappe.db.sql(
-			"""
-			SELECT item_code, SUM(actual_qty) as stock
-			FROM `tabStock Ledger Entry`
-			WHERE item_code IN %s
-			AND posting_date <= %s
-			AND is_cancelled = 0
-			GROUP BY item_code
-			""",
-			(item_codes_tuple, as_of_date),
-			as_dict=True,
-		)
-		return {d.item_code: flt(d.stock) for d in sle_rows}
-
-	# No date filter — use current live stock from Bin
+	# Use current live stock from Bin
 	bin_rows = frappe.db.sql(
 		"""
 		SELECT item_code, SUM(actual_qty) as stock
@@ -1936,20 +1874,8 @@ def get_stock_map(item_codes, filters=None):
 
 
 def get_sales_order_qty_map(filters):
-	from_date = filters.get("from_date")
-	to_date = filters.get("to_date")
-
-	conditions = ""
-	params = []
-	if from_date:
-		conditions += " AND IFNULL(soi.delivery_date, '1900-01-01') >= %s"
-		params.append(from_date)
-	if to_date:
-		conditions += " AND IFNULL(soi.delivery_date, '1900-01-01') <= %s"
-		params.append(to_date)
-
 	so_rows = frappe.db.sql(
-		f"""
+		"""
 		SELECT
 			soi.item_code,
 			SUM(GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0))) as so_qty
@@ -1961,21 +1887,19 @@ def get_sales_order_qty_map(filters):
 			so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
 			AND so.docstatus = 1
 			AND IFNULL(soi.custom_closed, 0) = 0
-			{conditions}
 		GROUP BY
 			soi.item_code
 		""",
-		tuple(params),
 		as_dict=True,
 	)
 
 	return {d.item_code: flt(d.so_qty) for d in so_rows}
 
 
-def get_qualified_demand_map(filters):
+def get_qualified_demand_map():
 	from frappe.utils import today
 
-	today_date = filters.get("to_date") or today()
+	today_date = today()
 
 	so_rows = frappe.db.sql(
 		"""
@@ -1990,7 +1914,7 @@ def get_qualified_demand_map(filters):
 			so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
 			AND so.docstatus = 1
 			AND IFNULL(soi.custom_closed, 0) = 0
-			AND IFNULL(so.transaction_date, '1900-01-01') <= %s
+			AND IFNULL(soi.delivery_date, '1900-01-01') <= %s
 		GROUP BY
 			soi.item_code
 		""",
@@ -1999,22 +1923,16 @@ def get_qualified_demand_map(filters):
 	)
 
 	till_today_map = {d.item_code: flt(d.so_qty) for d in so_rows}
-	spike_map = {}
-
-	# Get all items that have till_today demand to initialize spike_map
-	for item_code in till_today_map.keys():
-		spike_map[item_code] = 0.0
+	spike_map = {item_code: 0.0 for item_code in till_today_map}
 
 	return till_today_map, spike_map
 
 
-def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map, filters=None):
+def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map):
 
 	from frappe.utils import today, add_days
 
-	if not filters:
-		filters = {}
-	today_date = filters.get("to_date") or today()
+	today_date = today()
 	spike_map = {}
 
 	# Get all Spike Master records
@@ -2082,10 +2000,7 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 			continue
 
 		start_date = add_days(today_date, 1)  # Tomorrow
-		if filters.get("to_date"):
-			end_date = filters.get("to_date")
-		else:
-			end_date = add_days(today_date, demand_horizon)
+		end_date = add_days(today_date, demand_horizon)
 
 		# Get item codes for this item_type
 		item_codes_for_type = [item["item_code"] for item in items_list]
@@ -2175,14 +2090,13 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 				spike_map[item_code] = 0.0
 				continue
 
-			so_qtys = [so_data["qty"] for so_data in so_data_list]
-			qualifying_qtys = [qty for qty in so_qtys if qty >= spike_threshold_qty]
+				# Sum ALL future SO qty within demand horizon, then compare total against threshold
+			total_future_qty = sum(so_data["qty"] for so_data in so_data_list)
 
-			if not qualifying_qtys:
-				spike_map[item_code] = 0.0
+			if total_future_qty >= spike_threshold_qty:
+				spike_map[item_code] = total_future_qty
 			else:
-				spike_value = sum(qualifying_qtys)
-				spike_map[item_code] = spike_value
+				spike_map[item_code] = 0.0
 
 	for item_code in item_codes:
 		if item_buffer_map.get(item_code, "Non-Buffer") != "Buffer":
@@ -2232,7 +2146,7 @@ def get_qualified_demand_for_item(
 		return qualified_demand, till_today, spike
 
 
-def get_wip_map(filters):
+def get_wip_map():
 	# Get Production Plan Settings
 	try:
 		settings = frappe.get_single("Production planning settings")
@@ -2243,22 +2157,10 @@ def get_wip_map(filters):
 	wip_map = {}
 
 	# Check which method is selected
-	from_date = filters.get("from_date") if filters else None
-	to_date = filters.get("to_date") if filters else None
-
 	if settings.get("from_work_order"):
 		# Existing logic: Get WIP from Work Order (qty - produced_qty) - only for Work Orders that are not Completed or Cancelled
-		wo_conditions = ""
-		wo_params = []
-		if from_date:
-			wo_conditions += " AND IFNULL(wo.transaction_date, '1900-01-01') >= %s"
-			wo_params.append(from_date)
-		if to_date:
-			wo_conditions += " AND IFNULL(wo.transaction_date, '1900-01-01') <= %s"
-			wo_params.append(to_date)
-
 		wip_rows_wo = frappe.db.sql(
-			f"""
+			"""
 			SELECT
 				wo.production_item as item_code,
 				SUM(GREATEST(0, IFNULL(wo.qty, 0) - IFNULL(wo.produced_qty, 0))) as wip_qty
@@ -2267,11 +2169,9 @@ def get_wip_map(filters):
 			WHERE
 				wo.status NOT IN ('Completed', 'Cancelled')
 				AND wo.docstatus = 1
-				{wo_conditions}
 			GROUP BY
 				wo.production_item
 			""",
-			tuple(wo_params),
 			as_dict=True,
 		)
 
@@ -2282,14 +2182,7 @@ def get_wip_map(filters):
 
 	elif settings.get("from_production_plan"):
 		# New logic: Get WIP from Production Plan
-		# Get all Production Plans
 		pp_filters = {"docstatus": 1}
-		if from_date:
-			pp_filters["posting_date"] = [">=", from_date]
-		if to_date:
-			pp_filters["posting_date"] = ["<=", to_date]
-		if from_date and to_date:
-			pp_filters["posting_date"] = ["between", [from_date, to_date]]
 		production_plans = frappe.get_all("Production Plan", filters=pp_filters, fields=["name"])
 
 		for pp in production_plans:
@@ -2356,24 +2249,9 @@ def get_wip_map(filters):
 	return wip_map
 
 
-def get_mrq_map(filters):
-	if not filters:
-		filters = {}
-
-	from_date = filters.get("from_date")
-	to_date = filters.get("to_date")
-
-	conditions = ""
-	params = []
-	if from_date:
-		conditions += " AND IFNULL(mri.schedule_date, '1900-01-01') >= %s"
-		params.append(from_date)
-	if to_date:
-		conditions += " AND IFNULL(mri.schedule_date, '1900-01-01') <= %s"
-		params.append(to_date)
-
+def get_mrq_map():
 	mrq_rows = frappe.db.sql(
-		f"""
+		"""
 		SELECT
 			mri.item_code,
 			SUM(GREATEST(0, mri.qty - IFNULL(mri.ordered_qty, 0))) as mrq_qty
@@ -2384,36 +2262,19 @@ def get_mrq_map(filters):
 		WHERE
 			mr.docstatus = 1
 			AND mr.status IN ('Pending', 'Partially Ordered')
-			{conditions}
 		GROUP BY
 			mri.item_code
 		""",
-		tuple(params),
 		as_dict=True,
 	)
 
 	return {d.item_code: flt(d.mrq_qty) for d in mrq_rows}
 
 
-def get_open_po_map(filters=None):
-	if not filters:
-		filters = {}
-
-	from_date = filters.get("from_date")
-	to_date = filters.get("to_date")
-
-	conditions = ""
-	params = []
-	if from_date:
-		conditions += " AND IFNULL(po.transaction_date, '1900-01-01') >= %s"
-		params.append(from_date)
-	if to_date:
-		conditions += " AND IFNULL(po.transaction_date, '1900-01-01') <= %s"
-		params.append(to_date)
-
+def get_open_po_map():
 	# Get all Purchase Order Items with their qty and received_qty
 	po_rows = frappe.db.sql(
-		f"""
+		"""
 		SELECT
 			poi.item_code,
 			poi.qty,
@@ -2426,9 +2287,7 @@ def get_open_po_map(filters=None):
 			po.docstatus = 1
 			AND po.status NOT IN ('Cancelled', 'Closed')
 			AND IFNULL(poi.custom_closed, 0) = 0
-			{conditions}
 		""",
-		tuple(params),
 		as_dict=True,
 	)
 
