@@ -56,13 +56,9 @@ def _jwo_transferred_rm_qty_by_item(jwo_name, job_work_type):
 
 def _jwo_has_submitted_rm_transfer(jwo_name, job_work_type):
 	if job_work_type == "Subcontracting":
-		return bool(
-			frappe.db.exists("Delivery Note", {"custom_job_work_order": jwo_name, "docstatus": 1})
-		)
+		return bool(frappe.db.exists("Delivery Note", {"custom_job_work_order": jwo_name, "docstatus": 1}))
 	if job_work_type == "Sale-Purchase":
-		return bool(
-			frappe.db.exists("Sales Invoice", {"custom_job_work_order": jwo_name, "docstatus": 1})
-		)
+		return bool(frappe.db.exists("Sales Invoice", {"custom_job_work_order": jwo_name, "docstatus": 1}))
 	return False
 
 
@@ -80,7 +76,7 @@ def _validate_jwo_update_items(doc, items, original_by_name, incoming_names):
 			frappe.throw(
 				_(
 					"Cannot remove this row ({0}): a submitted Purchase Receipt already includes "
-					"finished good {1}. You can add new rows or change quantities above the received quantity."
+					"finished good {1}. You can add new rows or increase quantities beyond the received quantity."
 				).format(row.idx, frappe.bold(fg)),
 				title=_("Purchase Receipt"),
 			)
@@ -107,7 +103,7 @@ def _validate_jwo_update_items(doc, items, original_by_name, incoming_names):
 				_(
 					"Total RM Qty Required for {0} is {1}, but submitted transfer documents already "
 					"show {2} for this Job Work Order. Increase the total to at least {2}."
-				).format(frappe.bold(rm_item), int(total_req), delivered),
+				).format(frappe.bold(rm_item), int(total_req), int(delivered)),
 				title=_("Transfer quantity"),
 			)
 
@@ -121,7 +117,7 @@ def _validate_jwo_update_items(doc, items, original_by_name, incoming_names):
 				_(
 					"Total FG Production Qty for {0} is {1}, but submitted Purchase Receipts already "
 					"show {2} for this Job Work Order. Increase the total to at least {2}."
-				).format(frappe.bold(fg_item), int(total_fg), rec),
+				).format(frappe.bold(fg_item), int(total_fg), int(rec)),
 				title=_("Purchase Receipt"),
 			)
 
@@ -146,9 +142,7 @@ def _validate_jwo_update_items(doc, items, original_by_name, incoming_names):
 		rms = {item.get("raw_material") for item in items if item.get("raw_material")}
 		if len(rms) > 1:
 			frappe.throw(
-				_(
-					"After a transfer document is submitted, every line must use the same Raw Material item."
-				),
+				_("After a transfer document is submitted, every line must use the same Raw Material item."),
 				title=_("Raw Material"),
 			)
 
@@ -299,6 +293,7 @@ def make_purchase_receipt(source_name):
 
 	pr = frappe.new_doc("Purchase Receipt")
 	pr.company = "Prakash Steel Products Pvt Ltd"
+	pr.supplier = source.customer
 	pr.posting_date = source.job_work_date
 	pr.custom_job_work_order = source_name
 
