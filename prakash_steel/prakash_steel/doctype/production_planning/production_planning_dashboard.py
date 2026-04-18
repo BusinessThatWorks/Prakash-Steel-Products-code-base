@@ -4,11 +4,11 @@
 
 def get_data():
 	return {
-		"fieldname": "custom_production_planning",
+		"fieldname": "production_planning",
 		"transactions": [
 			{
 				"label": "Manufacturing",
-				"items": ["Billet Cutting", "Finish Weight", "Hourly Production"],
+				"items": ["Billet Cutting", "Finish Weight", "Hourly Production", "Bright Bar Production"],
 			},
 		],
 	}
