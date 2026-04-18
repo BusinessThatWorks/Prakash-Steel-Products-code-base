@@ -241,10 +241,55 @@ function load_finished_good_options_from_production_plan(frm, callback) {
 	});
 }
 
-// Auto-calculate stock_available_in_warehouse based on raw_material,
+// Populate `finished` and `material` from Production Planning FG Table
+frappe.ui.form.on("Bright Bar Production", {
+	refresh(frm) {
+		if (frm.doc.production_planning) {
+			load_options_from_production_planning(frm);
+		}
+	},
+
+	production_planning(frm) {
+		if (!frm.doc.production_planning) {
+			frm.set_df_property("finished", "options", "");
+			frm.set_df_property("material", "options", "");
+			frm.refresh_field("finished");
+			frm.refresh_field("material");
+			return;
+		}
+		load_options_from_production_planning(frm);
+	}
+});
+
+function load_options_from_production_planning(frm) {
+	if (!frm.doc.production_planning) return;
+
+	frappe.call({
+		method: "frappe.client.get",
+		args: {
+			doctype: "Production Planning",
+			name: frm.doc.production_planning
+		},
+		callback(r) {
+			if (!r.message || !r.message.production_plan) return;
+
+			let rows = r.message.production_plan;
+
+			let fg_items = [...new Set(rows.filter(row => row.fg_item).map(row => row.fg_item))];
+			let raw_materials = [...new Set(rows.filter(row => row.raw_material).map(row => row.raw_material))];
+
+			frm.set_df_property("finished", "options", "\n" + fg_items.join("\n"));
+			frm.set_df_property("material", "options", "\n" + raw_materials.join("\n"));
+			frm.refresh_field("finished");
+			frm.refresh_field("material");
+		}
+	});
+}
+
+// Auto-calculate stock_available_in_warehouse based on material,
 // actual_rm_consumption and rm_source_warehouse
 frappe.ui.form.on("Bright Bar Production", {
-	raw_material(frm) {
+	material(frm) {
 		update_stock_available_in_warehouse(frm);
 	},
 
@@ -263,7 +308,7 @@ frappe.ui.form.on("Bright Bar Production", {
 });
 
 function update_stock_available_in_warehouse(frm) {
-	const item_code = frm.doc.raw_material;
+	const item_code = frm.doc.material;
 	const warehouse = frm.doc.rm_source_warehouse;
 	const has_consumption_value =
 		frm.doc.actual_rm_consumption !== null &&

@@ -26,7 +26,7 @@ def _billet_cutting_exists(production_planning_name, fg_item, raw_material):
 	return frappe.db.exists(
 		"Billet Cutting",
 		{
-			"custom_production_planning": production_planning_name,
+			"production_planning": production_planning_name,
 			"finish_size": fg_item,
 			"billet_size": raw_material,
 		},
@@ -45,7 +45,7 @@ def _create_billet_cutting_for_rows(production_planning_name, rows, shift_type):
 			continue
 
 		billet_doc = frappe.new_doc("Billet Cutting")
-		billet_doc.custom_production_planning = production_planning_name
+		billet_doc.production_planning = production_planning_name
 		billet_doc.posting_date = today()
 		billet_doc.shift_type = shift_type
 		billet_doc.billet_size = row.raw_material

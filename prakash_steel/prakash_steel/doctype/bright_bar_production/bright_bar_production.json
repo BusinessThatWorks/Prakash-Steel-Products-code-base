@@ -145,7 +145,8 @@
   {
    "fieldname": "finished_good",
    "fieldtype": "Select",
-   "label": "Finished Good"
+   "label": "Finished Good",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_pefo",
@@ -302,7 +303,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-04-18 12:06:54.219210",
+ "modified": "2026-04-18 12:15:21.748893",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Bright Bar Production",
