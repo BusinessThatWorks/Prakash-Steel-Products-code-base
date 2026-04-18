@@ -9,6 +9,7 @@
   "section_break_inec",
   "billet_cutting_id",
   "production_plan",
+  "custom_production_planning",
   "production_date",
   "shift_type",
   "column_break_tohi",
@@ -181,6 +182,14 @@
    "fieldtype": "Link",
    "label": "Production Plan",
    "options": "Production Plan",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "billet_cutting_id.custom_production_planning",
+   "fieldname": "custom_production_planning",
+   "fieldtype": "Link",
+   "label": "Production Planning",
+   "options": "Production Planning",
    "read_only": 1
   },
   {

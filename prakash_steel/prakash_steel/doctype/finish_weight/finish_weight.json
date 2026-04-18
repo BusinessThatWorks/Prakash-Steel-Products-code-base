@@ -8,6 +8,7 @@
   "section_break_mb5g",
   "billet_cutting_id",
   "production_plan",
+  "custom_production_planning",
   "column_break_xdcg",
   "amended_from",
   "shift_type",
@@ -225,6 +226,14 @@
    "fieldtype": "Link",
    "label": "Production Plan",
    "options": "Production Plan",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "billet_cutting_id.custom_production_planning",
+   "fieldname": "custom_production_planning",
+   "fieldtype": "Link",
+   "label": "Production Planning",
+   "options": "Production Planning",
    "read_only": 1
   },
   {
