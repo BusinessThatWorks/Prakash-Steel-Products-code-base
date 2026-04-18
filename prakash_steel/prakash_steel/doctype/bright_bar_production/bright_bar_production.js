@@ -3,62 +3,23 @@
 
 frappe.ui.form.on("Bright Bar Production", {
 	refresh(frm) {
-		// Restore raw_material options if production_plan exists
-		if (frm.doc.production_plan) {
-			console.log("✅ Production Plan exists, restoring raw_material options...");
-			// Store current raw_material value to preserve it
-			const current_raw_material = frm.doc.raw_material;
-			console.log("💾 Preserving current raw_material value:", current_raw_material);
-			
-			// Load options from production plan
-			load_raw_material_options_from_production_plan(frm, function() {
-				// Restore the raw_material value if it was set
-				if (current_raw_material) {
-					console.log("🔄 Restoring raw_material value:", current_raw_material);
-					// Use set_value to ensure it's set properly
-					frm.set_value("raw_material", current_raw_material);
-				}
-			});
-		} else {
-			console.log("❌ No Production Plan, skipping raw_material options restoration");
+		if (typeof frm.doc.production_plan === "string" && frm.doc.production_plan) {
+			load_raw_material_options_from_production_plan(frm, null);
 		}
 	},
 
 	production_plan: function (frm) {
-		console.log("🔥 production_plan event triggered");
-
-		if (!frm.doc.production_plan) {
-			console.log("❌ No Production Plan selected");
-			// Clear raw_material options if production plan is cleared
+		if (typeof frm.doc.production_plan !== "string" || !frm.doc.production_plan) {
 			frm.set_df_property("raw_material", "options", "");
 			frm.refresh_field("raw_material");
 			return;
 		}
-
-		console.log("✅ Selected Production Plan ID:", frm.doc.production_plan);
-		
-		// Store current raw_material value to preserve it if it's still valid
-		const current_raw_material = frm.doc.raw_material;
-		console.log("💾 Current raw_material value:", current_raw_material);
-
-		// Load options from production plan
-		load_raw_material_options_from_production_plan(frm, function() {
-			// Try to restore the raw_material value if it's still in the new options
-			if (current_raw_material) {
-				console.log("🔄 Attempting to restore raw_material value:", current_raw_material);
-				// The value will be preserved automatically if it's in the options
-				frm.refresh_field("raw_material");
-			}
-		});
+		load_raw_material_options_from_production_plan(frm, null);
 	}
 });
 
 function load_raw_material_options_from_production_plan(frm, callback) {
-	console.log("📥 load_raw_material_options_from_production_plan called");
-	console.log("📋 Production Plan:", frm.doc.production_plan);
-
-	if (!frm.doc.production_plan) {
-		console.log("❌ No Production Plan provided");
+	if (typeof frm.doc.production_plan !== "string" || !frm.doc.production_plan) {
 		if (callback) callback();
 		return;
 	}
@@ -136,38 +97,23 @@ function load_raw_material_options_from_production_plan(frm, callback) {
 // Populate finished_good from Production Plan po_items
 frappe.ui.form.on("Bright Bar Production", {
 	refresh(frm) {
-		if (frm.doc.production_plan) {
-			const current_finished_good = frm.doc.finished_good;
-			load_finished_good_options_from_production_plan(frm, function() {
-				if (current_finished_good) {
-					frm.set_value("finished_good", current_finished_good);
-				}
-			});
+		if (typeof frm.doc.production_plan === "string" && frm.doc.production_plan) {
+			load_finished_good_options_from_production_plan(frm, null);
 		}
 	},
 
 	production_plan(frm) {
-		if (!frm.doc.production_plan) {
+		if (typeof frm.doc.production_plan !== "string" || !frm.doc.production_plan) {
 			frm.set_df_property("finished_good", "options", "");
 			frm.refresh_field("finished_good");
 			return;
 		}
-
-		const current_finished_good = frm.doc.finished_good;
-		load_finished_good_options_from_production_plan(frm, function() {
-			if (current_finished_good) {
-				frm.refresh_field("finished_good");
-			}
-		});
+		load_finished_good_options_from_production_plan(frm, null);
 	}
 });
 
 function load_finished_good_options_from_production_plan(frm, callback) {
-	console.log("📥 load_finished_good_options_from_production_plan called");
-	console.log("📋 Production Plan:", frm.doc.production_plan);
-
-	if (!frm.doc.production_plan) {
-		console.log("❌ No Production Plan provided");
+	if (typeof frm.doc.production_plan !== "string" || !frm.doc.production_plan) {
 		if (callback) callback();
 		return;
 	}
@@ -264,25 +210,18 @@ frappe.ui.form.on("Bright Bar Production", {
 function load_options_from_production_planning(frm) {
 	if (!frm.doc.production_planning) return;
 
-	frappe.call({
-		method: "frappe.client.get",
-		args: {
-			doctype: "Production Planning",
-			name: frm.doc.production_planning
-		},
-		callback(r) {
-			if (!r.message || !r.message.production_plan) return;
+	frappe.db.get_list("Production Planning FG Table", {
+		filters: { parent: frm.doc.production_planning },
+		fields: ["fg_item", "raw_material"],
+		limit: 100
+	}).then(rows => {
+		let fg_items = [...new Set(rows.filter(r => r.fg_item).map(r => r.fg_item))];
+		let raw_materials = [...new Set(rows.filter(r => r.raw_material).map(r => r.raw_material))];
 
-			let rows = r.message.production_plan;
-
-			let fg_items = [...new Set(rows.filter(row => row.fg_item).map(row => row.fg_item))];
-			let raw_materials = [...new Set(rows.filter(row => row.raw_material).map(row => row.raw_material))];
-
-			frm.set_df_property("finished", "options", "\n" + fg_items.join("\n"));
-			frm.set_df_property("material", "options", "\n" + raw_materials.join("\n"));
-			frm.refresh_field("finished");
-			frm.refresh_field("material");
-		}
+		frm.set_df_property("finished", "options", "\n" + fg_items.join("\n"));
+		frm.set_df_property("material", "options", "\n" + raw_materials.join("\n"));
+		frm.refresh_field("finished");
+		frm.refresh_field("material");
 	});
 }
 

@@ -17,23 +17,8 @@ frappe.ui.form.on("Billet Cutting", {
         toggle_miss_billet_fields(frm);
 
         // Restore billet_size options if production_plan exists (even in draft state)
-        if (frm.doc.production_plan) {
-            console.log("✅ Production Plan exists, restoring billet_size options...");
-            // Store current billet_size value to preserve it
-            const current_billet_size = frm.doc.billet_size;
-            console.log("💾 Preserving current billet_size value:", current_billet_size);
-
-            // Load options from production plan
-            load_billet_size_options_from_production_plan(frm, function () {
-                // Restore the billet_size value if it was set
-                if (current_billet_size) {
-                    console.log("🔄 Restoring billet_size value:", current_billet_size);
-                    // Use set_value to ensure it's set properly
-                    frm.set_value("billet_size", current_billet_size);
-                }
-            });
-        } else {
-            console.log("❌ No Production Plan, skipping billet_size options restoration");
+        if (typeof frm.doc.production_plan === "string" && frm.doc.production_plan) {
+            load_billet_size_options_from_production_plan(frm, null);
         }
 
         // Only calculate if form is dirty (user is editing) or if it's a new form
@@ -90,31 +75,12 @@ frappe.ui.form.on("Billet Cutting", {
     },
 
     production_plan: function (frm) {
-        console.log("🔥 production_plan event triggered");
-
-        if (!frm.doc.production_plan) {
-            console.log("❌ No Production Plan selected");
-            // Clear billet_size options if production plan is cleared
+        if (typeof frm.doc.production_plan !== "string" || !frm.doc.production_plan) {
             frm.set_df_property("billet_size", "options", "");
             frm.refresh_field("billet_size");
             return;
         }
-
-        console.log("✅ Selected Production Plan ID:", frm.doc.production_plan);
-
-        // Store current billet_size value to preserve it if it's still valid
-        const current_billet_size = frm.doc.billet_size;
-        console.log("💾 Current billet_size value:", current_billet_size);
-
-        // Load options from production plan
-        load_billet_size_options_from_production_plan(frm, function () {
-            // Try to restore the billet_size value if it's still in the new options
-            if (current_billet_size) {
-                console.log("🔄 Attempting to restore billet_size value:", current_billet_size);
-                // The value will be preserved automatically if it's in the options
-                frm.refresh_field("billet_size");
-            }
-        });
+        load_billet_size_options_from_production_plan(frm, null);
     },
 
     before_save: function (frm) {
@@ -228,11 +194,7 @@ function calculate_fields(frm) {
 }
 
 function load_billet_size_options_from_production_plan(frm, callback) {
-    console.log("📥 load_billet_size_options_from_production_plan called");
-    console.log("📋 Production Plan:", frm.doc.production_plan);
-
-    if (!frm.doc.production_plan) {
-        console.log("❌ No Production Plan provided");
+    if (typeof frm.doc.production_plan !== "string" || !frm.doc.production_plan) {
         if (callback) callback();
         return;
     }
