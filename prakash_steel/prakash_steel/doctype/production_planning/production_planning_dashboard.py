@@ -7,8 +7,12 @@ def get_data():
 		"fieldname": "production_planning",
 		"transactions": [
 			{
-				"label": "Manufacturing",
-				"items": ["Billet Cutting", "Finish Weight", "Hourly Production", "Bright Bar Production"],
+				"label": "Rolled Production",
+				"items": ["Billet Cutting", "Hourly Production", "Finish Weight"],
+			},
+			{
+				"label": "Bright Production",
+				"items": ["Bright Bar Production"],
 			},
 		],
 	}
