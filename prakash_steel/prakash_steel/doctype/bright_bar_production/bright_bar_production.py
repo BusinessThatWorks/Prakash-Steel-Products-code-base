@@ -126,6 +126,9 @@ class BrightBarProduction(Document):
 			# Push FG weight to linked Production Plan Item row(s)
 			self.update_production_plan_qty_from_fg_weight()
 
+			# Update produced_qty in Production Planning FG Table
+			self.update_production_planning_produced_qty()
+
 			frappe.msgprint(
 				_("Stock Entry {0} created and submitted successfully").format(frappe.bold(stock_entry.name)),
 				indicator="green",
@@ -201,6 +204,31 @@ class BrightBarProduction(Document):
 				f"Error updating Production Plan Item custom_production_qty from Bright Bar Production {self.name}: {str(e)}",
 				"Bright Bar Production → Production Plan Qty Sync Error",
 			)
+
+	def update_production_planning_produced_qty(self):
+		"""Sum all submitted Bright Bar Production docs for this production_planning + finished
+		and write the total into produced_qty on the matching FG Table row."""
+		if not getattr(self, "production_planning", None):
+			return
+		if not getattr(self, "finished", None):
+			return
+
+		total = frappe.db.sql(
+			"""SELECT COALESCE(SUM(fg_weight), 0)
+			   FROM `tabBright Bar Production`
+			   WHERE production_planning = %s AND finished = %s AND docstatus = 1""",
+			(self.production_planning, self.finished),
+		)[0][0] or 0
+
+		rows = frappe.get_all(
+			"Production Planning FG Table",
+			filters={"parent": self.production_planning, "fg_item": self.finished},
+			fields=["name"],
+		)
+		for row in rows:
+			frappe.db.set_value("Production Planning FG Table", row.name, "produced_qty", total)
+
+		frappe.db.commit()
 
 	def before_cancel(self):
 		"""Prevent cancellation if linked Stock Entry is not cancelled.

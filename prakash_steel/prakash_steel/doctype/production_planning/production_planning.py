@@ -62,6 +62,17 @@ def _create_billet_cutting_for_rows(production_planning_name, rows, shift_type, 
 
 
 @frappe.whitelist()
+def get_fg_items_for_production_planning(production_planning):
+	"""Return fg_item and raw_material rows from Production Planning FG Table."""
+	rows = frappe.get_all(
+		"Production Planning FG Table",
+		filters={"parent": production_planning},
+		fields=["fg_item", "raw_material"],
+	)
+	return rows
+
+
+@frappe.whitelist()
 def update_production_plan(source_name, items):
 	"""Sync production_plan child table from the Update Items dialog."""
 	import json

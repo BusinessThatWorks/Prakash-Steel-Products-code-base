@@ -210,18 +210,19 @@ frappe.ui.form.on("Bright Bar Production", {
 function load_options_from_production_planning(frm) {
 	if (!frm.doc.production_planning) return;
 
-	frappe.db.get_list("Production Planning FG Table", {
-		filters: { parent: frm.doc.production_planning },
-		fields: ["fg_item", "raw_material"],
-		limit: 100
-	}).then(rows => {
-		let fg_items = [...new Set(rows.filter(r => r.fg_item).map(r => r.fg_item))];
-		let raw_materials = [...new Set(rows.filter(r => r.raw_material).map(r => r.raw_material))];
+	frappe.call({
+		method: "prakash_steel.prakash_steel.doctype.production_planning.production_planning.get_fg_items_for_production_planning",
+		args: { production_planning: frm.doc.production_planning },
+		callback(r) {
+			const rows = (r && r.message) || [];
+			let fg_items = [...new Set(rows.filter(r => r.fg_item).map(r => r.fg_item))];
+			let raw_materials = [...new Set(rows.filter(r => r.raw_material).map(r => r.raw_material))];
 
-		frm.set_df_property("finished", "options", "\n" + fg_items.join("\n"));
-		frm.set_df_property("material", "options", "\n" + raw_materials.join("\n"));
-		frm.refresh_field("finished");
-		frm.refresh_field("material");
+			frm.set_df_property("finished", "options", "\n" + fg_items.join("\n"));
+			frm.set_df_property("material", "options", "\n" + raw_materials.join("\n"));
+			frm.refresh_field("finished");
+			frm.refresh_field("material");
+		}
 	});
 }
 
