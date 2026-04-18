@@ -12,7 +12,7 @@ class ProductionPlanning(Document):
 		if "Rolled Plan" not in (self.naming_series or ""):
 			return
 
-		created = _create_billet_cutting_for_rows(self.name, self.production_plan, self.shift_type)
+		created = _create_billet_cutting_for_rows(self.name, self.production_plan, self.shift_type, self.posting_date)
 		if created:
 			frappe.msgprint(
 				f"Created {len(created)} Billet Cutting document(s) automatically.",
@@ -33,7 +33,7 @@ def _billet_cutting_exists(production_planning_name, fg_item, raw_material):
 	)
 
 
-def _create_billet_cutting_for_rows(production_planning_name, rows, shift_type):
+def _create_billet_cutting_for_rows(production_planning_name, rows, shift_type, posting_date=None):
 	"""Create Billet Cutting docs for rows that don't already have one."""
 	created = []
 
@@ -46,7 +46,7 @@ def _create_billet_cutting_for_rows(production_planning_name, rows, shift_type):
 
 		billet_doc = frappe.new_doc("Billet Cutting")
 		billet_doc.production_planning = production_planning_name
-		billet_doc.posting_date = today()
+		billet_doc.posting_date = posting_date or today()
 		billet_doc.shift_type = shift_type
 		billet_doc.billet_size = row.raw_material
 		billet_doc.finish_size = row.fg_item
@@ -122,7 +122,7 @@ def update_production_plan(source_name, items):
 	# Create Billet Cutting docs for any new rows (Rolled Plan only)
 	if "Rolled Plan" in (doc.naming_series or ""):
 		doc.reload()
-		created = _create_billet_cutting_for_rows(source_name, doc.production_plan, doc.shift_type)
+		created = _create_billet_cutting_for_rows(source_name, doc.production_plan, doc.shift_type, doc.posting_date)
 		if created:
 			frappe.msgprint(
 				f"Created {len(created)} new Billet Cutting document(s).",
