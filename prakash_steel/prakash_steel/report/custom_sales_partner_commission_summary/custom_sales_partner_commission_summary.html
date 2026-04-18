@@ -1,0 +1,109 @@
+<style>
+	@page {
+		size: A4 landscape;
+		margin: 8mm
+	}
+
+	.print-format {
+		padding: 8mm 2mm 8mm 8mm;
+		font-size: 9pt !important;
+	}
+
+	.custom-report-title {
+		text-align: center;
+		font-size: 16px;
+		font-weight: 700;
+		margin: 8px 0 14px 0;
+	}
+
+	.meta-line {
+		text-align: center;
+		margin-bottom: 4px;
+		font-size: 11px;
+	}
+
+	.data-table {
+		width: 100%;
+		border-collapse: collapse;
+	}
+
+	.data-table th,
+	.data-table td {
+		border: none;
+		border-right: 1px solid #000;
+		padding: 1px 6px;
+		vertical-align: top;
+		text-align: left;
+		line-height: 1.05;
+	}
+
+	.data-table th:last-child,
+	.data-table td:last-child {
+		border-right: none;
+	}
+
+	.data-table th {
+		font-weight: 700;
+		text-align: left;
+		border-right: 0.5px solid #999;
+	}
+
+	.data-table tbody td {
+		text-align: left;
+	}
+
+	.text-right {
+		text-align: left;
+	}
+
+	.footer-total td {
+		font-weight: 700;
+		border-top: 1px solid #000;
+		border-bottom: 1px solid #000;
+	}
+</style>
+
+{% const broker_name = filters.sales_partner || ""; %}
+{% const from_date = filters.from_date ? frappe.datetime.str_to_user(filters.from_date) : ""; %}
+{% const to_date = filters.to_date ? frappe.datetime.str_to_user(filters.to_date) : ""; %}
+{% let total_amount = 0; %}
+
+<div class="custom-report-title">Sales Partner Commission Summary</div>
+
+<div class="meta-line">Broker Name <strong>{%= broker_name %}</strong></div>
+<div class="meta-line">FROM <strong>{%= from_date %}</strong> TO <strong>{%= to_date %}</strong></div>
+
+<table class="data-table">
+	<thead>
+		<tr>
+			<th style="width: 18%;">Party Name</th>
+			<th style="width: 10%;">Voucher Type</th>
+			<th style="width: 8%;">Bill Date</th>
+			<th style="width: 10%;">Bill Number</th>
+			<th style="width: 8%;">Quantity</th>
+			<th style="width: 7%;" class="text-right">Quantity Value</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for (let i = 0; i < data.length; i++) { %}
+			{% const row = data[i] || {}; %}
+			{% const amount = flt(row.amount); %}
+			{% total_amount += amount; %}
+			<tr>
+				<td>{%= row.customer || "" %}</td>
+				<td>Sales Invoice</td>
+				<td>{%= row.posting_date ? frappe.datetime.str_to_user(row.posting_date) : "" %}</td>
+				<td>{%= row.name || "" %}</td>
+				<td>{%= row.quantity ? format_number(row.quantity, null, 0) : "" %}</td>
+				<td class="text-right">{%= format_currency(amount, row.currency) %}</td>
+			</tr>
+		{% } %}
+		<tr class="footer-total">
+			<td colspan="4"></td>
+			<td>Total</td>
+			<td class="text-right">
+				{%= format_currency(total_amount, data.length ? data[0].currency : null) %}
+			</td>
+		</tr>
+	</tbody>
+</table>
