@@ -284,6 +284,7 @@
    "fieldname": "production_planning",
    "fieldtype": "Link",
    "label": "Production plan",
+   "link_filters": "[[\"Production Planning\",\"name\",\"like\",\"%Bright%\"]]",
    "options": "Production Planning"
   },
   {
@@ -303,7 +304,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-04-18 12:15:21.748893",
+ "modified": "2026-04-18 12:29:13.343988",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Bright Bar Production",
