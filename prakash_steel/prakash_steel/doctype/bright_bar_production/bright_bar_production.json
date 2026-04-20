@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "format: {production_date} - {finished}-{material}-{fg_weight}",
  "creation": "2026-01-17 14:43:21.789195",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -8,12 +9,14 @@
   "section_break_t64h",
   "amended_from",
   "production_plan",
+  "production_planning",
   "column_break_diqx",
   "production_date",
   "shift_type",
   "custom_posting_time",
   "raw_material_details_section",
   "raw_material",
+  "material",
   "column_break_xzpd",
   "actual_rm_consumption",
   "column_break_vvxp",
@@ -32,6 +35,7 @@
   "column_break_ihke",
   "finished_goods_details_section",
   "finished_good",
+  "finished",
   "fg_target_warehouse",
   "column_break_pefo",
   "fg_weight",
@@ -74,7 +78,7 @@
    "fieldname": "raw_material",
    "fieldtype": "Select",
    "label": "Raw Material",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "raw_material_details_section",
@@ -102,7 +106,7 @@
    "label": "Production Plan",
    "link_filters": "[[\"Production Plan\",\"name\",\"like\",\"%Bright%\"]]",
    "options": "Production Plan",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "column_break_diqx",
@@ -143,7 +147,7 @@
    "fieldname": "finished_good",
    "fieldtype": "Select",
    "label": "Finished Good",
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "column_break_pefo",
@@ -276,16 +280,36 @@
    "fieldtype": "Time",
    "label": "Posting Time",
    "reqd": 1
+  },
+  {
+   "fieldname": "production_planning",
+   "fieldtype": "Link",
+   "label": "Production plan",
+   "link_filters": "[[\"Production Planning\",\"name\",\"like\",\"%Bright%\"]]",
+   "options": "Production Planning"
+  },
+  {
+   "fieldname": "material",
+   "fieldtype": "Select",
+   "label": "Raw Material",
+   "reqd": 1
+  },
+  {
+   "fieldname": "finished",
+   "fieldtype": "Select",
+   "label": "Finished Good",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-04-07 14:27:17.701753",
+ "modified": "2026-04-18 15:32:38.536308",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Bright Bar Production",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -303,6 +327,7 @@
   }
  ],
  "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

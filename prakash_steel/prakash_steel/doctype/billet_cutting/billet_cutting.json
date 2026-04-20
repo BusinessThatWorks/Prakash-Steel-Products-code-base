@@ -9,10 +9,12 @@
   "section_break_qymz",
   "amended_from",
   "production_plan",
+  "production_planning",
   "column_break_jvar",
   "shift_type",
   "section_break_jals",
   "posting_date",
+  "billet",
   "billet_size",
   "finish_size",
   "column_break_tioi",
@@ -60,9 +62,9 @@
   },
   {
    "fieldname": "billet_size",
-   "fieldtype": "Select",
-   "in_list_view": 1,
+   "fieldtype": "Data",
    "label": "Billet Size",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -170,7 +172,8 @@
    "fieldtype": "Link",
    "label": "Production Plan",
    "link_filters": "[[\"Production Plan\",\"name\",\"like\",\"%Rolled%\"]]",
-   "options": "Production Plan"
+   "options": "Production Plan",
+   "read_only": 1
   },
   {
    "fieldname": "billet_details_section",
@@ -193,6 +196,7 @@
    "fieldtype": "Link",
    "label": "Finish Size",
    "options": "Item",
+   "read_only": 1,
    "reqd": 1
   },
   {
@@ -222,13 +226,27 @@
    "fieldtype": "Data",
    "label": "Shift Type",
    "read_only": 1
+  },
+  {
+   "fieldname": "billet",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Billet Size",
+   "read_only": 1
+  },
+  {
+   "fieldname": "production_planning",
+   "fieldtype": "Link",
+   "label": "Production Planning",
+   "options": "Production Planning",
+   "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-03-23 21:11:32.661406",
+ "modified": "2026-04-18 11:30:57.790151",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Billet Cutting",

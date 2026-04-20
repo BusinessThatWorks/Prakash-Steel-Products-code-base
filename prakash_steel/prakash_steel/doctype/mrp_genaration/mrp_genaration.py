@@ -810,6 +810,7 @@ def create_material_request(item_code, qty):
 						"stock_uom": stock_uom,
 						"conversion_factor": conversion_factor,
 						"warehouse": warehouse,
+						"custom_finished_size": "",
 					}
 				],
 			}
@@ -2111,14 +2112,14 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 		demand_horizon = spike_config["demand_horizon"]
 		spike_threshold_pct = spike_config["spike_threshold"]
 
-		# Calculate date range:
-		# - If demand_horizon > 0: tomorrow to (today + demand_horizon)
-		# - If demand_horizon is 0 or empty: ALL future SOs (delivery_date > today)
+		# If demand_horizon is 0, spike is disabled for this item type
+		if not demand_horizon or demand_horizon <= 0:
+			for item_info in items_list:
+				spike_map[item_info["item_code"]] = 0.0
+			continue
+
 		start_date = add_days(today_date, 1)  # Tomorrow
-		if demand_horizon and demand_horizon > 0:
-			end_date = add_days(today_date, demand_horizon)  # Today + demand_horizon
-		else:
-			end_date = None  # No upper limit (all future SOs)
+		end_date = add_days(today_date, demand_horizon)  # Today + demand_horizon
 
 		# Get item codes for this item_type
 		item_codes_for_type = [item["item_code"] for item in items_list]
@@ -2210,17 +2211,13 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 				spike_map[item_code] = 0.0
 				continue
 
-			# Extract quantities and find all sales orders with qty >= spike_threshold_qty
-			so_qtys = [so_data["qty"] for so_data in so_data_list]
-			qualifying_qtys = [qty for qty in so_qtys if qty >= spike_threshold_qty]
+				# Sum ALL future SO qty within demand horizon, then compare total against threshold
+			total_future_qty = sum(so_data["qty"] for so_data in so_data_list)
 
-			if not qualifying_qtys:
-				# No qualifying sales orders, spike = 0
-				spike_map[item_code] = 0.0
+			if total_future_qty >= spike_threshold_qty:
+				spike_map[item_code] = total_future_qty
 			else:
-				# Take SUM of qualifying sales orders (all spikes within horizon)
-				spike_value = sum(qualifying_qtys)
-				spike_map[item_code] = spike_value
+				spike_map[item_code] = 0.0
 
 	# IMPORTANT: Set spike = 0 for all non-buffer items (safety)
 	for item_code in item_codes:

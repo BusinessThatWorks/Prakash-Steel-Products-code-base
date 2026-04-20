@@ -72,36 +72,18 @@ frappe.ui.form.on("Finish Weight", {
         }
     },
     refresh: function(frm) {
-        console.log("Finish Weight - refresh called");
-        console.log("Finish Weight Document:", frm.doc.name);
-        console.log("Item Code:", frm.doc.item_code);
-        console.log("Finish Weight:", frm.doc.finish_weight);
-        console.log("FG Target Warehouse:", frm.doc.fg_target_warehouse);
-        console.log("FG Per Pcs Weight:", frm.doc.fg_per_pcs_weight);
-        // Recalculate on refresh if billet_cutting_id is already set
-        if (frm.doc.billet_cutting_id) {
-            calculate_finish_pcs_from_hourly_production(frm).then(function() {
-                // After finish_pcs is calculated, calculate fg_per_pcs_weight if finish_weight exists
-                if (frm.doc.finish_weight && frm.doc.finish_pcs && frm.doc.finish_pcs > 0) {
-                    let fg_per_pcs_weight = frm.doc.finish_weight / frm.doc.finish_pcs;
-                    // Round to 2 decimal places
-                    fg_per_pcs_weight = Math.round(fg_per_pcs_weight * 100) / 100;
-                    console.log("Calculating fg_per_pcs_weight on refresh - Original:", frm.doc.finish_weight / frm.doc.finish_pcs, "Rounded to 2 decimals:", fg_per_pcs_weight);
-                    frm.set_value("fg_per_pcs_weight", fg_per_pcs_weight);
-                }
-                // Calculate burning_loss_per on refresh
-                calculate_burning_loss_per(frm);
-            });
-        } else if (frm.doc.finish_weight && frm.doc.finish_pcs && frm.doc.finish_pcs > 0) {
-            // If no billet_cutting_id but we have values, just calculate fg_per_pcs_weight
-            let fg_per_pcs_weight = frm.doc.finish_weight / frm.doc.finish_pcs;
-            // Round to 2 decimal places
-            fg_per_pcs_weight = Math.round(fg_per_pcs_weight * 100) / 100;
-            console.log("Calculating fg_per_pcs_weight on refresh (no billet_cutting_id) - Original:", frm.doc.finish_weight / frm.doc.finish_pcs, "Rounded to 2 decimals:", fg_per_pcs_weight);
-            frm.set_value("fg_per_pcs_weight", fg_per_pcs_weight);
-        } else {
-            // Calculate burning_loss_per on refresh even if no billet_cutting_id (will handle it in the function)
-            calculate_burning_loss_per(frm);
+        // Do NOT call set_value here — it marks the form dirty and hides the Submit button.
+        // Calculations are triggered by field change handlers (billet_cutting_id, finish_weight, etc.)
+        // Only recalculate for new unsaved docs.
+        if (frm.is_new()) {
+            if (frm.doc.billet_cutting_id) {
+                calculate_finish_pcs_from_hourly_production(frm).then(function() {
+                    if (frm.doc.finish_weight && frm.doc.finish_pcs && frm.doc.finish_pcs > 0) {
+                        frm.set_value("fg_per_pcs_weight", Math.round((frm.doc.finish_weight / frm.doc.finish_pcs) * 100) / 100);
+                    }
+                    calculate_burning_loss_per(frm);
+                });
+            }
         }
     },
     before_save: function(frm) {
@@ -299,7 +281,7 @@ function calculate_finish_pcs_from_hourly_production(frm) {
     });
 }
 
-function calculate_fg_weight(frm, cdt, cdn) {
+function calculate_fg_weight(_frm, cdt, cdn) {
     let row = frappe.get_doc(cdt, cdn);
     if (row.finish_weight && row.finish_pcs) {
         let fg_per_pcs_weight = row.finish_weight / row.finish_pcs;

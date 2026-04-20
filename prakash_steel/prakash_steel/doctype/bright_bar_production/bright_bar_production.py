@@ -12,7 +12,7 @@ class BrightBarProduction(Document):
 		"""Create Stock Entry on submit"""
 		try:
 			# Validate required fields
-			if not self.raw_material:
+			if not self.material:
 				frappe.throw(_("Raw Material is required to create Stock Entry"))
 
 			if not self.actual_rm_consumption or self.actual_rm_consumption <= 0:
@@ -21,7 +21,7 @@ class BrightBarProduction(Document):
 			if not self.rm_source_warehouse:
 				frappe.throw(_("RM Source Warehouse is required to create Stock Entry"))
 
-			if not self.finished_good:
+			if not self.finished:
 				frappe.throw(_("Finished Good is required to create Stock Entry"))
 
 			if not self.fg_weight or self.fg_weight <= 0:
@@ -35,11 +35,11 @@ class BrightBarProduction(Document):
 			company = warehouse_doc.company
 
 			# Get item details for Raw Material UOM
-			rm_item_doc = frappe.get_doc("Item", self.raw_material)
+			rm_item_doc = frappe.get_doc("Item", self.material)
 			rm_stock_uom = rm_item_doc.stock_uom or "Kg"
 
 			# Get item details for Finished Good UOM
-			fg_item_doc = frappe.get_doc("Item", self.finished_good)
+			fg_item_doc = frappe.get_doc("Item", self.finished)
 			fg_stock_uom = fg_item_doc.stock_uom or "Kg"
 
 			# Get posting_date from production_date field
@@ -48,7 +48,7 @@ class BrightBarProduction(Document):
 			# Create Stock Entry with Manufacture type
 			items = [
 				{
-					"item_code": self.raw_material,
+					"item_code": self.material,
 					"qty": self.actual_rm_consumption,
 					"s_warehouse": self.rm_source_warehouse,
 					"t_warehouse": "",
@@ -58,7 +58,7 @@ class BrightBarProduction(Document):
 					"is_finished_item": 0,
 				},
 				{
-					"item_code": self.finished_good,
+					"item_code": self.finished,
 					"qty": self.fg_weight,
 					"s_warehouse": "",
 					"t_warehouse": self.fg_target_warehouse,
@@ -126,6 +126,9 @@ class BrightBarProduction(Document):
 			# Push FG weight to linked Production Plan Item row(s)
 			self.update_production_plan_qty_from_fg_weight()
 
+			# Update produced_qty in Production Planning FG Table
+			self.update_production_planning_produced_qty()
+
 			frappe.msgprint(
 				_("Stock Entry {0} created and submitted successfully").format(frappe.bold(stock_entry.name)),
 				indicator="green",
@@ -158,7 +161,7 @@ class BrightBarProduction(Document):
 		if not getattr(self, "production_plan", None):
 			return
 
-		if not getattr(self, "finished_good", None):
+		if not getattr(self, "finished", None):
 			return
 
 		if not getattr(self, "fg_weight", None) or self.fg_weight <= 0:
@@ -166,14 +169,14 @@ class BrightBarProduction(Document):
 
 		try:
 			# Fetch all Production Plan Item rows under this Production Plan
-			# in the `po_items` child table that match the finished_good.
+			# in the `po_items` child table that match the finished good.
 			rows = frappe.get_all(
 				"Production Plan Item",
 				filters={
 					"parent": self.production_plan,
 					"parenttype": "Production Plan",
 					"parentfield": "po_items",
-					"item_code": self.finished_good,
+					"item_code": self.finished,
 				},
 				fields=["name", "custom_production_qty"],
 			)
@@ -201,6 +204,31 @@ class BrightBarProduction(Document):
 				f"Error updating Production Plan Item custom_production_qty from Bright Bar Production {self.name}: {str(e)}",
 				"Bright Bar Production → Production Plan Qty Sync Error",
 			)
+
+	def update_production_planning_produced_qty(self):
+		"""Sum all submitted Bright Bar Production docs for this production_planning + finished
+		and write the total into produced_qty on the matching FG Table row."""
+		if not getattr(self, "production_planning", None):
+			return
+		if not getattr(self, "finished", None):
+			return
+
+		total = frappe.db.sql(
+			"""SELECT COALESCE(SUM(fg_weight), 0)
+			   FROM `tabBright Bar Production`
+			   WHERE production_planning = %s AND finished = %s AND docstatus = 1""",
+			(self.production_planning, self.finished),
+		)[0][0] or 0
+
+		rows = frappe.get_all(
+			"Production Planning FG Table",
+			filters={"parent": self.production_planning, "fg_item": self.finished},
+			fields=["name"],
+		)
+		for row in rows:
+			frappe.db.set_value("Production Planning FG Table", row.name, "produced_qty", total)
+
+		frappe.db.commit()
 
 	def before_cancel(self):
 		"""Prevent cancellation if linked Stock Entry is not cancelled.

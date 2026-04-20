@@ -121,6 +121,9 @@ class FinishWeight(Document):
 			# Push finish_weight to linked Production Plan Item row(s)
 			self.update_production_plan_qty_from_finish_weight()
 
+			# Update produced_qty in Production Planning FG Table
+			self.update_production_planning_produced_qty()
+
 			frappe.msgprint(
 				_("Stock Entry {0} created and submitted successfully").format(frappe.bold(stock_entry.name)),
 				indicator="green",
@@ -219,6 +222,31 @@ class FinishWeight(Document):
 				f"Error updating Production Plan Item custom_production_qty from Finish Weight {self.name}: {str(e)}",
 				"Finish Weight → Production Plan Qty Sync Error",
 			)
+
+	def update_production_planning_produced_qty(self):
+		"""Sum all submitted Finish Weight docs for this production_planning + item_code
+		and write the total into produced_qty on the matching FG Table row."""
+		if not getattr(self, "production_planning", None):
+			return
+		if not getattr(self, "item_code", None):
+			return
+
+		total = frappe.db.sql(
+			"""SELECT COALESCE(SUM(finish_weight), 0)
+			   FROM `tabFinish Weight`
+			   WHERE production_planning = %s AND item_code = %s AND docstatus = 1""",
+			(self.production_planning, self.item_code),
+		)[0][0] or 0
+
+		rows = frappe.get_all(
+			"Production Planning FG Table",
+			filters={"parent": self.production_planning, "fg_item": self.item_code},
+			fields=["name"],
+		)
+		for row in rows:
+			frappe.db.set_value("Production Planning FG Table", row.name, "produced_qty", total)
+
+		frappe.db.commit()
 
 	def before_cancel(self):
 		"""Block cancel if linked Stock Entry is still active."""
