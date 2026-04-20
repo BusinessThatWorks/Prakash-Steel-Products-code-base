@@ -1991,7 +1991,6 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 			continue
 
 		demand_horizon = spike_config["demand_horizon"]
-		spike_threshold_pct = spike_config["spike_threshold"]
 
 		# If demand_horizon is 0, spike is disabled for this item type
 		if not demand_horizon or demand_horizon <= 0:
@@ -2080,8 +2079,6 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 		# Calculate spike for each item
 		for item_info in items_list:
 			item_code = item_info["item_code"]
-			tog = item_info["tog"]
-			spike_threshold_qty = tog * spike_threshold_pct / 100
 
 			# Get sales orders for this item
 			so_data_list = so_by_item.get(item_code, [])
@@ -2090,13 +2087,10 @@ def calculate_spike_map(item_codes, item_buffer_map, item_type_map, item_tog_map
 				spike_map[item_code] = 0.0
 				continue
 
-				# Sum ALL future SO qty within demand horizon, then compare total against threshold
+			# Sum ALL future SO qty within demand horizon
+			# No threshold check here - combined (till_today + spike) is compared against threshold in get_qualified_demand_for_item
 			total_future_qty = sum(so_data["qty"] for so_data in so_data_list)
-
-			if total_future_qty >= spike_threshold_qty:
-				spike_map[item_code] = total_future_qty
-			else:
-				spike_map[item_code] = 0.0
+			spike_map[item_code] = total_future_qty
 
 	for item_code in item_codes:
 		if item_buffer_map.get(item_code, "Non-Buffer") != "Buffer":
