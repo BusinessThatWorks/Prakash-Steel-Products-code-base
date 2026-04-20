@@ -1,0 +1,238 @@
+<style>
+	@page {
+		size: A4;
+		margin: 6mm 8mm;
+	}
+
+	.print-format {
+		padding: 0;
+		font-size: 9pt !important;
+		color: #000;
+	}
+
+	.pf-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: flex-start;
+		margin-bottom: 0;
+		font-size: 9pt;
+		line-height: 1;
+	}
+
+	.pf-header-left strong {
+		font-weight: 700;
+	}
+
+	.pf-header-right {
+		text-align: right;
+		white-space: nowrap;
+	}
+
+	.pf-title {
+		text-align: center;
+		font-size: 12pt;
+		font-weight: 700;
+		margin: 0 0 1px 0;
+		letter-spacing: 0.02em;
+		line-height: 1;
+	}
+
+	.pf-table {
+		width: 100%;
+		border-collapse: collapse;
+		border-spacing: 0;
+		table-layout: fixed;
+	}
+
+	.pf-table th {
+		border-bottom: 1px solid #000;
+		padding: 0 2px 1px 2px;
+		font-weight: 700;
+		text-align: left;
+		vertical-align: bottom;
+		font-size: 9pt;
+		line-height: 1;
+	}
+
+	.pf-table th.col-amt,
+	.pf-table td.col-amt {
+		text-align: right;
+	}
+
+	.pf-table th.col-date,
+	.pf-table td.col-date {
+		width: 11%;
+	}
+
+	.pf-table th.col-ref,
+	.pf-table td.col-ref {
+		width: 16%;
+	}
+
+	.pf-table th.col-party,
+	.pf-table td.col-party {
+		width: 22%;
+	}
+
+	.pf-table th.col-due,
+	.pf-table td.col-due {
+		width: 18%;
+	}
+
+	.pf-table td {
+		padding: 0 2px;
+		vertical-align: top;
+		border: none;
+		font-size: 9pt;
+		line-height: 1;
+	}
+
+	/* space between Pending Amount (col 5) and Due on (col 6) */
+	.pf-table thead th:nth-child(5),
+	.pf-table tbody td:nth-child(5) {
+		padding-right: 10px;
+	}
+
+	.pf-table thead th:nth-child(6),
+	.pf-table tbody td:nth-child(6) {
+		padding-left: 6px;
+	}
+
+	tr.pf-party-row td {
+		padding: 0 2px;
+		vertical-align: top;
+		line-height: 1;
+	}
+
+	tr.pf-party-row td.col-party {
+		font-weight: 700;
+		text-align: left;
+	}
+
+	tr.pf-subtotal td {
+		font-weight: 700;
+		padding: 0 2px !important;
+		margin: 0;
+		font-size: 8.75pt;
+		line-height: 0.88;
+		vertical-align: top;
+		border-top: none;
+		border-bottom: none;
+	}
+
+	/* total row lines: Opening Amount → Due (cols 4–6); trim from the left */
+	tr.pf-subtotal td:nth-child(4),
+	tr.pf-subtotal td:nth-child(5),
+	tr.pf-subtotal td:nth-child(6) {
+		border-top: 1px solid #000;
+		border-bottom: 1px solid #000;
+	}
+
+	tr.pf-subtotal td:nth-child(5) {
+		padding-right: 10px !important;
+	}
+
+	tr.pf-subtotal td:nth-child(6) {
+		padding-left: 6px !important;
+	}
+
+</style>
+
+{% var territory_label = filters.territory ? filters.territory : ""; %}
+{% var period_text = ""; %}
+{% if filters.from_date && filters.to_date %}
+	{% period_text = frappe.datetime.str_to_user(filters.from_date) + " to " + frappe.datetime.str_to_user(filters.to_date); %}
+{% else %}
+	{% if filters.report_date %}
+		{% period_text = __("As on") + " " + frappe.datetime.str_to_user(filters.report_date); %}
+	{% endif %}
+{% endif %}
+
+{% var detail_rows = []; %}
+{% for rline in data %}
+	{% if rline && rline.party && rline.voucher_no %}
+		{% if !cint(rline.bold) %}
+			{% detail_rows.push(rline); %}
+		{% endif %}
+	{% endif %}
+{% endfor %}
+
+{% var party_order = []; %}
+{% var by_party = {}; %}
+{% for rline in detail_rows %}
+	{% var pk = rline.party; %}
+	{% if !by_party[pk] %}
+		{% by_party[pk] = []; %}
+		{% party_order.push(pk); %}
+	{% endif %}
+	{% by_party[pk].push(rline); %}
+{% endfor %}
+
+<div class="pf-header">
+	<div class="pf-header-left">
+		<div><strong>{%= __("Group") %}:</strong> {%= territory_label %}</div>
+		<div><strong>{%= __("Details of") %}:</strong> {%= __("Pending Bills") %}</div>
+	</div>
+	<div class="pf-header-right">{%= period_text %}</div>
+</div>
+
+<h1 class="pf-title">{%= title %}</h1>
+
+<table class="pf-table">
+	<thead>
+		<tr>
+			<th class="col-date">{%= __("Date") %}</th>
+			<th class="col-ref">{%= __("Ref. No.") %}</th>
+			<th class="col-party">Party&#39;s Name</th>
+			<th class="col-amt">{%= __("Opening Amount") %}</th>
+			<th class="col-amt">{%= __("Pending Amount") %}</th>
+			<th class="col-due">{%= __("Due on") %}</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% for pk in party_order %}
+			{% var prow = by_party[pk]; %}
+			{% var party_display = pk; %}
+			{% if prow.length && prow[0].customer_name %}
+				{% party_display = prow[0].customer_name; %}
+			{% endif %}
+			{% var sum_inv = 0; %}
+			{% var sum_out = 0; %}
+			{% var cur0 = prow.length ? (prow[0].currency || "") : ""; %}
+			<tr class="pf-party-row">
+				<td class="col-date"></td>
+				<td class="col-ref"></td>
+				<td class="col-party">{%= party_display %}</td>
+				<td class="col-amt"></td>
+				<td class="col-amt"></td>
+				<td class="col-due"></td>
+			</tr>
+			{% for d in prow %}
+				{% sum_inv = sum_inv + flt(d.invoiced); %}
+				{% sum_out = sum_out + flt(d.outstanding); %}
+				{% var cur = d.currency || cur0; %}
+				{% var ref_lines = d.voucher_no || ""; %}
+				<tr class="pf-detail">
+					<td class="col-date">{%= d.posting_date ? frappe.datetime.str_to_user(d.posting_date) : "" %}</td>
+					<td class="col-ref">{%= ref_lines %}</td>
+					<td class="col-party"></td>
+					<td class="col-amt">{%= format_currency(Math.abs(flt(d.invoiced)), cur) + " " + (flt(d.invoiced) >= 0 ? "Dr" : "Cr") %}</td>
+					<td class="col-amt">{%= format_currency(Math.abs(flt(d.outstanding)), cur) + " " + (flt(d.outstanding) >= 0 ? "Dr" : "Cr") %}</td>
+					<td class="col-due">{%= d.due_date ? frappe.datetime.str_to_user(d.due_date) : "" %}</td>
+				</tr>
+			{% endfor %}
+			<tr class="pf-subtotal">
+				<td class="col-date"></td>
+				<td class="col-ref"></td>
+				<td class="col-party"></td>
+				<td class="col-amt">{%= format_currency(Math.abs(flt(sum_inv)), cur0) + " " + (flt(sum_inv) >= 0 ? "Dr" : "Cr") %}</td>
+				<td class="col-amt">{%= format_currency(Math.abs(flt(sum_out)), cur0) + " " + (flt(sum_out) >= 0 ? "Dr" : "Cr") %}</td>
+				<td class="col-due"></td>
+			</tr>
+		{% endfor %}
+	</tbody>
+</table>
+
+<p class="text-right text-muted" style="margin:0;padding-top:1px;font-size:7.5pt;line-height:1;">
+	{%= __("Printed on") %} {%= frappe.datetime.str_to_user(frappe.datetime.now_datetime()) %}
+</p>
