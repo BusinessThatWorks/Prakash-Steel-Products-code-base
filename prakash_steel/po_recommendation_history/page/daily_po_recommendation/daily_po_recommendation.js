@@ -12,7 +12,10 @@ class DailyPORecommendation {
 	constructor(page) {
 		this.page = page;
 		this.active_sku_tab = "BBMTA";
+		this.active_main_tab = "po_recommendation";
 		this.data_cache = {};
+		// Last filters from Apply (or initial load); secondary tabs use these for API + headers.
+		this.last_applied = null;
 
 		this.render_layout();
 		this.setup_controls();
@@ -137,6 +140,21 @@ class DailyPORecommendation {
 							📊 PO Recommendation Report
 						</a>
 					</li>
+					<li class="nav-item">
+						<a class="nav-link main-tab-link" data-tab="open_so" href="#">
+							📋 Open SO Report
+						</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link main-tab-link" data-tab="open_po" href="#">
+							🛒 Open PO Report
+						</a>
+					</li>
+					<li class="nav-item">
+						<a class="nav-link main-tab-link" data-tab="stock_balance" href="#">
+							📦 Stock Balance Report
+						</a>
+					</li>
 				</ul>
 
 				<!-- Main Tab Content -->
@@ -144,8 +162,6 @@ class DailyPORecommendation {
 
 					<!-- PO Recommendation Tab -->
 					<div class="main-tab-pane active" data-pane="po_recommendation">
-
-						<!-- SKU Sub-tabs + Export button -->
 						<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
 							<ul class="nav nav-pills sku-tabs" style="flex-wrap:wrap; gap:6px; margin:0;">
 								${this.get_sku_types().map((sku, i) => `
@@ -157,13 +173,11 @@ class DailyPORecommendation {
 									</li>
 								`).join("")}
 							</ul>
-							<button class="btn btn-sm export-btn" style="display:flex; align-items:center; gap:6px; white-space:nowrap; padding:5px 14px;">
+							<button class="btn btn-sm export-btn po-export-btn" style="display:flex; align-items:center; gap:6px; white-space:nowrap; padding:5px 14px;">
 								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
 								Export Excel
 							</button>
 						</div>
-
-						<!-- Table Area -->
 						<div class="sku-table-wrapper">
 							<div class="sku-loading" style="display:none; text-align:center; padding:50px; color:#4361ee;">
 								<div style="font-size:28px; margin-bottom:8px;">⏳</div>
@@ -174,6 +188,69 @@ class DailyPORecommendation {
 								<span style="font-size:13px;">No data found for selected date.</span>
 							</div>
 							<div class="sku-table-area"></div>
+						</div>
+					</div>
+
+					<!-- Open SO Tab -->
+					<div class="main-tab-pane" data-pane="open_so" style="display:none;">
+						<div style="display:flex; align-items:center; justify-content:flex-end; margin-bottom:14px;">
+							<button class="btn btn-sm export-btn so-export-btn" style="display:flex; align-items:center; gap:6px; white-space:nowrap; padding:5px 14px;">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+								Export Excel
+							</button>
+						</div>
+						<div class="so-table-wrapper">
+							<div class="so-loading" style="display:none; text-align:center; padding:50px; color:#0077b6;">
+								<div style="font-size:28px; margin-bottom:8px;">⏳</div>
+								<span style="font-size:13px; font-weight:600;">Loading data...</span>
+							</div>
+							<div class="so-no-data" style="display:none; text-align:center; padding:50px; color:#8d99a6;">
+								<div style="font-size:32px; margin-bottom:8px;">📭</div>
+								<span style="font-size:13px;">No data found for selected date.</span>
+							</div>
+							<div class="so-table-area"></div>
+						</div>
+					</div>
+
+					<!-- Open PO Tab -->
+					<div class="main-tab-pane" data-pane="open_po" style="display:none;">
+						<div style="display:flex; align-items:center; justify-content:flex-end; margin-bottom:14px;">
+							<button class="btn btn-sm export-btn open-po-export-btn" style="display:flex; align-items:center; gap:6px; white-space:nowrap; padding:5px 14px;">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+								Export Excel
+							</button>
+						</div>
+						<div class="open-po-table-wrapper">
+							<div class="open-po-loading" style="display:none; text-align:center; padding:50px; color:#e76f51;">
+								<div style="font-size:28px; margin-bottom:8px;">⏳</div>
+								<span style="font-size:13px; font-weight:600;">Loading data...</span>
+							</div>
+							<div class="open-po-no-data" style="display:none; text-align:center; padding:50px; color:#8d99a6;">
+								<div style="font-size:32px; margin-bottom:8px;">📭</div>
+								<span style="font-size:13px;">No data found for selected date.</span>
+							</div>
+							<div class="open-po-table-area"></div>
+						</div>
+					</div>
+
+					<!-- Stock Balance Tab -->
+					<div class="main-tab-pane" data-pane="stock_balance" style="display:none;">
+						<div style="display:flex; align-items:center; justify-content:flex-end; margin-bottom:14px;">
+							<button class="btn btn-sm export-btn stock-balance-export-btn" style="display:flex; align-items:center; gap:6px; white-space:nowrap; padding:5px 14px;">
+								<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+								Export Excel
+							</button>
+						</div>
+						<div class="stock-balance-table-wrapper">
+							<div class="stock-balance-loading" style="display:none; text-align:center; padding:50px; color:#0f766e;">
+								<div style="font-size:28px; margin-bottom:8px;">⏳</div>
+								<span style="font-size:13px; font-weight:600;">Loading data...</span>
+							</div>
+							<div class="stock-balance-no-data" style="display:none; text-align:center; padding:50px; color:#8d99a6;">
+								<div style="font-size:32px; margin-bottom:8px;">📭</div>
+								<span style="font-size:13px;">No data found for selected date.</span>
+							</div>
+							<div class="stock-balance-table-area"></div>
 						</div>
 					</div>
 
@@ -197,8 +274,7 @@ class DailyPORecommendation {
 			parent: $body.find(".snapshot-date-control")[0],
 			render_input: true,
 		});
-		const yesterday = frappe.datetime.add_days(frappe.datetime.get_today(), -1);
-		this.date_control.set_value(yesterday);
+		this.date_control.set_value(frappe.datetime.get_today());
 		// Remove the label Frappe auto-adds (we have our own)
 		$body.find(".snapshot-date-control .control-label").hide();
 
@@ -217,6 +293,11 @@ class DailyPORecommendation {
 			render_input: true,
 		});
 		$body.find(".item-code-control .control-label").hide();
+
+		this.last_applied = {
+			snapshot_date: this.date_control.get_value(),
+			item_code: this.item_control.get_value() || null,
+		};
 
 		// Apply button
 		$body.find(".apply-btn").on("click", () => {
@@ -240,6 +321,17 @@ class DailyPORecommendation {
 			$(e.currentTarget).addClass("active");
 			$body.find(".main-tab-pane").removeClass("active").hide();
 			$body.find(`.main-tab-pane[data-pane="${tab}"]`).addClass("active").show();
+			this.active_main_tab = tab;
+
+			if (tab === "open_so") {
+				this.load_so_data();
+			}
+			if (tab === "open_po") {
+				this.load_open_po_data();
+			}
+			if (tab === "stock_balance") {
+				this.load_stock_balance_data();
+			}
 		});
 
 		// SKU sub-tab click
@@ -252,9 +344,24 @@ class DailyPORecommendation {
 			this.render_table(sku);
 		});
 
-		// Export button
-		$body.on("click", ".export-btn", () => {
+		// PO Export button
+		$body.on("click", ".po-export-btn", () => {
 			this.export_to_excel();
+		});
+
+		// SO Export button
+		$body.on("click", ".so-export-btn", () => {
+			this.export_so_to_excel();
+		});
+
+		// Open PO Export button
+		$body.on("click", ".open-po-export-btn", () => {
+			this.export_open_po_to_excel();
+		});
+
+		// Stock Balance Export button
+		$body.on("click", ".stock-balance-export-btn", () => {
+			this.export_stock_balance_to_excel();
 		});
 	}
 
@@ -271,7 +378,207 @@ class DailyPORecommendation {
 			if (show_error) frappe.msgprint(__("Please select a Snapshot Date"));
 			return;
 		}
+		this.last_applied = { snapshot_date, item_code };
+		this.so_cache = null;
+		this.open_po_cache = null;
+		this.stock_balance_cache = null;
+
 		this.fetch_and_render(this.active_sku_tab, snapshot_date, item_code);
+
+		// If SO tab is visible, reload it too
+		if (this.active_main_tab === "open_so") {
+			this.load_so_data();
+		}
+		// If Open PO tab is visible, reload it too
+		if (this.active_main_tab === "open_po") {
+			this.load_open_po_data();
+		}
+		if (this.active_main_tab === "stock_balance") {
+			this.load_stock_balance_data();
+		}
+	}
+
+	load_so_data() {
+		if (!this.last_applied?.snapshot_date) return;
+		const { snapshot_date, item_code } = this.last_applied;
+
+		if (this.so_cache) {
+			this.render_so_table(this.so_cache);
+			return;
+		}
+
+		this.show_so_loading(true);
+
+		frappe.call({
+			method: "prakash_steel.po_recommendation_history.page.daily_po_recommendation.daily_po_recommendation.get_so_data",
+			args: { snapshot_date, item_code },
+			callback: (r) => {
+				this.show_so_loading(false);
+				if (r.message) {
+					this.so_cache = r.message;
+					this.render_so_table(r.message);
+				}
+			},
+			error: () => {
+				this.show_so_loading(false);
+				$(this.page.body).find(".so-no-data").show();
+			},
+		});
+	}
+
+	render_so_table(result) {
+		const snapshot_date = this.last_applied?.snapshot_date;
+		const $wrapper = $(this.page.body).find(".so-table-area");
+		const $no_data = $(this.page.body).find(".so-no-data");
+		$no_data.hide();
+
+		if (!result.data || result.data.length === 0) {
+			if (this.so_datatable) { this.so_datatable.destroy(); this.so_datatable = null; }
+			$wrapper.empty();
+			$no_data.show();
+			return;
+		}
+
+		const accent = "#0077b6";
+
+		$wrapper.html(`
+			<div style="
+				margin-bottom:8px;
+				padding:8px 14px;
+				background:linear-gradient(135deg, ${accent}18, ${accent}08);
+				border-left:4px solid ${accent};
+				border-radius:0 6px 6px 0;
+				display:flex; align-items:center; gap:10px;
+				font-size:12px;
+			">
+				<span style="font-weight:700; color:${accent}; font-size:13px;">Open SO Report</span>
+				<span style="color:#6c757d;">
+					${result.data.length} record${result.data.length !== 1 ? "s" : ""}
+					&nbsp;·&nbsp; Snapshot Date: <strong>${this.fmt_date(snapshot_date)}</strong>
+				</span>
+			</div>
+			<div class="so-dt-wrapper"></div>
+		`);
+
+		const order_status_map = {
+			BLACK:  { bg: "#000000", text: "#FFFFFF" },
+			RED:    { bg: "#FF0000", text: "#FFFFFF" },
+			YELLOW: { bg: "#FFFF00", text: "#000000" },
+		};
+		const fullkit_map = {
+			"Full-kit": { bg: "#00C853", text: "#FFFFFF" },
+			"Partial":  { bg: "#FF9800", text: "#FFFFFF" },
+			"Pending":  { bg: "#e63946", text: "#FFFFFF" },
+		};
+
+		const colour_badge = (value, map) => {
+			if (!value) return "";
+			const c = map[value];
+			if (!c) return value;
+			return `<span style="display:inline-block;background:${c.bg};color:${c.text};padding:2px 10px;border-radius:10px;font-weight:700;font-size:11px;white-space:nowrap;">${value}</span>`;
+		};
+
+		const dt_columns = result.columns.map(col => {
+			const base = {
+				id: col.fieldname,
+				name: col.label,
+				width: col.width || 120,
+				editable: false,
+				resizable: true,
+			};
+			if (col.fieldname === "sales_order") {
+				base.format = (value) => value
+					? `<a href="/app/sales-order/${encodeURIComponent(value)}" style="color:#0077b6;">${value}</a>`
+					: "";
+			} else if (col.fieldname === "so_date" || col.fieldname === "delivery_date") {
+				base.format = (value) => value ? this.fmt_date(value) : "";
+			} else if (col.fieldname === "item_code" || col.fieldname === "customer") {
+				const doctype = col.fieldname === "customer" ? "customer" : "item";
+				base.format = (value) => value
+					? `<a href="/app/${doctype}/${encodeURIComponent(value)}" style="color:#0077b6;">${value}</a>`
+					: "";
+			} else if (col.fieldname === "order_status") {
+				base.format = (value) => colour_badge(value, order_status_map);
+			} else if (col.fieldname === "line_fullkit" || col.fieldname === "order_fullkit") {
+				base.format = (value) => colour_badge(value, fullkit_map);
+			} else if (["Float", "Int", "Currency"].includes(col.fieldtype)) {
+				base.format = (value) => {
+					if (value === null || value === undefined || value === "") return "";
+					return frappe.format(value, { fieldtype: col.fieldtype });
+				};
+			}
+			return base;
+		});
+
+		const dt_data = result.data.map(row => {
+			const obj = {};
+			result.columns.forEach(col => { obj[col.fieldname] = row[col.fieldname] ?? ""; });
+			return obj;
+		});
+
+		if (this.so_datatable) { this.so_datatable.destroy(); this.so_datatable = null; }
+
+		const container = $wrapper.find(".so-dt-wrapper")[0];
+		this.so_datatable = new DataTable(container, {
+			columns: dt_columns,
+			data: dt_data,
+			inlineFilters: true,
+			layout: "fixed",
+			cellHeight: 32,
+			serialNoColumn: false,
+			checkboxColumn: false,
+			language: frappe.boot.lang,
+			translations: frappe.utils.datatable.get_translations(),
+			noDataMessage: __("No data found"),
+		});
+	}
+
+	show_so_loading(state) {
+		const $loading = $(this.page.body).find(".so-loading");
+		const $area = $(this.page.body).find(".so-table-area");
+		if (state) { $loading.show(); $area.empty(); }
+		else { $loading.hide(); }
+	}
+
+	export_so_to_excel() {
+		if (!this.last_applied?.snapshot_date) {
+			frappe.msgprint(__("Please select a Snapshot Date and click Apply first"));
+			return;
+		}
+		const { snapshot_date, item_code } = this.last_applied;
+
+		const $btn = $(this.page.body).find(".so-export-btn");
+		$btn.prop("disabled", true).text("Exporting...");
+
+		frappe.call({
+			method: "prakash_steel.po_recommendation_history.page.daily_po_recommendation.daily_po_recommendation.export_so_xlsx",
+			args: { snapshot_date, item_code },
+			callback: (r) => {
+				$btn.prop("disabled", false).html(`
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+					Export Excel
+				`);
+				if (!r.message) return;
+				const { content, filename } = r.message;
+				const fmt_name = filename.replace(
+					/(\d{4})-(\d{2})-(\d{2})\.xlsx$/,
+					(_, y, m, d) => `${d}-${m}-${y.slice(2)}.xlsx`
+				);
+				const bytes = Uint8Array.from(atob(content), c => c.charCodeAt(0));
+				const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement("a");
+				link.href = url; link.download = fmt_name;
+				document.body.appendChild(link); link.click();
+				document.body.removeChild(link); URL.revokeObjectURL(url);
+			},
+			error: () => {
+				$btn.prop("disabled", false).html(`
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+					Export Excel
+				`);
+			},
+		});
 	}
 
 	fetch_and_render(sku_type, snapshot_date, item_code) {
@@ -440,6 +747,352 @@ class DailyPORecommendation {
 	show_no_data() {
 		$(this.page.body).find(".sku-no-data").show();
 		$(this.page.body).find(".sku-table-area").empty();
+	}
+
+	load_open_po_data() {
+		if (!this.last_applied?.snapshot_date) return;
+		const { snapshot_date, item_code } = this.last_applied;
+
+		if (this.open_po_cache) {
+			this.render_open_po_table(this.open_po_cache);
+			return;
+		}
+
+		this.show_open_po_loading(true);
+
+		frappe.call({
+			method: "prakash_steel.po_recommendation_history.page.daily_po_recommendation.daily_po_recommendation.get_open_po_data",
+			args: { snapshot_date, item_code },
+			callback: (r) => {
+				this.show_open_po_loading(false);
+				if (r.message) {
+					this.open_po_cache = r.message;
+					this.render_open_po_table(r.message);
+				}
+			},
+			error: () => {
+				this.show_open_po_loading(false);
+				$(this.page.body).find(".open-po-no-data").show();
+			},
+		});
+	}
+
+	render_open_po_table(result) {
+		const snapshot_date = this.last_applied?.snapshot_date;
+		const $wrapper = $(this.page.body).find(".open-po-table-area");
+		const $no_data = $(this.page.body).find(".open-po-no-data");
+		$no_data.hide();
+
+		if (!result.data || result.data.length === 0) {
+			if (this.open_po_datatable) { this.open_po_datatable.destroy(); this.open_po_datatable = null; }
+			$wrapper.empty();
+			$no_data.show();
+			return;
+		}
+
+		const accent = "#e76f51";
+		const link_text_black = "#212529";
+
+		$wrapper.html(`
+			<div style="
+				margin-bottom:8px;
+				padding:8px 14px;
+				background:linear-gradient(135deg, ${accent}18, ${accent}08);
+				border-left:4px solid ${accent};
+				border-radius:0 6px 6px 0;
+				display:flex; align-items:center; gap:10px;
+				font-size:12px;
+			">
+				<span style="font-weight:700; color:${accent}; font-size:13px;">Open PO Report</span>
+				<span style="color:#6c757d;">
+					${result.data.length} record${result.data.length !== 1 ? "s" : ""}
+					&nbsp;·&nbsp; Snapshot Date: <strong>${this.fmt_date(snapshot_date)}</strong>
+				</span>
+			</div>
+			<div class="open-po-dt-wrapper"></div>
+		`);
+
+		const dt_columns = result.columns.map(col => {
+			const base = {
+				id: col.fieldname,
+				name: col.label,
+				width: col.width || 120,
+				editable: false,
+				resizable: true,
+			};
+			if (col.fieldname === "purchase_order") {
+				base.format = (value) => value
+					? `<a href="/app/purchase-order/${encodeURIComponent(value)}" style="color:${link_text_black};">${value}</a>`
+					: "";
+			} else if (col.fieldname === "po_date" || col.fieldname === "required_date") {
+				base.format = (value) => value ? this.fmt_date(value) : "";
+			} else if (col.fieldname === "item_code") {
+				base.format = (value) => value
+					? `<a href="/app/item/${encodeURIComponent(value)}" style="color:${link_text_black};">${value}</a>`
+					: "";
+			} else if (col.fieldname === "supplier") {
+				base.format = (value) => value
+					? `<a href="/app/supplier/${encodeURIComponent(value)}" style="color:${link_text_black};">${value}</a>`
+					: "";
+			} else if (col.fieldname === "project") {
+				base.format = (value) => value
+					? `<a href="/app/project/${encodeURIComponent(value)}" style="color:${accent};">${value}</a>`
+					: "";
+			} else if (col.fieldname === "company") {
+				base.format = (value) => value
+					? `<a href="/app/company/${encodeURIComponent(value)}" style="color:${accent};">${value}</a>`
+					: "";
+			} else if (col.fieldname === "warehouse") {
+				base.format = (value) => value
+					? `<a href="/app/warehouse/${encodeURIComponent(value)}" style="color:${accent};">${value}</a>`
+					: "";
+			} else if (["Float", "Int", "Currency"].includes(col.fieldtype)) {
+				base.format = (value) => {
+					if (value === null || value === undefined || value === "") return "";
+					return frappe.format(value, { fieldtype: col.fieldtype });
+				};
+			}
+			return base;
+		});
+
+		const dt_data = result.data.map(row => {
+			const obj = {};
+			result.columns.forEach(col => { obj[col.fieldname] = row[col.fieldname] ?? ""; });
+			return obj;
+		});
+
+		if (this.open_po_datatable) { this.open_po_datatable.destroy(); this.open_po_datatable = null; }
+
+		const container = $wrapper.find(".open-po-dt-wrapper")[0];
+		this.open_po_datatable = new DataTable(container, {
+			columns: dt_columns,
+			data: dt_data,
+			inlineFilters: true,
+			layout: "fixed",
+			cellHeight: 32,
+			serialNoColumn: false,
+			checkboxColumn: false,
+			language: frappe.boot.lang,
+			translations: frappe.utils.datatable.get_translations(),
+			noDataMessage: __("No data found"),
+		});
+	}
+
+	show_open_po_loading(state) {
+		const $loading = $(this.page.body).find(".open-po-loading");
+		const $area = $(this.page.body).find(".open-po-table-area");
+		if (state) { $loading.show(); $area.empty(); }
+		else { $loading.hide(); }
+	}
+
+	load_stock_balance_data() {
+		if (!this.last_applied?.snapshot_date) return;
+		const { snapshot_date, item_code } = this.last_applied;
+
+		if (this.stock_balance_cache) {
+			this.render_stock_balance_table(this.stock_balance_cache);
+			return;
+		}
+
+		this.show_stock_balance_loading(true);
+
+		frappe.call({
+			method: "prakash_steel.po_recommendation_history.page.daily_po_recommendation.daily_po_recommendation.get_stock_balance_data",
+			args: { snapshot_date, item_code },
+			callback: (r) => {
+				this.show_stock_balance_loading(false);
+				if (r.message) {
+					this.stock_balance_cache = r.message;
+					this.render_stock_balance_table(r.message);
+				}
+			},
+			error: () => {
+				this.show_stock_balance_loading(false);
+				$(this.page.body).find(".stock-balance-no-data").show();
+			},
+		});
+	}
+
+	render_stock_balance_table(result) {
+		const snapshot_date = this.last_applied?.snapshot_date;
+		const $wrapper = $(this.page.body).find(".stock-balance-table-area");
+		const $no_data = $(this.page.body).find(".stock-balance-no-data");
+		$no_data.hide();
+
+		if (!result.data || result.data.length === 0) {
+			if (this.stock_balance_datatable) {
+				this.stock_balance_datatable.destroy();
+				this.stock_balance_datatable = null;
+			}
+			$wrapper.empty();
+			$no_data.show();
+			return;
+		}
+
+		const accent = "#0f766e";
+		const link_text_black = "#212529";
+
+		$wrapper.html(`
+			<div style="
+				margin-bottom:8px;
+				padding:8px 14px;
+				background:linear-gradient(135deg, ${accent}18, ${accent}08);
+				border-left:4px solid ${accent};
+				border-radius:0 6px 6px 0;
+				display:flex; align-items:center; gap:10px;
+				font-size:12px;
+			">
+				<span style="font-weight:700; color:${accent}; font-size:13px;">Stock Balance Report</span>
+				<span style="color:#6c757d;">
+					${result.data.length} record${result.data.length !== 1 ? "s" : ""}
+					&nbsp;·&nbsp; Snapshot Date: <strong>${this.fmt_date(snapshot_date)}</strong>
+				</span>
+			</div>
+			<div class="stock-balance-dt-wrapper"></div>
+		`);
+
+		const dt_columns = result.columns.map(col => {
+			const base = {
+				id: col.fieldname,
+				name: col.label,
+				width: col.width || 120,
+				editable: false,
+				resizable: true,
+			};
+			if (col.fieldname === "item_code") {
+				base.format = (value) => value
+					? `<a href="/app/item/${encodeURIComponent(value)}" style="color:${link_text_black};">${value}</a>`
+					: "";
+			} else if (col.fieldname === "item_group") {
+				base.format = (value) => value
+					? `<a href="/app/item-group/${encodeURIComponent(value)}" style="color:${link_text_black};">${value}</a>`
+					: "";
+			} else if (col.fieldname === "stock_uom") {
+				base.format = (value) => value
+					? `<a href="/app/uom/${encodeURIComponent(value)}" style="color:${link_text_black};">${value}</a>`
+					: "";
+			} else if (col.fieldtype === "Float") {
+				base.format = (value) => {
+					if (value === null || value === undefined || value === "") return "";
+					return frappe.format(value, { fieldtype: "Float" });
+				};
+			}
+			return base;
+		});
+
+		const dt_data = result.data.map(row => {
+			const obj = {};
+			result.columns.forEach(col => { obj[col.fieldname] = row[col.fieldname] ?? ""; });
+			return obj;
+		});
+
+		if (this.stock_balance_datatable) {
+			this.stock_balance_datatable.destroy();
+			this.stock_balance_datatable = null;
+		}
+
+		const container = $wrapper.find(".stock-balance-dt-wrapper")[0];
+		this.stock_balance_datatable = new DataTable(container, {
+			columns: dt_columns,
+			data: dt_data,
+			inlineFilters: true,
+			layout: "fixed",
+			cellHeight: 32,
+			serialNoColumn: false,
+			checkboxColumn: false,
+			language: frappe.boot.lang,
+			translations: frappe.utils.datatable.get_translations(),
+			noDataMessage: __("No data found"),
+		});
+	}
+
+	show_stock_balance_loading(state) {
+		const $loading = $(this.page.body).find(".stock-balance-loading");
+		const $area = $(this.page.body).find(".stock-balance-table-area");
+		if (state) { $loading.show(); $area.empty(); }
+		else { $loading.hide(); }
+	}
+
+	export_stock_balance_to_excel() {
+		if (!this.last_applied?.snapshot_date) {
+			frappe.msgprint(__("Please select a Snapshot Date and click Apply first"));
+			return;
+		}
+		const { snapshot_date, item_code } = this.last_applied;
+
+		const $btn = $(this.page.body).find(".stock-balance-export-btn");
+		$btn.prop("disabled", true).text("Exporting...");
+
+		frappe.call({
+			method: "prakash_steel.po_recommendation_history.page.daily_po_recommendation.daily_po_recommendation.export_stock_balance_xlsx",
+			args: { snapshot_date, item_code },
+			callback: (r) => {
+				$btn.prop("disabled", false).html(`
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+					Export Excel
+				`);
+				if (!r.message) return;
+				const { content, filename } = r.message;
+				const fmt_name = filename.replace(
+					/(\d{4})-(\d{2})-(\d{2})\.xlsx$/,
+					(_, y, m, d) => `${d}-${m}-${y.slice(2)}.xlsx`
+				);
+				const bytes = Uint8Array.from(atob(content), c => c.charCodeAt(0));
+				const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement("a");
+				link.href = url; link.download = fmt_name;
+				document.body.appendChild(link); link.click();
+				document.body.removeChild(link); URL.revokeObjectURL(url);
+			},
+			error: () => {
+				$btn.prop("disabled", false).html(`
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+					Export Excel
+				`);
+			},
+		});
+	}
+
+	export_open_po_to_excel() {
+		if (!this.last_applied?.snapshot_date) {
+			frappe.msgprint(__("Please select a Snapshot Date and click Apply first"));
+			return;
+		}
+		const { snapshot_date, item_code } = this.last_applied;
+
+		const $btn = $(this.page.body).find(".open-po-export-btn");
+		$btn.prop("disabled", true).text("Exporting...");
+
+		frappe.call({
+			method: "prakash_steel.po_recommendation_history.page.daily_po_recommendation.daily_po_recommendation.export_open_po_xlsx",
+			args: { snapshot_date, item_code },
+			callback: (r) => {
+				$btn.prop("disabled", false).html(`
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+					Export Excel
+				`);
+				if (!r.message) return;
+				const { content, filename } = r.message;
+				const fmt_name = filename.replace(
+					/(\d{4})-(\d{2})-(\d{2})\.xlsx$/,
+					(_, y, m, d) => `${d}-${m}-${y.slice(2)}.xlsx`
+				);
+				const bytes = Uint8Array.from(atob(content), c => c.charCodeAt(0));
+				const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+				const url = URL.createObjectURL(blob);
+				const link = document.createElement("a");
+				link.href = url; link.download = fmt_name;
+				document.body.appendChild(link); link.click();
+				document.body.removeChild(link); URL.revokeObjectURL(url);
+			},
+			error: () => {
+				$btn.prop("disabled", false).html(`
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+					Export Excel
+				`);
+			},
+		});
 	}
 
 	export_to_excel() {
