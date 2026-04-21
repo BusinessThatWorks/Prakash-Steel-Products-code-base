@@ -166,6 +166,72 @@ def get_sku_data(sku_type, snapshot_date, item_code=None):
 	return {"columns": columns, "data": data}
 
 
+SO_COLUMNS = [
+	{"label": "Sales Order",        "fieldname": "sales_order",         "fieldtype": "Link",     "options": "Sales Order", "width": 160},
+	{"label": "Order Status",       "fieldname": "order_status",        "fieldtype": "Data",     "width": 120},
+	{"label": "Status",             "fieldname": "status",              "fieldtype": "Data",     "width": 100},
+	{"label": "Customer",           "fieldname": "customer",            "fieldtype": "Link",     "options": "Customer", "width": 160},
+	{"label": "Item Code",          "fieldname": "item_code",           "fieldtype": "Link",     "options": "Item", "width": 160},
+	{"label": "SO Date",            "fieldname": "so_date",             "fieldtype": "Date",     "width": 100},
+	{"label": "Delivery Date",      "fieldname": "delivery_date",       "fieldtype": "Date",     "width": 110},
+	{"label": "Category",           "fieldname": "category_name",       "fieldtype": "Data",     "width": 120},
+	{"label": "Description",        "fieldname": "description",         "fieldtype": "Data",     "width": 180},
+	{"label": "Item Type",          "fieldname": "item_type",           "fieldtype": "Data",     "width": 100},
+	{"label": "SKU Type",           "fieldname": "sku_type",            "fieldtype": "Data",     "width": 90},
+	{"label": "Remaining Days",     "fieldname": "remaining_days",      "fieldtype": "Int",      "width": 120},
+	{"label": "Lead Time",          "fieldname": "lead_time",           "fieldtype": "Int",      "width": 90},
+	{"label": "Buffer Status (%)",  "fieldname": "buffer_status",       "fieldtype": "Data",     "width": 130},
+	{"label": "Warehouse",          "fieldname": "warehouse",           "fieldtype": "Link",     "options": "Warehouse", "width": 140},
+	{"label": "Stock",              "fieldname": "stock",               "fieldtype": "Float",    "width": 80},
+	{"label": "Stock Allocation",   "fieldname": "stock_allocation",    "fieldtype": "Float",    "width": 130},
+	{"label": "Shortage",           "fieldname": "shortage",            "fieldtype": "Float",    "width": 90},
+	{"label": "Line Fullkit",       "fieldname": "line_fullkit",        "fieldtype": "Data",     "width": 110},
+	{"label": "Order Fullkit",      "fieldname": "order_fullkit",       "fieldtype": "Data",     "width": 110},
+	{"label": "Order Qty",          "fieldname": "qty",                 "fieldtype": "Float",    "width": 90},
+	{"label": "Rate",               "fieldname": "rate",                "fieldtype": "Currency",  "width": 90},
+	{"label": "Delivered Qty",      "fieldname": "delivered_qty",       "fieldtype": "Float",    "width": 110},
+	{"label": "Qty to Deliver",     "fieldname": "pending_qty",         "fieldtype": "Float",    "width": 110},
+	{"label": "Billed Qty",         "fieldname": "billed_qty",          "fieldtype": "Float",    "width": 90},
+	{"label": "Qty to Bill",        "fieldname": "qty_to_bill",         "fieldtype": "Float",    "width": 90},
+	{"label": "Amount",             "fieldname": "amount",              "fieldtype": "Currency",  "width": 110},
+	{"label": "Billed Amount",      "fieldname": "billed_amount",       "fieldtype": "Currency",  "width": 120},
+	{"label": "Pending Amount",     "fieldname": "pending_amount",      "fieldtype": "Currency",  "width": 130},
+	{"label": "Amount Delivered",   "fieldname": "delivered_qty_amount","fieldtype": "Currency",  "width": 140},
+	{"label": "Payment Terms",      "fieldname": "payment_terms_template","fieldtype": "Data",   "width": 140},
+	{"label": "Special Condition",  "fieldname": "special_condition",   "fieldtype": "Data",     "width": 140},
+]
+
+SO_FIELDS = [c["fieldname"] for c in SO_COLUMNS]
+
+
+@frappe.whitelist()
+def get_so_data(snapshot_date, item_code=None):
+	snap = frappe.get_all(
+		"SO Recommendation Snapshot",
+		filters={"snapshot_date": snapshot_date, "status": "Success"},
+		fields=["name", "snapshot_time"],
+		order_by="snapshot_time desc",
+		limit=1,
+	)
+	if not snap:
+		return {"columns": SO_COLUMNS, "data": []}
+
+	snap = snap[0]
+	item_filters = {"parent": snap.name}
+	if item_code:
+		item_filters["item_code"] = item_code
+
+	rows = frappe.get_all(
+		"SO Recommendation Snapshot Item",
+		filters=item_filters,
+		fields=SO_FIELDS,
+		order_by="sales_order asc, item_code asc",
+	)
+
+	data = [dict(r) for r in rows]
+	return {"columns": SO_COLUMNS, "data": data}
+
+
 @frappe.whitelist()
 def export_sku_xlsx(sku_type, snapshot_date, item_code=None):
 	import base64
@@ -183,5 +249,160 @@ def export_sku_xlsx(sku_type, snapshot_date, item_code=None):
 	xlsx_file = make_xlsx(rows, sku_type)
 	return {
 		"filename": f"{sku_type}_Snapshot_{snapshot_date}.xlsx",
+		"content": base64.b64encode(xlsx_file.getvalue()).decode("utf-8"),
+	}
+
+
+@frappe.whitelist()
+def export_so_xlsx(snapshot_date, item_code=None):
+	import base64
+	from frappe.utils.xlsxutils import make_xlsx
+
+	result = get_so_data(snapshot_date, item_code)
+	columns = result["columns"]
+	data = result["data"]
+
+	rows = [[col["label"] for col in columns]]
+	for row in data:
+		rows.append([row.get(col["fieldname"], "") for col in columns])
+
+	xlsx_file = make_xlsx(rows, "Open SO Report")
+	return {
+		"filename": f"Open_SO_Report_{snapshot_date}.xlsx",
+		"content": base64.b64encode(xlsx_file.getvalue()).decode("utf-8"),
+	}
+
+
+OPEN_PO_COLUMNS = [
+	{"label": "Purchase Order",   "fieldname": "purchase_order",      "fieldtype": "Link",     "options": "Purchase Order", "width": 170},
+	{"label": "Status",           "fieldname": "status",              "fieldtype": "Data",     "width": 110},
+	{"label": "Supplier",         "fieldname": "supplier",            "fieldtype": "Link",     "options": "Supplier",       "width": 160},
+	{"label": "Item Code",        "fieldname": "item_code",           "fieldtype": "Link",     "options": "Item",           "width": 160},
+	{"label": "Category",         "fieldname": "category_name",       "fieldtype": "Data",     "width": 120},
+	{"label": "PO Date",          "fieldname": "po_date",             "fieldtype": "Date",     "width": 100},
+	{"label": "Required Date",    "fieldname": "required_date",       "fieldtype": "Date",     "width": 120},
+	{"label": "Lead Time",        "fieldname": "cf_lead_time",        "fieldtype": "Int",      "width": 90},
+	{"label": "Rate",             "fieldname": "rate",                "fieldtype": "Currency", "width": 100},
+	{"label": "Order Qty",        "fieldname": "qty",                 "fieldtype": "Float",    "width": 90},
+	{"label": "Received Qty",     "fieldname": "received_qty",        "fieldtype": "Float",    "width": 110},
+	{"label": "Pending Qty",      "fieldname": "pending_qty",         "fieldtype": "Float",    "width": 100},
+	{"label": "Billed Qty",       "fieldname": "billed_qty",          "fieldtype": "Float",    "width": 90},
+	{"label": "Qty to Bill",      "fieldname": "qty_to_bill",         "fieldtype": "Float",    "width": 90},
+	{"label": "Amount",           "fieldname": "amount",              "fieldtype": "Currency", "width": 110},
+	{"label": "Billed Amount",    "fieldname": "billed_amount",       "fieldtype": "Currency", "width": 120},
+	{"label": "Pending Amount",   "fieldname": "pending_amount",      "fieldtype": "Currency", "width": 130},
+	{"label": "Received Amount",  "fieldname": "received_qty_amount", "fieldtype": "Currency", "width": 130},
+	{"label": "Warehouse",        "fieldname": "warehouse",           "fieldtype": "Link",     "options": "Warehouse", "width": 140},
+	{"label": "Project",          "fieldname": "project",             "fieldtype": "Link",     "options": "Project",   "width": 120},
+	{"label": "Company",          "fieldname": "company",             "fieldtype": "Link",     "options": "Company",   "width": 140},
+]
+
+OPEN_PO_FIELDS = [c["fieldname"] for c in OPEN_PO_COLUMNS]
+
+
+@frappe.whitelist()
+def get_open_po_data(snapshot_date, item_code=None):
+	snap = frappe.get_all(
+		"Purchase Order Recommendation Snapshot",
+		filters={"snapshot_date": snapshot_date, "status": "Success"},
+		fields=["name", "snapshot_time"],
+		order_by="snapshot_time desc",
+		limit=1,
+	)
+	if not snap:
+		return {"columns": OPEN_PO_COLUMNS, "data": []}
+
+	snap = snap[0]
+	item_filters = {"parent": snap.name}
+	if item_code:
+		item_filters["item_code"] = item_code
+
+	rows = frappe.get_all(
+		"Purchase Order Recommendation Snapshot Item",
+		filters=item_filters,
+		fields=OPEN_PO_FIELDS,
+		order_by="purchase_order asc, item_code asc",
+	)
+
+	data = [dict(r) for r in rows]
+	return {"columns": OPEN_PO_COLUMNS, "data": data}
+
+
+@frappe.whitelist()
+def export_open_po_xlsx(snapshot_date, item_code=None):
+	import base64
+	from frappe.utils.xlsxutils import make_xlsx
+
+	result = get_open_po_data(snapshot_date, item_code)
+	columns = result["columns"]
+	data = result["data"]
+
+	rows = [[col["label"] for col in columns]]
+	for row in data:
+		rows.append([row.get(col["fieldname"], "") for col in columns])
+
+	xlsx_file = make_xlsx(rows, "Open PO Report")
+	return {
+		"filename": f"Open_PO_Report_{snapshot_date}.xlsx",
+		"content": base64.b64encode(xlsx_file.getvalue()).decode("utf-8"),
+	}
+
+
+STOCK_BALANCE_COLUMNS = [
+	{"label": "Item", "fieldname": "item_code", "fieldtype": "Link", "options": "Item", "width": 170},
+	{"label": "Item Name", "fieldname": "item_name", "fieldtype": "Data", "width": 220},
+	{"label": "Item Group", "fieldname": "item_group", "fieldtype": "Link", "options": "Item Group", "width": 140},
+	{"label": "Category Name", "fieldname": "category_name", "fieldtype": "Data", "width": 140},
+	{"label": "Stock UOM", "fieldname": "stock_uom", "fieldtype": "Link", "options": "UOM", "width": 100},
+	{"label": "Balance Qty", "fieldname": "balance_qty", "fieldtype": "Float", "width": 120},
+]
+
+STOCK_BALANCE_FIELDS = [c["fieldname"] for c in STOCK_BALANCE_COLUMNS]
+
+
+@frappe.whitelist()
+def get_stock_balance_data(snapshot_date, item_code=None):
+	snap = frappe.get_all(
+		"Stock Balance Snapshot",
+		filters={"snapshot_date": snapshot_date, "status": "Success"},
+		fields=["name", "snapshot_time"],
+		order_by="snapshot_time desc",
+		limit=1,
+	)
+	if not snap:
+		return {"columns": STOCK_BALANCE_COLUMNS, "data": []}
+
+	snap = snap[0]
+	item_filters = {"parent": snap.name}
+	if item_code:
+		item_filters["item_code"] = item_code
+
+	rows = frappe.get_all(
+		"Stock Balance Snapshot Item",
+		filters=item_filters,
+		fields=STOCK_BALANCE_FIELDS,
+		order_by="item_code asc",
+	)
+
+	data = [dict(r) for r in rows]
+	return {"columns": STOCK_BALANCE_COLUMNS, "data": data}
+
+
+@frappe.whitelist()
+def export_stock_balance_xlsx(snapshot_date, item_code=None):
+	import base64
+	from frappe.utils.xlsxutils import make_xlsx
+
+	result = get_stock_balance_data(snapshot_date, item_code)
+	columns = result["columns"]
+	data = result["data"]
+
+	rows = [[col["label"] for col in columns]]
+	for row in data:
+		rows.append([row.get(col["fieldname"], "") for col in columns])
+
+	xlsx_file = make_xlsx(rows, "Stock Balance Report")
+	return {
+		"filename": f"Stock_Balance_Report_{snapshot_date}.xlsx",
 		"content": base64.b64encode(xlsx_file.getvalue()).decode("utf-8"),
 	}

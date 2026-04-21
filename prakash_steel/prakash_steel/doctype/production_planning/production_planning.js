@@ -60,6 +60,26 @@ frappe.ui.form.on("Production Planning FG Table", {
         });
     },
 
+    default_bom: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        if (!row.default_bom) return;
+
+        frappe.call({
+            method: "prakash_steel.utils.lead_time.get_bom_details",
+            args: { bom_name: row.default_bom },
+            callback: function (r) {
+                if (!r.message) return;
+
+                frappe.model.set_value(cdt, cdn, "raw_material", r.message.raw_material);
+
+                let current_row = locals[cdt][cdn];
+                if (current_row.fg_production_qty) {
+                    _calc_rm_qty(cdt, cdn, current_row.fg_production_qty, r.message);
+                }
+            },
+        });
+    },
+
     fg_production_qty: function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
         if (!row.default_bom || !row.fg_production_qty) return;
