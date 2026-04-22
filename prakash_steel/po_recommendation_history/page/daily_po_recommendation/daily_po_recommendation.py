@@ -2,11 +2,11 @@ import frappe
 from frappe import _
 
 SKU_COMBO = {
-	"PTA":   {"purchase": 1, "sell": 0, "buffer_flag": 1},
-	"BOTA":  {"purchase": 1, "sell": 0, "buffer_flag": 1},
+	"PTA": {"purchase": 1, "sell": 0, "buffer_flag": 1},
+	"BOTA": {"purchase": 1, "sell": 0, "buffer_flag": 1},
 	"TRMTA": {"purchase": 1, "sell": 0, "buffer_flag": 1},
-	"PTO":   {"purchase": 1, "sell": 0, "buffer_flag": 0},
-	"BOTO":  {"purchase": 1, "sell": 0, "buffer_flag": 0},
+	"PTO": {"purchase": 1, "sell": 0, "buffer_flag": 0},
+	"BOTO": {"purchase": 1, "sell": 0, "buffer_flag": 0},
 	"TRMTO": {"purchase": 1, "sell": 0, "buffer_flag": 0},
 	"BBMTA": {"purchase": 0, "sell": 1, "buffer_flag": 1},
 	"RBMTA": {"purchase": 0, "sell": 1, "buffer_flag": 1},
@@ -20,64 +20,157 @@ BUFFER_SKUS = {"PTA", "BOTA", "TRMTA", "BBMTA", "RBMTA"}
 def get_columns(sku_type):
 	is_buffer = sku_type in BUFFER_SKUS
 	cols = [
-		{"label": _("Snapshot Time"),  "fieldname": "snapshot_time",  "fieldtype": "Data",  "width": 100},
-		{"label": _("Item Code"),       "fieldname": "item_code",       "fieldtype": "Link",  "options": "Item", "width": 160},
+		{"label": _("Snapshot Time"), "fieldname": "snapshot_time", "fieldtype": "Data", "width": 100},
+		{
+			"label": _("Item Code"),
+			"fieldname": "item_code",
+			"fieldtype": "Link",
+			"options": "Item",
+			"width": 160,
+		},
 	]
 
 	if is_buffer:
 		cols += [
-			{"label": _("TOG"),              "fieldname": "tog",              "fieldtype": "Float", "width": 80},
-			{"label": _("TOY"),              "fieldname": "toy",              "fieldtype": "Float", "width": 80},
-			{"label": _("TOR"),              "fieldname": "tor",              "fieldtype": "Float", "width": 80},
-			{"label": _("Qualified Demand"), "fieldname": "qualified_demand", "fieldtype": "Float", "width": 130},
-			{"label": _("Additional Demand"),"fieldname": "additional_demand","fieldtype": "Float", "width": 140},
+			{"label": _("TOG"), "fieldname": "tog", "fieldtype": "Float", "width": 80},
+			{"label": _("TOY"), "fieldname": "toy", "fieldtype": "Float", "width": 80},
+			{"label": _("TOR"), "fieldname": "tor", "fieldtype": "Float", "width": 80},
+			{"label": _("Open SO"), "fieldname": "open_so", "fieldtype": "Float", "width": 100},
+			{
+				"label": _("Qualified Demand"),
+				"fieldname": "qualified_demand",
+				"fieldtype": "Float",
+				"width": 130,
+			},
+			{
+				"label": _("Additional Demand"),
+				"fieldname": "additional_demand",
+				"fieldtype": "Float",
+				"width": 140,
+			},
 		]
 	else:
 		cols += [
-			{"label": _("Requirement"),        "fieldname": "requirement",        "fieldtype": "Float", "width": 110},
-			{"label": _("Total SO"),           "fieldname": "total_so",           "fieldtype": "Float", "width": 100},
-			{"label": _("Open SO (Qualified)"),"fieldname": "open_so_qualified",  "fieldtype": "Float", "width": 140},
+			{"label": _("Requirement"), "fieldname": "requirement", "fieldtype": "Float", "width": 110},
+			{"label": _("Total SO"),    "fieldname": "total_so",    "fieldtype": "Float", "width": 100},
+			{"label": _("Open SO"),     "fieldname": "open_so",     "fieldtype": "Float", "width": 100},
 		]
 
 	cols += [
-		{"label": _("On Hand Stock"),           "fieldname": "on_hand_stock",           "fieldtype": "Float", "width": 120},
-		{"label": _("WIP"),                     "fieldname": "wip",                     "fieldtype": "Float", "width": 80},
-		{"label": _("Open PO"),                 "fieldname": "open_po",                 "fieldtype": "Float", "width": 100},
-		{"label": _("Open Subcon PO"),          "fieldname": "open_subcon_po",          "fieldtype": "Float", "width": 130},
-		{"label": _("Net Flow"),                "fieldname": "net_flow",                "fieldtype": "Float", "width": 100},
+		{"label": _("On Hand Stock"), "fieldname": "on_hand_stock", "fieldtype": "Float", "width": 120},
+		{"label": _("WIP"), "fieldname": "wip", "fieldtype": "Float", "width": 80},
+		{"label": _("Open PO"), "fieldname": "open_po", "fieldtype": "Float", "width": 100},
+		{"label": _("Open Subcon PO"), "fieldname": "open_subcon_po", "fieldtype": "Float", "width": 130},
+		{"label": _("Net Flow"), "fieldname": "net_flow", "fieldtype": "Float", "width": 100},
 	]
 
 	if is_buffer:
 		cols += [
-			{"label": _("On Hand Status"),  "fieldname": "on_hand_status", "fieldtype": "Data", "width": 120},
-			{"label": _("On Hand Colour"),  "fieldname": "on_hand_colour", "fieldtype": "Data", "width": 120},
+			{"label": _("On Hand Status"), "fieldname": "on_hand_status", "fieldtype": "Data", "width": 120},
+			{"label": _("On Hand Colour"), "fieldname": "on_hand_colour", "fieldtype": "Data", "width": 120},
 		]
 
 	cols += [
-		{"label": _("Order Recommendation"),    "fieldname": "order_recommendation",    "fieldtype": "Float", "width": 170},
-		{"label": _("MRQ"),                     "fieldname": "mrq",                     "fieldtype": "Float", "width": 80},
-		{"label": _("Balance Order Rec"),       "fieldname": "balance_order_recommendation", "fieldtype": "Float", "width": 150},
-		{"label": _("Net Order Recommendation"),"fieldname": "net_order_recommendation","fieldtype": "Float", "width": 180},
-		{"label": _("MOQ"),                     "fieldname": "moq",                     "fieldtype": "Float", "width": 80},
-		{"label": _("Order Multiple Qty"),      "fieldname": "batch_size",              "fieldtype": "Float", "width": 130},
+		{
+			"label": _("Order Recommendation"),
+			"fieldname": "order_recommendation",
+			"fieldtype": "Float",
+			"width": 170,
+		},
+		{"label": _("MRQ"), "fieldname": "mrq", "fieldtype": "Float", "width": 80},
+		{
+			"label": _("Balance Order Rec"),
+			"fieldname": "balance_order_recommendation",
+			"fieldtype": "Float",
+			"width": 150,
+		},
+		{
+			"label": _("Net Order Recommendation"),
+			"fieldname": "net_order_recommendation",
+			"fieldtype": "Float",
+			"width": 180,
+		},
+		{"label": _("MOQ"), "fieldname": "moq", "fieldtype": "Float", "width": 80},
+		{"label": _("Order Multiple Qty"), "fieldname": "batch_size", "fieldtype": "Float", "width": 130},
 	]
 
 	if is_buffer:
 		cols += [
-			{"label": _("Prod Qty (Child Stock)"),           "fieldname": "production_qty_based_on_child_stock",                 "fieldtype": "Float", "width": 170},
-			{"label": _("Child Full Kit Status"),            "fieldname": "child_full_kit_status",                               "fieldtype": "Data",  "width": 150},
-			{"label": _("Prod Qty (Child Stock+WIP+PO)"),   "fieldname": "production_qty_based_on_child_stock_wip_open_po",     "fieldtype": "Float", "width": 200},
-			{"label": _("Child WIP+PO Full Kit Status"),    "fieldname": "child_wip_open_po_full_kit_status",                   "fieldtype": "Data",  "width": 180},
-			{"label": _("Child Item Code"),                 "fieldname": "child_item_code",                                     "fieldtype": "Link",  "options": "Item", "width": 150},
-			{"label": _("Child Item Type"),                 "fieldname": "child_item_type",                                     "fieldtype": "Data",  "width": 120},
-			{"label": _("Child SKU Type"),                  "fieldname": "child_sku_type",                                      "fieldtype": "Data",  "width": 110},
-			{"label": _("Child Requirement"),               "fieldname": "child_requirement",                                   "fieldtype": "Float", "width": 130},
-			{"label": _("Child Stock"),                     "fieldname": "child_stock",                                         "fieldtype": "Float", "width": 100},
-			{"label": _("Child Stock Soft Alloc"),          "fieldname": "child_stock_soft_allocation_qty",                     "fieldtype": "Float", "width": 150},
-			{"label": _("Child Stock Shortage"),            "fieldname": "child_stock_shortage",                                "fieldtype": "Float", "width": 140},
-			{"label": _("Child WIP+Open PO"),               "fieldname": "child_wip_open_po",                                   "fieldtype": "Float", "width": 130},
-			{"label": _("Child WIP+PO Soft Alloc"),         "fieldname": "child_wip_open_po_soft_allocation_qty",               "fieldtype": "Float", "width": 160},
-			{"label": _("Child WIP+PO Shortage"),           "fieldname": "child_wip_open_po_shortage",                          "fieldtype": "Float", "width": 150},
+			{
+				"label": _("Prod Qty (Child Stock)"),
+				"fieldname": "production_qty_based_on_child_stock",
+				"fieldtype": "Float",
+				"width": 170,
+			},
+			{
+				"label": _("Child Full Kit Status"),
+				"fieldname": "child_full_kit_status",
+				"fieldtype": "Data",
+				"width": 150,
+			},
+			{
+				"label": _("Prod Qty (Child Stock+WIP+PO)"),
+				"fieldname": "production_qty_based_on_child_stock_wip_open_po",
+				"fieldtype": "Float",
+				"width": 200,
+			},
+			{
+				"label": _("Child WIP+PO Full Kit Status"),
+				"fieldname": "child_wip_open_po_full_kit_status",
+				"fieldtype": "Data",
+				"width": 180,
+			},
+			{
+				"label": _("Child Item Code"),
+				"fieldname": "child_item_code",
+				"fieldtype": "Link",
+				"options": "Item",
+				"width": 150,
+			},
+			{
+				"label": _("Child Item Type"),
+				"fieldname": "child_item_type",
+				"fieldtype": "Data",
+				"width": 120,
+			},
+			{"label": _("Child SKU Type"), "fieldname": "child_sku_type", "fieldtype": "Data", "width": 110},
+			{
+				"label": _("Child Requirement"),
+				"fieldname": "child_requirement",
+				"fieldtype": "Float",
+				"width": 130,
+			},
+			{"label": _("Child Stock"), "fieldname": "child_stock", "fieldtype": "Float", "width": 100},
+			{
+				"label": _("Child Stock Soft Alloc"),
+				"fieldname": "child_stock_soft_allocation_qty",
+				"fieldtype": "Float",
+				"width": 150,
+			},
+			{
+				"label": _("Child Stock Shortage"),
+				"fieldname": "child_stock_shortage",
+				"fieldtype": "Float",
+				"width": 140,
+			},
+			{
+				"label": _("Child WIP+Open PO"),
+				"fieldname": "child_wip_open_po",
+				"fieldtype": "Float",
+				"width": 130,
+			},
+			{
+				"label": _("Child WIP+PO Soft Alloc"),
+				"fieldname": "child_wip_open_po_soft_allocation_qty",
+				"fieldtype": "Float",
+				"width": 160,
+			},
+			{
+				"label": _("Child WIP+PO Shortage"),
+				"fieldname": "child_wip_open_po_shortage",
+				"fieldtype": "Float",
+				"width": 150,
+			},
 		]
 
 	return cols
@@ -120,14 +213,29 @@ def get_sku_data(sku_type, snapshot_date, item_code=None):
 		item_filters["item_code"] = item_code
 
 	base_fields = [
-		"item_code", "requirement", "tog", "toy", "tor",
-		"open_so", "total_so", "open_so_qualified",
-		"on_hand_stock", "wip", "open_po", "open_subcon_po",
-		"qualified_demand", "additional_demand", "net_flow",
-		"on_hand_status", "on_hand_colour",
-		"order_recommendation", "mrq",
-		"balance_order_recommendation", "net_order_recommendation",
-		"moq", "batch_size",
+		"item_code",
+		"requirement",
+		"tog",
+		"toy",
+		"tor",
+		"open_so",
+		"total_so",
+		"open_so_qualified",
+		"on_hand_stock",
+		"wip",
+		"open_po",
+		"open_subcon_po",
+		"qualified_demand",
+		"additional_demand",
+		"net_flow",
+		"on_hand_status",
+		"on_hand_colour",
+		"order_recommendation",
+		"mrq",
+		"balance_order_recommendation",
+		"net_order_recommendation",
+		"moq",
+		"batch_size",
 	]
 
 	buffer_extra_fields = [
@@ -135,10 +243,15 @@ def get_sku_data(sku_type, snapshot_date, item_code=None):
 		"child_full_kit_status",
 		"production_qty_based_on_child_stock_wip_open_po",
 		"child_wip_open_po_full_kit_status",
-		"child_item_code", "child_item_type", "child_sku_type",
-		"child_requirement", "child_stock",
-		"child_stock_soft_allocation_qty", "child_stock_shortage",
-		"child_wip_open_po", "child_wip_open_po_soft_allocation_qty",
+		"child_item_code",
+		"child_item_type",
+		"child_sku_type",
+		"child_requirement",
+		"child_stock",
+		"child_stock_soft_allocation_qty",
+		"child_stock_shortage",
+		"child_wip_open_po",
+		"child_wip_open_po_soft_allocation_qty",
 		"child_wip_open_po_shortage",
 	]
 
@@ -167,38 +280,37 @@ def get_sku_data(sku_type, snapshot_date, item_code=None):
 
 
 SO_COLUMNS = [
-	{"label": "Sales Order",        "fieldname": "sales_order",         "fieldtype": "Link",     "options": "Sales Order", "width": 160},
-	{"label": "Order Status",       "fieldname": "order_status",        "fieldtype": "Data",     "width": 120},
-	{"label": "Status",             "fieldname": "status",              "fieldtype": "Data",     "width": 100},
-	{"label": "Customer",           "fieldname": "customer",            "fieldtype": "Link",     "options": "Customer", "width": 160},
-	{"label": "Item Code",          "fieldname": "item_code",           "fieldtype": "Link",     "options": "Item", "width": 160},
-	{"label": "SO Date",            "fieldname": "so_date",             "fieldtype": "Date",     "width": 100},
-	{"label": "Delivery Date",      "fieldname": "delivery_date",       "fieldtype": "Date",     "width": 110},
-	{"label": "Category",           "fieldname": "category_name",       "fieldtype": "Data",     "width": 120},
-	{"label": "Description",        "fieldname": "description",         "fieldtype": "Data",     "width": 180},
-	{"label": "Item Type",          "fieldname": "item_type",           "fieldtype": "Data",     "width": 100},
-	{"label": "SKU Type",           "fieldname": "sku_type",            "fieldtype": "Data",     "width": 90},
-	{"label": "Remaining Days",     "fieldname": "remaining_days",      "fieldtype": "Int",      "width": 120},
-	{"label": "Lead Time",          "fieldname": "lead_time",           "fieldtype": "Int",      "width": 90},
-	{"label": "Buffer Status (%)",  "fieldname": "buffer_status",       "fieldtype": "Data",     "width": 130},
-	{"label": "Warehouse",          "fieldname": "warehouse",           "fieldtype": "Link",     "options": "Warehouse", "width": 140},
-	{"label": "Stock",              "fieldname": "stock",               "fieldtype": "Float",    "width": 80},
-	{"label": "Stock Allocation",   "fieldname": "stock_allocation",    "fieldtype": "Float",    "width": 130},
-	{"label": "Shortage",           "fieldname": "shortage",            "fieldtype": "Float",    "width": 90},
-	{"label": "Line Fullkit",       "fieldname": "line_fullkit",        "fieldtype": "Data",     "width": 110},
-	{"label": "Order Fullkit",      "fieldname": "order_fullkit",       "fieldtype": "Data",     "width": 110},
-	{"label": "Order Qty",          "fieldname": "qty",                 "fieldtype": "Float",    "width": 90},
-	{"label": "Rate",               "fieldname": "rate",                "fieldtype": "Currency",  "width": 90},
-	{"label": "Delivered Qty",      "fieldname": "delivered_qty",       "fieldtype": "Float",    "width": 110},
-	{"label": "Qty to Deliver",     "fieldname": "pending_qty",         "fieldtype": "Float",    "width": 110},
-	{"label": "Billed Qty",         "fieldname": "billed_qty",          "fieldtype": "Float",    "width": 90},
-	{"label": "Qty to Bill",        "fieldname": "qty_to_bill",         "fieldtype": "Float",    "width": 90},
-	{"label": "Amount",             "fieldname": "amount",              "fieldtype": "Currency",  "width": 110},
-	{"label": "Billed Amount",      "fieldname": "billed_amount",       "fieldtype": "Currency",  "width": 120},
-	{"label": "Pending Amount",     "fieldname": "pending_amount",      "fieldtype": "Currency",  "width": 130},
-	{"label": "Amount Delivered",   "fieldname": "delivered_qty_amount","fieldtype": "Currency",  "width": 140},
-	{"label": "Payment Terms",      "fieldname": "payment_terms_template","fieldtype": "Data",   "width": 140},
-	{"label": "Special Condition",  "fieldname": "special_condition",   "fieldtype": "Data",     "width": 140},
+	{"label": "SO Date", "fieldname": "so_date", "fieldtype": "Date", "width": 100},
+	{"label": "Customer", "fieldname": "customer", "fieldtype": "Link", "options": "Customer", "width": 160},
+	{"label": "Item Code", "fieldname": "item_code", "fieldtype": "Link", "options": "Item", "width": 160},
+	{"label": "Order Qty", "fieldname": "qty", "fieldtype": "Float", "width": 90},
+	{"label": "Rate", "fieldname": "rate", "fieldtype": "Currency", "width": 90},
+	{"label": "Payment Terms", "fieldname": "payment_terms_template", "fieldtype": "Data", "width": 140},
+	{"label": "Lead Time", "fieldname": "lead_time", "fieldtype": "Int", "width": 90},
+	{"label": "Special Condition", "fieldname": "special_condition", "fieldtype": "Data", "width": 140},
+	{"label": "Status", "fieldname": "status", "fieldtype": "Data", "width": 100},
+	{
+		"label": "Sales Order",
+		"fieldname": "sales_order",
+		"fieldtype": "Link",
+		"options": "Sales Order",
+		"width": 160,
+	},
+	{"label": "Delivered Qty", "fieldname": "delivered_qty", "fieldtype": "Float", "width": 110},
+	{"label": "Delivery Date", "fieldname": "delivery_date", "fieldtype": "Date", "width": 110},
+	{"label": "Qty to Deliver", "fieldname": "pending_qty", "fieldtype": "Float", "width": 110},
+	{"label": "Item Type", "fieldname": "item_type", "fieldtype": "Data", "width": 100},
+	{"label": "SKU Type", "fieldname": "sku_type", "fieldtype": "Data", "width": 90},
+	{"label": "Remaining Days", "fieldname": "remaining_days", "fieldtype": "Int", "width": 120},
+	{"label": "Buffer Status (%)", "fieldname": "buffer_status", "fieldtype": "Data", "width": 130},
+	{"label": "Order Status", "fieldname": "order_status", "fieldtype": "Data", "width": 120},
+	{"label": "Stock", "fieldname": "stock", "fieldtype": "Float", "width": 80},
+	{"label": "Stock Allocation", "fieldname": "stock_allocation", "fieldtype": "Float", "width": 130},
+	{"label": "Shortage", "fieldname": "shortage", "fieldtype": "Float", "width": 90},
+	{"label": "Line Fullkit", "fieldname": "line_fullkit", "fieldtype": "Data", "width": 110},
+	{"label": "Order Fullkit", "fieldname": "order_fullkit", "fieldtype": "Data", "width": 110},
+	{"label": "Amount", "fieldname": "amount", "fieldtype": "Currency", "width": 110},
+	{"label": "Pending Amount", "fieldname": "pending_amount", "fieldtype": "Currency", "width": 130},
 ]
 
 SO_FIELDS = [c["fieldname"] for c in SO_COLUMNS]
@@ -274,27 +386,15 @@ def export_so_xlsx(snapshot_date, item_code=None):
 
 
 OPEN_PO_COLUMNS = [
-	{"label": "Purchase Order",   "fieldname": "purchase_order",      "fieldtype": "Link",     "options": "Purchase Order", "width": 170},
-	{"label": "Status",           "fieldname": "status",              "fieldtype": "Data",     "width": 110},
-	{"label": "Supplier",         "fieldname": "supplier",            "fieldtype": "Link",     "options": "Supplier",       "width": 160},
-	{"label": "Item Code",        "fieldname": "item_code",           "fieldtype": "Link",     "options": "Item",           "width": 160},
-	{"label": "Category",         "fieldname": "category_name",       "fieldtype": "Data",     "width": 120},
-	{"label": "PO Date",          "fieldname": "po_date",             "fieldtype": "Date",     "width": 100},
-	{"label": "Required Date",    "fieldname": "required_date",       "fieldtype": "Date",     "width": 120},
-	{"label": "Lead Time",        "fieldname": "cf_lead_time",        "fieldtype": "Int",      "width": 90},
-	{"label": "Rate",             "fieldname": "rate",                "fieldtype": "Currency", "width": 100},
-	{"label": "Order Qty",        "fieldname": "qty",                 "fieldtype": "Float",    "width": 90},
-	{"label": "Received Qty",     "fieldname": "received_qty",        "fieldtype": "Float",    "width": 110},
-	{"label": "Pending Qty",      "fieldname": "pending_qty",         "fieldtype": "Float",    "width": 100},
-	{"label": "Billed Qty",       "fieldname": "billed_qty",          "fieldtype": "Float",    "width": 90},
-	{"label": "Qty to Bill",      "fieldname": "qty_to_bill",         "fieldtype": "Float",    "width": 90},
-	{"label": "Amount",           "fieldname": "amount",              "fieldtype": "Currency", "width": 110},
-	{"label": "Billed Amount",    "fieldname": "billed_amount",       "fieldtype": "Currency", "width": 120},
-	{"label": "Pending Amount",   "fieldname": "pending_amount",      "fieldtype": "Currency", "width": 130},
-	{"label": "Received Amount",  "fieldname": "received_qty_amount", "fieldtype": "Currency", "width": 130},
-	{"label": "Warehouse",        "fieldname": "warehouse",           "fieldtype": "Link",     "options": "Warehouse", "width": 140},
-	{"label": "Project",          "fieldname": "project",             "fieldtype": "Link",     "options": "Project",   "width": 120},
-	{"label": "Company",          "fieldname": "company",             "fieldtype": "Link",     "options": "Company",   "width": 140},
+	{"label": "PO Date",        "fieldname": "po_date",                 "fieldtype": "Date",     "width": 100},
+	{"label": "Supplier",       "fieldname": "supplier",                "fieldtype": "Link",     "options": "Supplier", "width": 160},
+	{"label": "Item Code",      "fieldname": "item_code",               "fieldtype": "Link",     "options": "Item",     "width": 160},
+	{"label": "Order Qty",      "fieldname": "qty",                     "fieldtype": "Float",    "width": 90},
+	{"label": "Rate",           "fieldname": "rate",                    "fieldtype": "Currency", "width": 100},
+	{"label": "Lead Time",      "fieldname": "cf_lead_time",            "fieldtype": "Int",      "width": 90},
+	{"label": "Payment Terms",  "fieldname": "payment_terms_template",  "fieldtype": "Data",     "width": 140},
+	{"label": "Received Qty",   "fieldname": "received_qty",            "fieldtype": "Float",    "width": 110},
+	{"label": "Purchase Order", "fieldname": "purchase_order",          "fieldtype": "Link",     "options": "Purchase Order", "width": 170},
 ]
 
 OPEN_PO_FIELDS = [c["fieldname"] for c in OPEN_PO_COLUMNS]
@@ -317,14 +417,29 @@ def get_open_po_data(snapshot_date, item_code=None):
 	if item_code:
 		item_filters["item_code"] = item_code
 
+	# Fetch snapshot fields (excluding payment_terms_template which lives on PO itself)
+	snap_fields = [f for f in OPEN_PO_FIELDS if f != "payment_terms_template"]
 	rows = frappe.get_all(
 		"Purchase Order Recommendation Snapshot Item",
 		filters=item_filters,
-		fields=OPEN_PO_FIELDS,
+		fields=snap_fields,
 		order_by="purchase_order asc, item_code asc",
 	)
 
 	data = [dict(r) for r in rows]
+
+	# Fetch payment_terms_template from actual Purchase Order records
+	po_names = list({r["purchase_order"] for r in data if r.get("purchase_order")})
+	if po_names:
+		po_terms = frappe.get_all(
+			"Purchase Order",
+			filters={"name": ["in", po_names]},
+			fields=["name", "payment_terms_template"],
+		)
+		terms_map = {p["name"]: p.get("payment_terms_template") or "" for p in po_terms}
+		for row in data:
+			row["payment_terms_template"] = terms_map.get(row.get("purchase_order"), "")
+
 	return {"columns": OPEN_PO_COLUMNS, "data": data}
 
 
@@ -351,9 +466,9 @@ def export_open_po_xlsx(snapshot_date, item_code=None):
 STOCK_BALANCE_COLUMNS = [
 	{"label": "Item", "fieldname": "item_code", "fieldtype": "Link", "options": "Item", "width": 170},
 	{"label": "Item Name", "fieldname": "item_name", "fieldtype": "Data", "width": 220},
-	{"label": "Item Group", "fieldname": "item_group", "fieldtype": "Link", "options": "Item Group", "width": 140},
+	# {"label": "Item Group", "fieldname": "item_group", "fieldtype": "Link", "options": "Item Group", "width": 140},
 	{"label": "Category Name", "fieldname": "category_name", "fieldtype": "Data", "width": 140},
-	{"label": "Stock UOM", "fieldname": "stock_uom", "fieldtype": "Link", "options": "UOM", "width": 100},
+	# {"label": "Stock UOM", "fieldname": "stock_uom", "fieldtype": "Link", "options": "UOM", "width": 100},
 	{"label": "Balance Qty", "fieldname": "balance_qty", "fieldtype": "Float", "width": 120},
 ]
 
