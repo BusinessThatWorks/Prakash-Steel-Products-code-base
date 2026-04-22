@@ -15,6 +15,7 @@ SKU_COMBO = {
 }
 
 BUFFER_SKUS = {"PTA", "BOTA", "TRMTA", "BBMTA", "RBMTA"}
+CHILD_SKUS = {"BBMTA", "RBMTA", "BBMTO", "RBMTO"}  # SKUs that show child columns
 
 
 def get_columns(sku_type):
@@ -32,69 +33,40 @@ def get_columns(sku_type):
 
 	if is_buffer:
 		cols += [
-			{"label": _("TOG"), "fieldname": "tog", "fieldtype": "Float", "width": 80},
-			{"label": _("TOY"), "fieldname": "toy", "fieldtype": "Float", "width": 80},
-			{"label": _("TOR"), "fieldname": "tor", "fieldtype": "Float", "width": 80},
-			{"label": _("Open SO"), "fieldname": "open_so", "fieldtype": "Float", "width": 100},
-			{
-				"label": _("Qualified Demand"),
-				"fieldname": "qualified_demand",
-				"fieldtype": "Float",
-				"width": 130,
-			},
-			{
-				"label": _("Additional Demand"),
-				"fieldname": "additional_demand",
-				"fieldtype": "Float",
-				"width": 140,
-			},
+			{"label": _("TOG"),              "fieldname": "tog",              "fieldtype": "Float", "width": 80},
+			{"label": _("TOY"),              "fieldname": "toy",              "fieldtype": "Float", "width": 80},
+			{"label": _("TOR"),              "fieldname": "tor",              "fieldtype": "Float", "width": 80},
+			{"label": _("Open SO"),          "fieldname": "open_so",          "fieldtype": "Float", "width": 100},
+			{"label": _("On Hand Stock"),    "fieldname": "on_hand_stock",    "fieldtype": "Float", "width": 120},
+			{"label": _("WIP"),              "fieldname": "wip",              "fieldtype": "Float", "width": 80},
+			{"label": _("Open PO"),          "fieldname": "open_po",          "fieldtype": "Float", "width": 100},
+			{"label": _("Open Subcon PO"),   "fieldname": "open_subcon_po",   "fieldtype": "Float", "width": 130},
+			{"label": _("Qualified Demand"), "fieldname": "qualified_demand", "fieldtype": "Float", "width": 130},
+			{"label": _("On Hand Status"),   "fieldname": "on_hand_status",   "fieldtype": "Data",  "width": 120},
+			{"label": _("On Hand Colour"),   "fieldname": "on_hand_colour",   "fieldtype": "Data",  "width": 120},
+			{"label": _("Net Flow"),         "fieldname": "net_flow",         "fieldtype": "Float", "width": 100},
 		]
 	else:
 		cols += [
-			{"label": _("Requirement"), "fieldname": "requirement", "fieldtype": "Float", "width": 110},
-			{"label": _("Total SO"),    "fieldname": "total_so",    "fieldtype": "Float", "width": 100},
-			{"label": _("Open SO"),     "fieldname": "open_so",     "fieldtype": "Float", "width": 100},
+			{"label": _("Requirement"),    "fieldname": "requirement",    "fieldtype": "Float", "width": 110},
+			{"label": _("Total SO"),       "fieldname": "total_so",       "fieldtype": "Float", "width": 100},
+			{"label": _("Open SO"),        "fieldname": "open_so",        "fieldtype": "Float", "width": 100},
+			{"label": _("On Hand Stock"),  "fieldname": "on_hand_stock",  "fieldtype": "Float", "width": 120},
+			{"label": _("WIP"),            "fieldname": "wip",            "fieldtype": "Float", "width": 80},
+			{"label": _("Open PO"),        "fieldname": "open_po",        "fieldtype": "Float", "width": 100},
+			{"label": _("Open Subcon PO"), "fieldname": "open_subcon_po", "fieldtype": "Float", "width": 130},
 		]
 
 	cols += [
-		{"label": _("On Hand Stock"), "fieldname": "on_hand_stock", "fieldtype": "Float", "width": 120},
-		{"label": _("WIP"), "fieldname": "wip", "fieldtype": "Float", "width": 80},
-		{"label": _("Open PO"), "fieldname": "open_po", "fieldtype": "Float", "width": 100},
-		{"label": _("Open Subcon PO"), "fieldname": "open_subcon_po", "fieldtype": "Float", "width": 130},
-		{"label": _("Net Flow"), "fieldname": "net_flow", "fieldtype": "Float", "width": 100},
+		{"label": _("Order Recommendation"),    "fieldname": "order_recommendation",        "fieldtype": "Float", "width": 170},
+		{"label": _("MRQ"),                     "fieldname": "mrq",                         "fieldtype": "Float", "width": 80},
+		{"label": _("Balance Order Rec"),       "fieldname": "balance_order_recommendation", "fieldtype": "Float", "width": 150},
+		{"label": _("Net Order Recommendation"),"fieldname": "net_order_recommendation",    "fieldtype": "Float", "width": 180},
+		{"label": _("MOQ"),                     "fieldname": "moq",                         "fieldtype": "Float", "width": 80},
+		{"label": _("Order Multiple Qty"),      "fieldname": "batch_size",                  "fieldtype": "Float", "width": 130},
 	]
 
-	if is_buffer:
-		cols += [
-			{"label": _("On Hand Status"), "fieldname": "on_hand_status", "fieldtype": "Data", "width": 120},
-			{"label": _("On Hand Colour"), "fieldname": "on_hand_colour", "fieldtype": "Data", "width": 120},
-		]
-
-	cols += [
-		{
-			"label": _("Order Recommendation"),
-			"fieldname": "order_recommendation",
-			"fieldtype": "Float",
-			"width": 170,
-		},
-		{"label": _("MRQ"), "fieldname": "mrq", "fieldtype": "Float", "width": 80},
-		{
-			"label": _("Balance Order Rec"),
-			"fieldname": "balance_order_recommendation",
-			"fieldtype": "Float",
-			"width": 150,
-		},
-		{
-			"label": _("Net Order Recommendation"),
-			"fieldname": "net_order_recommendation",
-			"fieldtype": "Float",
-			"width": 180,
-		},
-		{"label": _("MOQ"), "fieldname": "moq", "fieldtype": "Float", "width": 80},
-		{"label": _("Order Multiple Qty"), "fieldname": "batch_size", "fieldtype": "Float", "width": 130},
-	]
-
-	if is_buffer:
+	if sku_type in CHILD_SKUS:
 		cols += [
 			{
 				"label": _("Prod Qty (Child Stock)"),
@@ -255,7 +227,7 @@ def get_sku_data(sku_type, snapshot_date, item_code=None):
 		"child_wip_open_po_shortage",
 	]
 
-	fields = base_fields + (buffer_extra_fields if is_buffer else [])
+	fields = base_fields + (buffer_extra_fields if sku_type in CHILD_SKUS else [])
 
 	rows = frappe.get_all(
 		"PO Recommendation Snapshot Item",
