@@ -63,6 +63,24 @@
 
 
 
+function set_last_rate_for_row(frm, cdt, cdn, item_code) {
+    if (!item_code) {
+        frappe.model.set_value(cdt, cdn, "custom_last_rate", 0);
+        return;
+    }
+
+    frappe.call({
+        method: "prakash_steel.api.get_last_purchase_invoice_rate.get_last_purchase_invoice_rate",
+        args: {
+            item_code: item_code,
+            company: frm.doc.company || ""
+        },
+        callback: function (r) {
+            frappe.model.set_value(cdt, cdn, "custom_last_rate", r.message || 0);
+        }
+    });
+}
+
 frappe.ui.form.on("Material Request", {
     refresh: function (frm) {
         // Clear cancel reason on amended drafts
@@ -77,6 +95,15 @@ frappe.ui.form.on("Material Request", {
         frm.doc.items.forEach(function (row) {
             console.log("Child row on refresh:", row.item_code, row.name);
         });
+    },
+    company: function (frm) {
+        // Recompute last rate for all existing rows when company changes.
+        (frm.doc.items || []).forEach(function (row) {
+            if (row.item_code) {
+                set_last_rate_for_row(frm, row.doctype, row.name, row.item_code);
+            }
+        });
+        frm.refresh_field("items");
     },
 
     before_cancel: function (frm) {
@@ -198,19 +225,8 @@ frappe.ui.form.on("Material Request Item", {
             return;
         }
 
-        // Fetch the latest purchase invoice rate for the selected item.
-        // Passes company from the parent Material Request to ensure
-        // company-aware filtering on the server side.
-        frappe.call({
-            method: "prakash_steel.api.get_last_purchase_invoice_rate.get_last_purchase_invoice_rate",
-            args: {
-                item_code: row.item_code,
-                company: frm.doc.company || ""
-            },
-            callback: function (r) {
-                frappe.model.set_value(cdt, cdn, "custom_last_rate", r.message || 0);
-            }
-        });
+        // Fetch company-wise latest purchase invoice rate.
+        set_last_rate_for_row(frm, cdt, cdn, row.item_code);
 
         // Fetch latest purchase or production date & quantity for this item
         frappe.call({
