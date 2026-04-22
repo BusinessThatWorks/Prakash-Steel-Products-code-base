@@ -78,6 +78,12 @@ def get_columns(invoice_type):
             "width": 160,
         },
         {
+            "label": "Supplier Invoice Date",
+            "fieldname": "invoice_date",
+            "fieldtype": "Date",
+            "width": 120,
+        },
+        {
             "label": "Vendor Name",
             "fieldname": "vendor_name",
             "fieldtype": "Data",
@@ -143,6 +149,15 @@ def get_purchase_data(filters):
         conditions.append("pi.posting_date <= %(to_date)s")
         values["to_date"] = getdate(filters.get("to_date"))
 
+    # Supplier Invoice date range filter on Purchase Invoice.bill_date
+    if filters.get("supplier_invoice_from_date"):
+        conditions.append("pi.bill_date >= %(supplier_invoice_from_date)s")
+        values["supplier_invoice_from_date"] = getdate(filters.get("supplier_invoice_from_date"))
+
+    if filters.get("supplier_invoice_to_date"):
+        conditions.append("pi.bill_date <= %(supplier_invoice_to_date)s")
+        values["supplier_invoice_to_date"] = getdate(filters.get("supplier_invoice_to_date"))
+
     # Transporter Name filter
     if filters.get("transporter_name"):
         conditions.append("pi.transporter_name = %(transporter_name)s")
@@ -165,6 +180,7 @@ def get_purchase_data(filters):
         SELECT
             pi.posting_date AS bill_date,
             pi.name AS purchase_invoice,
+            pi.bill_date AS invoice_date,
             pi.supplier AS vendor_name,
             pi.bill_no AS bill_no,
             pi.vehicle_no AS truck_no,

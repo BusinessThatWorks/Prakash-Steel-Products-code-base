@@ -1,6 +1,8 @@
 function syncDateFiltersInUrl(report) {
 	var fromDate = report.get_filter_value("from_date");
 	var toDate = report.get_filter_value("to_date");
+	var supplierInvoiceFromDate = report.get_filter_value("supplier_invoice_from_date");
+	var supplierInvoiceToDate = report.get_filter_value("supplier_invoice_to_date");
 	var url = new URL(window.location.href);
 
 	if (!fromDate) {
@@ -8,6 +10,12 @@ function syncDateFiltersInUrl(report) {
 	}
 	if (!toDate) {
 		url.searchParams.delete("to_date");
+	}
+	if (!supplierInvoiceFromDate) {
+		url.searchParams.delete("supplier_invoice_from_date");
+	}
+	if (!supplierInvoiceToDate) {
+		url.searchParams.delete("supplier_invoice_to_date");
 	}
 
 	var newUrl = url.pathname + (url.search ? url.search : "");
@@ -41,6 +49,26 @@ frappe.query_reports["Transporter Bill Payment"] = {
 		{
 			fieldname: "to_date",
 			label: __("To Date"),
+			fieldtype: "Date",
+			reqd: 0,
+			on_change: function (report) {
+				syncDateFiltersInUrl(report);
+				report.refresh();
+			},
+		},
+		{
+			fieldname: "supplier_invoice_from_date",
+			label: __("Supplier Invoice From Date"),
+			fieldtype: "Date",
+			reqd: 0,
+			on_change: function (report) {
+				syncDateFiltersInUrl(report);
+				report.refresh();
+			},
+		},
+		{
+			fieldname: "supplier_invoice_to_date",
+			label: __("Supplier Invoice To Date"),
 			fieldtype: "Date",
 			reqd: 0,
 			on_change: function (report) {
