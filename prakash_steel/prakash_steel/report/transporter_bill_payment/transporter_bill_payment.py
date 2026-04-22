@@ -78,7 +78,7 @@ def get_columns(invoice_type):
             "width": 160,
         },
         {
-            "label": "Invoice Date",
+            "label": "Supplier Invoice Date",
             "fieldname": "invoice_date",
             "fieldtype": "Date",
             "width": 120,
