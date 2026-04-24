@@ -6,6 +6,8 @@ RECIPIENTS = [
 	"avinash@prakashsteel.com",
 	"srimanta@prakashsteel.com",
 	"psprm@prakashsteel.com",
+	"beetashoke.chakraborty@clapgrow.com",
+	"ritika@clapgrow.com",
 ]
 
 
@@ -19,7 +21,8 @@ def send_daily_sales_invoice_email():
 			si.name,
 			si.customer,
 			si.grand_total,
-			COALESCE(SUM(sii.qty), 0) AS total_qty
+			COALESCE(SUM(sii.qty), 0) AS total_qty,
+			(SELECT ps.payment_term FROM `tabPayment Schedule` ps WHERE ps.parent = si.name ORDER BY ps.idx LIMIT 1) AS payment_term
 		FROM `tabSales Invoice` si
 		INNER JOIN `tabSales Invoice Item` sii ON sii.parent = si.name
 		WHERE si.docstatus = 1
@@ -39,6 +42,13 @@ def send_daily_sales_invoice_email():
 		)
 		return
 
+	def format_payment_term(term):
+		if not term:
+			return ""
+		if term.startswith("N") and term[1:].isdigit():
+			return f"{term[1:]} Days"
+		return term
+
 	# Build summary table rows
 	rows_html = ""
 	for inv in invoices:
@@ -48,6 +58,7 @@ def send_daily_sales_invoice_email():
 			<td style="padding:6px 12px;border:1px solid #ddd;">{inv.customer}</td>
 			<td style="padding:6px 12px;border:1px solid #ddd;text-align:right;">{fmt_money(inv.grand_total, currency="INR")}</td>
 			<td style="padding:6px 12px;border:1px solid #ddd;text-align:right;">{int(inv.total_qty)}</td>
+			<td style="padding:6px 12px;border:1px solid #ddd;text-align:center;">{format_payment_term(inv.payment_term)}</td>
 		</tr>"""
 
 	total_grand = sum(inv.grand_total for inv in invoices)
@@ -64,6 +75,7 @@ def send_daily_sales_invoice_email():
 				<th style="padding:8px 12px;border:1px solid #ddd;text-align:left;">Customer</th>
 				<th style="padding:8px 12px;border:1px solid #ddd;text-align:right;">Grand Total</th>
 				<th style="padding:8px 12px;border:1px solid #ddd;text-align:right;">Total Qty</th>
+				<th style="padding:8px 12px;border:1px solid #ddd;text-align:center;">Payment Terms</th>
 			</tr>
 		</thead>
 		<tbody>
@@ -74,6 +86,7 @@ def send_daily_sales_invoice_email():
 				<td colspan="2" style="padding:8px 12px;border:1px solid #ddd;">Total ({len(invoices)} invoices)</td>
 				<td style="padding:8px 12px;border:1px solid #ddd;text-align:right;">{fmt_money(total_grand, currency="INR")}</td>
 				<td style="padding:8px 12px;border:1px solid #ddd;text-align:right;">{int(total_qty)}</td>
+				<td style="padding:8px 12px;border:1px solid #ddd;"></td>
 			</tr>
 		</tfoot>
 	</table>
