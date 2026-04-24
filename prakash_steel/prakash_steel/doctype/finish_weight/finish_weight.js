@@ -1,7 +1,9 @@
 frappe.ui.form.on("Finish Weight", {
     billet_cutting_id: function(frm) {
         console.log("Finish Weight - billet_cutting_id changed:", frm.doc.billet_cutting_id);
-        calculate_finish_pcs_from_hourly_production(frm).then(function() {
+        set_finish_weight_from_billet_cutting(frm).then(function () {
+            return calculate_finish_pcs_from_hourly_production(frm);
+        }).then(function() {
             // After finish_pcs is calculated, calculate fg_per_pcs_weight if finish_weight exists
             if (frm.doc.finish_weight && frm.doc.finish_pcs && frm.doc.finish_pcs > 0) {
                 let fg_per_pcs_weight = frm.doc.finish_weight / frm.doc.finish_pcs;
@@ -77,7 +79,9 @@ frappe.ui.form.on("Finish Weight", {
         // Only recalculate for new unsaved docs.
         if (frm.is_new()) {
             if (frm.doc.billet_cutting_id) {
-                calculate_finish_pcs_from_hourly_production(frm).then(function() {
+                set_finish_weight_from_billet_cutting(frm).then(function () {
+                    return calculate_finish_pcs_from_hourly_production(frm);
+                }).then(function() {
                     if (frm.doc.finish_weight && frm.doc.finish_pcs && frm.doc.finish_pcs > 0) {
                         frm.set_value("fg_per_pcs_weight", Math.round((frm.doc.finish_weight / frm.doc.finish_pcs) * 100) / 100);
                     }
@@ -278,6 +282,31 @@ function calculate_finish_pcs_from_hourly_production(frm) {
         frm.set_value("total_miss_ingot_weight", 0);
         frm.set_value("item_code", "");
         return Promise.reject(error);
+    });
+}
+
+function set_finish_weight_from_billet_cutting(frm) {
+    if (!frm.doc.billet_cutting_id) {
+        return Promise.resolve();
+    }
+
+    return frappe.db.get_value(
+        "Billet Cutting",
+        frm.doc.billet_cutting_id,
+        ["billet_weight", "miss_billet_weight"]
+    ).then(function (r) {
+        const bc = (r && r.message) ? r.message : {};
+        const billet_weight = parseFloat(bc.billet_weight) || 0;
+        const miss_billet_weight = parseFloat(bc.miss_billet_weight) || 0;
+        const total = billet_weight + miss_billet_weight;
+
+        // "finish_weight" should come from Billet Cutting: billet_weight + miss_billet_weight
+        frm.set_value("finish_weight", total);
+
+        // Also show effective billet weight (for burning loss / display)
+        frm.set_value("billet_weight", total);
+
+        return Promise.resolve();
     });
 }
 
