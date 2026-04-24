@@ -33,37 +33,57 @@ def get_columns(sku_type):
 
 	if is_buffer:
 		cols += [
-			{"label": _("TOG"),              "fieldname": "tog",              "fieldtype": "Float", "width": 80},
-			{"label": _("TOY"),              "fieldname": "toy",              "fieldtype": "Float", "width": 80},
-			{"label": _("TOR"),              "fieldname": "tor",              "fieldtype": "Float", "width": 80},
-			{"label": _("Open SO"),          "fieldname": "open_so",          "fieldtype": "Float", "width": 100},
-			{"label": _("On Hand Stock"),    "fieldname": "on_hand_stock",    "fieldtype": "Float", "width": 120},
-			{"label": _("WIP"),              "fieldname": "wip",              "fieldtype": "Float", "width": 80},
-			{"label": _("Open PO"),          "fieldname": "open_po",          "fieldtype": "Float", "width": 100},
-			{"label": _("Open Subcon PO"),   "fieldname": "open_subcon_po",   "fieldtype": "Float", "width": 130},
-			{"label": _("Qualified Demand"), "fieldname": "qualified_demand", "fieldtype": "Float", "width": 130},
-			{"label": _("On Hand Status"),   "fieldname": "on_hand_status",   "fieldtype": "Data",  "width": 120},
-			{"label": _("On Hand Colour"),   "fieldname": "on_hand_colour",   "fieldtype": "Data",  "width": 120},
-			{"label": _("Net Flow"),         "fieldname": "net_flow",         "fieldtype": "Float", "width": 100},
+			{"label": _("TOG"), "fieldname": "tog", "fieldtype": "Float", "width": 80},
+			{"label": _("TOY"), "fieldname": "toy", "fieldtype": "Float", "width": 80},
+			{"label": _("TOR"), "fieldname": "tor", "fieldtype": "Float", "width": 80},
+			{"label": _("Open SO"), "fieldname": "open_so", "fieldtype": "Float", "width": 100},
+			{"label": _("On Hand Stock"), "fieldname": "on_hand_stock", "fieldtype": "Float", "width": 120},
+			{"label": _("WIP"), "fieldname": "wip", "fieldtype": "Float", "width": 80},
+			{"label": _("Open PO"), "fieldname": "open_po", "fieldtype": "Float", "width": 100},
+			{"label": _("Open Subcon PO"), "fieldname": "open_subcon_po", "fieldtype": "Float", "width": 130},
+			{
+				"label": _("Qualified Demand"),
+				"fieldname": "qualified_demand",
+				"fieldtype": "Float",
+				"width": 130,
+			},
+			{"label": _("On Hand Status"), "fieldname": "on_hand_status", "fieldtype": "Data", "width": 120},
+			{"label": _("On Hand Colour"), "fieldname": "on_hand_colour", "fieldtype": "Data", "width": 120},
+			{"label": _("Net Flow"), "fieldname": "net_flow", "fieldtype": "Float", "width": 100},
 		]
 	else:
 		cols += [
-			{"label": _("Requirement"),    "fieldname": "requirement",    "fieldtype": "Float", "width": 110},
-			{"label": _("Total SO"),       "fieldname": "total_so",       "fieldtype": "Float", "width": 100},
-			{"label": _("Open SO"),        "fieldname": "open_so",        "fieldtype": "Float", "width": 100},
-			{"label": _("On Hand Stock"),  "fieldname": "on_hand_stock",  "fieldtype": "Float", "width": 120},
-			{"label": _("WIP"),            "fieldname": "wip",            "fieldtype": "Float", "width": 80},
-			{"label": _("Open PO"),        "fieldname": "open_po",        "fieldtype": "Float", "width": 100},
+			{"label": _("Requirement"), "fieldname": "requirement", "fieldtype": "Float", "width": 110},
+			{"label": _("Total SO"), "fieldname": "total_so", "fieldtype": "Float", "width": 100},
+			{"label": _("Open SO"), "fieldname": "open_so", "fieldtype": "Float", "width": 100},
+			{"label": _("On Hand Stock"), "fieldname": "on_hand_stock", "fieldtype": "Float", "width": 120},
+			{"label": _("WIP"), "fieldname": "wip", "fieldtype": "Float", "width": 80},
+			{"label": _("Open PO"), "fieldname": "open_po", "fieldtype": "Float", "width": 100},
 			{"label": _("Open Subcon PO"), "fieldname": "open_subcon_po", "fieldtype": "Float", "width": 130},
 		]
 
 	cols += [
-		{"label": _("Order Recommendation"),    "fieldname": "order_recommendation",        "fieldtype": "Float", "width": 170},
-		{"label": _("MRQ"),                     "fieldname": "mrq",                         "fieldtype": "Float", "width": 80},
-		{"label": _("Balance Order Rec"),       "fieldname": "balance_order_recommendation", "fieldtype": "Float", "width": 150},
-		{"label": _("Net Order Recommendation"),"fieldname": "net_order_recommendation",    "fieldtype": "Float", "width": 180},
-		{"label": _("MOQ"),                     "fieldname": "moq",                         "fieldtype": "Float", "width": 80},
-		{"label": _("Order Multiple Qty"),      "fieldname": "batch_size",                  "fieldtype": "Float", "width": 130},
+		{
+			"label": _("Order Recommendation"),
+			"fieldname": "order_recommendation",
+			"fieldtype": "Float",
+			"width": 170,
+		},
+		{"label": _("MRQ"), "fieldname": "mrq", "fieldtype": "Float", "width": 80},
+		{
+			"label": _("Balance Order Rec"),
+			"fieldname": "balance_order_recommendation",
+			"fieldtype": "Float",
+			"width": 150,
+		},
+		{
+			"label": _("Net Order Recommendation"),
+			"fieldname": "net_order_recommendation",
+			"fieldtype": "Float",
+			"width": 180,
+		},
+		{"label": _("MOQ"), "fieldname": "moq", "fieldtype": "Float", "width": 80},
+		{"label": _("Order Multiple Qty"), "fieldname": "batch_size", "fieldtype": "Float", "width": 130},
 	]
 
 	if sku_type in CHILD_SKUS:
@@ -358,16 +378,22 @@ def export_so_xlsx(snapshot_date, item_code=None):
 
 
 OPEN_PO_COLUMNS = [
-	{"label": "PO Date",        "fieldname": "po_date",                 "fieldtype": "Date",     "width": 100},
-	{"label": "Supplier",       "fieldname": "supplier",                "fieldtype": "Link",     "options": "Supplier", "width": 160},
-	{"label": "Item Code",      "fieldname": "item_code",               "fieldtype": "Link",     "options": "Item",     "width": 160},
-	{"label": "Status",         "fieldname": "status",                  "fieldtype": "Data",     "width": 110},
-	{"label": "Order Qty",      "fieldname": "qty",                     "fieldtype": "Float",    "width": 90},
-	{"label": "Rate",           "fieldname": "rate",                    "fieldtype": "Currency", "width": 100},
-	{"label": "Lead Time",      "fieldname": "cf_lead_time",            "fieldtype": "Int",      "width": 90},
-	{"label": "Payment Terms",  "fieldname": "payment_terms_template",  "fieldtype": "Data",     "width": 140},
-	{"label": "Received Qty",   "fieldname": "received_qty",            "fieldtype": "Float",    "width": 110},
-	{"label": "Purchase Order", "fieldname": "purchase_order",          "fieldtype": "Link",     "options": "Purchase Order", "width": 170},
+	{"label": "PO Date", "fieldname": "po_date", "fieldtype": "Date", "width": 100},
+	{"label": "Supplier", "fieldname": "supplier", "fieldtype": "Link", "options": "Supplier", "width": 160},
+	{"label": "Item Code", "fieldname": "item_code", "fieldtype": "Link", "options": "Item", "width": 160},
+	{"label": "Status", "fieldname": "status", "fieldtype": "Data", "width": 110},
+	{"label": "Order Qty", "fieldname": "qty", "fieldtype": "Float", "width": 90},
+	{"label": "Rate", "fieldname": "rate", "fieldtype": "Currency", "width": 100},
+	{"label": "Lead Time", "fieldname": "cf_lead_time", "fieldtype": "Int", "width": 90},
+	{"label": "Payment Terms", "fieldname": "payment_terms_template", "fieldtype": "Data", "width": 140},
+	{"label": "Received Qty", "fieldname": "received_qty", "fieldtype": "Float", "width": 110},
+	{
+		"label": "Purchase Order",
+		"fieldname": "purchase_order",
+		"fieldtype": "Link",
+		"options": "Purchase Order",
+		"width": 170,
+	},
 ]
 
 OPEN_PO_FIELDS = [c["fieldname"] for c in OPEN_PO_COLUMNS]
@@ -400,7 +426,7 @@ def get_open_po_data(snapshot_date, item_code=None):
 	)
 
 	# Filter out closed/completed/cancelled rows at snapshot level
-	EXCLUDED_STATUSES = {"Closed", "Completed", "Cancelled"}
+	EXCLUDED_STATUSES = {"Closed", "Completed", "Cancelled", "To Bill"}
 	data = [dict(r) for r in rows if (r.get("status") or "") not in EXCLUDED_STATUSES]
 
 	# Fetch payment_terms_template from Purchase Order (parent)
@@ -422,10 +448,7 @@ def get_open_po_data(snapshot_date, item_code=None):
 		closed_items = {(r["parent"], r["item_code"]) for r in poi_rows}
 
 		# Filter out custom_closed items and map payment terms
-		data = [
-			row for row in data
-			if (row.get("purchase_order"), row.get("item_code")) not in closed_items
-		]
+		data = [row for row in data if (row.get("purchase_order"), row.get("item_code")) not in closed_items]
 		for row in data:
 			row["payment_terms_template"] = terms_map.get(row.get("purchase_order"), "")
 

@@ -6,6 +6,23 @@ from datetime import datetime
 
 
 class FinishWeight(Document):
+	def validate(self):
+		"""Finish weight comes from linked Billet Cutting:
+		finish_weight = billet_weight + miss_billet_weight
+		"""
+		bc = getattr(self, "billet_cutting_id", None)
+		if not bc:
+			return
+
+		billet_weight, miss_billet_weight = frappe.db.get_value(
+			"Billet Cutting", bc, ["billet_weight", "miss_billet_weight"]
+		) or (0, 0)
+
+		total = flt(billet_weight) + flt(miss_billet_weight)
+		self.finish_weight = total
+		# Also reflect the "effective" billet weight on this document (read-only field)
+		self.billet_weight = total
+
 	def before_submit(self):
 		"""Linked Billet Cutting must be submitted before Finish Weight can be submitted."""
 		bc = getattr(self, "billet_cutting_id", None)
@@ -236,6 +253,7 @@ class FinishWeight(Document):
 			   FROM `tabFinish Weight`
 			   WHERE production_planning = %s AND item_code = %s AND docstatus = 1""",
 			(self.production_planning, self.item_code),
+			as_dict=False,
 		)[0][0] or 0
 
 		rows = frappe.get_all(
