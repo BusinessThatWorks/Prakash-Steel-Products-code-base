@@ -392,8 +392,15 @@ def get_bright_production_data(
         conditions += " AND bbp.production_date <= %(to_date)s"
         params["to_date"] = to_date
     if item_code:
+        # Match against both legacy (`finished_good` / `raw_material`) and new
+        # (`finished` / `material`) fields so Production Planning-based rows work.
         conditions += (
-            " AND (bbp.finished_good = %(item_code)s OR bbp.raw_material = %(item_code)s)"
+            " AND ("
+            "bbp.finished_good = %(item_code)s"
+            " OR bbp.raw_material = %(item_code)s"
+            " OR bbp.finished = %(item_code)s"
+            " OR bbp.material = %(item_code)s"
+            ")"
         )
         params["item_code"] = item_code
     if production_plan:
@@ -414,11 +421,26 @@ def get_bright_production_data(
         )
         cat_item_codes = [r.name for r in cat_items]
         if cat_item_codes:
-            conditions += " AND (bbp.raw_material IN %(cat_items)s OR bbp.finished_good IN %(cat_items)s)"
+            # Match against both legacy and new RM/FG fields so Production
+            # Planning-based rows are picked up too.
+            conditions += (
+                " AND ("
+                "bbp.raw_material IN %(cat_items)s"
+                " OR bbp.finished_good IN %(cat_items)s"
+                " OR bbp.material IN %(cat_items)s"
+                " OR bbp.finished IN %(cat_items)s"
+                ")"
+            )
             params["cat_items"] = cat_item_codes
         else:
             return {"rows": [], "totals": {"total_production": 0, "rm_consumption": 0}}
 
+    # Bright Bar Production has two sets of RM / FG fields:
+    #   - Legacy `raw_material` / `finished_good` populated when the old
+    #     `Production Plan` link is used.
+    #   - New `material` / `finished` populated when the new `Production Planning`
+    #     link is used (see bright_bar_production.js -> load_options_from_production_planning).
+    # Use COALESCE so the dashboard shows whichever one actually holds a value.
     bright_data = frappe.db.sql(
         f"""
 		SELECT
@@ -426,11 +448,11 @@ def get_bright_production_data(
 			bbp.production_plan,
 			bbp.production_planning,
 			bbp.production_date,
-			bbp.finished_good         AS finished_item,
+			COALESCE(NULLIF(bbp.finished_good, ''), bbp.finished) AS finished_item,
 			bbp.fg_weight             AS fg_weight,
 			bbp.fg_weight             AS actual_qty,
 			bbp.finish_length         AS fg_length,
-			bbp.raw_material          AS rm,
+			COALESCE(NULLIF(bbp.raw_material, ''), bbp.material)  AS rm,
 			bbp.actual_rm_consumption AS rm_consumption,
 			bbp.wastage_per           AS wastage,
 			bbp.machine_name          AS machine_name,
