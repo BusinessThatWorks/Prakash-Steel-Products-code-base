@@ -361,6 +361,7 @@ OPEN_PO_COLUMNS = [
 	{"label": "PO Date",        "fieldname": "po_date",                 "fieldtype": "Date",     "width": 100},
 	{"label": "Supplier",       "fieldname": "supplier",                "fieldtype": "Link",     "options": "Supplier", "width": 160},
 	{"label": "Item Code",      "fieldname": "item_code",               "fieldtype": "Link",     "options": "Item",     "width": 160},
+	{"label": "Status",         "fieldname": "status",                  "fieldtype": "Data",     "width": 110},
 	{"label": "Order Qty",      "fieldname": "qty",                     "fieldtype": "Float",    "width": 90},
 	{"label": "Rate",           "fieldname": "rate",                    "fieldtype": "Currency", "width": 100},
 	{"label": "Lead Time",      "fieldname": "cf_lead_time",            "fieldtype": "Int",      "width": 90},
@@ -398,17 +399,33 @@ def get_open_po_data(snapshot_date, item_code=None):
 		order_by="purchase_order asc, item_code asc",
 	)
 
-	data = [dict(r) for r in rows]
+	# Filter out closed/completed/cancelled rows at snapshot level
+	EXCLUDED_STATUSES = {"Closed", "Completed", "Cancelled"}
+	data = [dict(r) for r in rows if (r.get("status") or "") not in EXCLUDED_STATUSES]
 
-	# Fetch payment_terms_template from actual Purchase Order records
+	# Fetch payment_terms_template from Purchase Order (parent)
 	po_names = list({r["purchase_order"] for r in data if r.get("purchase_order")})
 	if po_names:
-		po_terms = frappe.get_all(
+		po_parents = frappe.get_all(
 			"Purchase Order",
 			filters={"name": ["in", po_names]},
 			fields=["name", "payment_terms_template"],
 		)
-		terms_map = {p["name"]: p.get("payment_terms_template") or "" for p in po_terms}
+		terms_map = {p["name"]: p.get("payment_terms_template") or "" for p in po_parents}
+
+		# Fetch custom_closed from Purchase Order Item (child table) — keyed by (parent, item_code)
+		poi_rows = frappe.get_all(
+			"Purchase Order Item",
+			filters={"parent": ["in", po_names], "custom_closed": 1},
+			fields=["parent", "item_code"],
+		)
+		closed_items = {(r["parent"], r["item_code"]) for r in poi_rows}
+
+		# Filter out custom_closed items and map payment terms
+		data = [
+			row for row in data
+			if (row.get("purchase_order"), row.get("item_code")) not in closed_items
+		]
 		for row in data:
 			row["payment_terms_template"] = terms_map.get(row.get("purchase_order"), "")
 
