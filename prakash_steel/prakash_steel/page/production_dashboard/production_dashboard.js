@@ -103,21 +103,23 @@ function render_filters(state) {
         render_input: true,
     });
 
-    // ── Production Plan (tab-aware query) ──
+    // ── Production Plan (tab-aware, merged from `Production Plan` + `Production Planning`) ──
+    // Autocomplete is used instead of Link because options are sourced from two
+    // different doctypes (legacy `Production Plan` and new `Production Planning`).
     state.controls.production_plan = frappe.ui.form.make_control({
         parent: $ppWrap.get(0),
         df: {
-            fieldtype: 'Link',
+            fieldtype: 'Autocomplete',
             label: __('Production Plan'),
             fieldname: 'production_plan',
-            options: 'Production Plan',
+            options: [],
             reqd: 0,
-            get_query: function () {
-                return getProductionPlanQuery(state);
-            },
         },
         render_input: true,
     });
+
+    // Populate options from both doctypes on initial render.
+    refreshProductionPlanOptions(state);
 
     // ── Machine Name ──
     state.controls.machine_name = frappe.ui.form.make_control({
@@ -161,14 +163,60 @@ function render_filters(state) {
 }
 
 
-function getProductionPlanQuery(state) {
-    const filters = { docstatus: 1 };
-    if (state.currentTab === 'rolled_production') {
-        filters['name'] = ['like', '%Rolled%'];
-    } else if (state.currentTab === 'bright_production') {
-        filters['name'] = ['like', '%Bright%'];
+function getProductionPlanNameFilter(state) {
+    // Same tab-aware name pattern used for both legacy and new doctypes because
+    // `Production Planning` uses naming series "Rolled Plan - ..." / "Bright Plan - ..."
+    // which match the existing %Rolled% / %Bright% patterns.
+    if (state.currentTab === 'rolled_production') return ['like', '%Rolled%'];
+    if (state.currentTab === 'bright_production') return ['like', '%Bright%'];
+    return null;
+}
+
+async function refreshProductionPlanOptions(state) {
+    const control = state.controls.production_plan;
+    if (!control) return;
+
+    const nameFilter = getProductionPlanNameFilter(state);
+    const baseFilters = { docstatus: 1 };
+    if (nameFilter) baseFilters.name = nameFilter;
+
+    const fetchList = (doctype) =>
+        frappe.db
+            .get_list(doctype, {
+                filters: baseFilters,
+                fields: ['name'],
+                limit: 0,
+                order_by: 'creation desc',
+            })
+            .catch(() => []);
+
+    try {
+        const [legacyList, planningList] = await Promise.all([
+            fetchList('Production Plan'),
+            fetchList('Production Planning'),
+        ]);
+
+        // Merge + de-duplicate (legacy names listed first, preserving priority).
+        const merged = [];
+        const seen = new Set();
+        [...(legacyList || []), ...(planningList || [])].forEach((r) => {
+            if (r && r.name && !seen.has(r.name)) {
+                seen.add(r.name);
+                merged.push(r.name);
+            }
+        });
+
+        control.df.options = merged;
+        if (typeof control.set_data === 'function') {
+            control.set_data(merged);
+        }
+        if (typeof control.refresh === 'function') {
+            control.refresh();
+        }
+    } catch (err) {
+        // Fail silently — leave existing options intact if the fetch errors.
+        console.error('Failed to load Production Plan options:', err);
     }
-    return { filters };
 }
 
 function getFilters(state) {
@@ -273,7 +321,7 @@ function bindEventHandlers(state) {
         if (c.$input) {
             $(c.$input).on('change', handler);
         }
-        if (c.df.fieldtype === 'Link' && c.$input) {
+        if ((c.df.fieldtype === 'Link' || c.df.fieldtype === 'Autocomplete') && c.$input) {
             $(c.$input).on('awesomplete-selectcomplete', handler);
             if (c.$wrapper) $(c.$wrapper).on('click', '.btn-clear', handler);
         }
@@ -294,6 +342,10 @@ function bindEventHandlers(state) {
             if (state.controls.production_plan) {
                 state.controls.production_plan.set_value('');
             }
+
+            // Repopulate Production Plan options for the newly active tab
+            // (pulls from both `Production Plan` and `Production Planning`).
+            refreshProductionPlanOptions(state);
 
             // Always refresh on tab switch (will fetch till date if no filters set)
             refreshDashboard(state);
@@ -653,8 +705,12 @@ function buildTableRow(tabId, row) {
     const tdCol1 = tdStyle + 'position:sticky;left:180px;z-index:1;background:#fff;min-width:140px;border-right:2px solid #dee2e6;';
 
     // Production Plan (link)
+    const ppRoute =
+        row.production_plan_doctype === 'Production Planning'
+            ? 'production-planning'
+            : 'production-plan';
     const ppLink = row.production_plan
-        ? `<a href="/app/production-plan/${encodeURIComponent(row.production_plan)}"
+        ? `<a href="/app/${ppRoute}/${encodeURIComponent(row.production_plan)}"
               style="color:#007bff;text-decoration:none;">${frappe.utils.escape_html(row.production_plan)}</a>`
         : '';
 

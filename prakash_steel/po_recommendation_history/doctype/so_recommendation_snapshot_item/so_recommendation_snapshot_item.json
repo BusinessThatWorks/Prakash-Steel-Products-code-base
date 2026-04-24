@@ -18,6 +18,8 @@
   "order_status",
   "remaining_days",
   "lead_time",
+  "payment_terms_template",
+  "special_condition",
   "buffer_status",
   "warehouse",
   "company",
@@ -118,6 +120,17 @@
    "fieldname": "lead_time",
    "fieldtype": "Int",
    "label": "Lead Time"
+  },
+  {
+   "fieldname": "payment_terms_template",
+   "fieldtype": "Link",
+   "label": "Payment Terms",
+   "options": "Payment Terms Template"
+  },
+  {
+   "fieldname": "special_condition",
+   "fieldtype": "Data",
+   "label": "Special Condition"
   },
   {
    "fieldname": "buffer_status",

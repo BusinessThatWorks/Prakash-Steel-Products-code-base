@@ -9,7 +9,9 @@
   "machine_name",
   "column_break_srnu",
   "column_break_xxel",
-  "column_break_crdo"
+  "column_break_crdo",
+  "section_break_aeqz",
+  "table_xjui"
  ],
  "fields": [
   {
@@ -30,12 +32,21 @@
   {
    "fieldname": "column_break_crdo",
    "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_aeqz",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "table_xjui",
+   "fieldtype": "Table",
+   "options": "Machine Master Table"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-22 11:12:35.304291",
+ "modified": "2026-04-22 15:13:14.008253",
  "modified_by": "Administrator",
  "module": "Prakash Steel",
  "name": "Machine Master",
@@ -56,6 +67,7 @@
   }
  ],
  "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": []

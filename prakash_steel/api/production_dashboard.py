@@ -45,7 +45,11 @@ def get_rolled_production_data(
         conditions += " AND (bc.finish_size = %(item_code)s OR bc.billet_size = %(item_code)s)"
         params["item_code"] = item_code
     if production_plan:
-        conditions += " AND bc.production_plan = %(production_plan)s"
+        # Match legacy `Production Plan` link OR new `Production Planning` link
+        conditions += (
+            " AND (bc.production_plan = %(production_plan)s"
+            " OR bc.production_planning = %(production_plan)s)"
+        )
         params["production_plan"] = production_plan
     if category_name:
         cat_items = frappe.db.sql(
@@ -65,6 +69,7 @@ def get_rolled_production_data(
 		SELECT
 			bc.name              AS billet_cutting_name,
 			bc.production_plan,
+			bc.production_planning,
 			bc.posting_date      AS production_date,
 			bc.finish_size       AS finished_item,
 			bc.billet_length_full AS fg_length,
@@ -90,12 +95,15 @@ def get_rolled_production_data(
     # Collect unique (production_plan, finished_item) pairs for batch lookups
     pp_item_pairs = set()
     pp_names = set()
+    planning_names = set()
     for row in billet_cutting_data:
         if row.production_plan and row.finished_item:
             pp_item_pairs.add((row.production_plan, row.finished_item))
             pp_names.add(row.production_plan)
+        if row.production_planning:
+            planning_names.add(row.production_planning)
 
-    # ── 2.  Batch-fetch FG Planned Qty from Production Plan Item ───
+    # ── 2.  Batch-fetch FG Planned Qty from Production Plan Item (legacy) ───
     planned_qty_map = {}  # key: (production_plan, item_code)
     if pp_names:
         pp_list = list(pp_names)
@@ -113,6 +121,26 @@ def get_rolled_production_data(
         )
         for pr in planned_rows:
             planned_qty_map[(pr.production_plan, pr.item_code)] = flt(pr.planned_qty)
+
+    # ── 2.a  Fallback: Batch-fetch FG Planned Qty from Production Planning FG Table ──
+    # Used only when the legacy Production Plan mapping has no entry for a row.
+    planning_qty_map = {}  # key: (production_planning, fg_item)
+    if planning_names:
+        planning_list = list(planning_names)
+        planning_rows = frappe.db.sql(
+            """
+			SELECT
+				ppfg.parent       AS production_planning,
+				ppfg.fg_item      AS item_code,
+				ppfg.fg_production_qty AS planned_qty
+			FROM `tabProduction Planning FG Table` ppfg
+			WHERE ppfg.parent IN %(planning_list)s
+			""",
+            {"planning_list": planning_list},
+            as_dict=True,
+        )
+        for pr in planning_rows:
+            planning_qty_map[(pr.production_planning, pr.item_code)] = flt(pr.planned_qty)
 
     # ── 3.  Batch-fetch Actual Qty/Length/Melting/Miss fields from Finish Weight
     # Map by Billet Cutting ID so values stay tied to the exact RM row.
@@ -218,9 +246,20 @@ def get_rolled_production_data(
 
     for row in billet_cutting_data:
         pp = row.production_plan or ""
+        pp_planning = row.production_planning or ""
         fi = row.finished_item or ""
 
-        fg_planned_qty = planned_qty_map.get((pp, fi), 0)
+        # Source priority: legacy `Production Plan` first, then fall back to
+        # `Production Planning` if the legacy mapping has no entry for this row.
+        old_key = (pp, fi)
+        new_key = (pp_planning, fi)
+        if pp and fi and old_key in planned_qty_map:
+            fg_planned_qty = planned_qty_map[old_key]
+        elif pp_planning and fi and new_key in planning_qty_map:
+            fg_planned_qty = planning_qty_map[new_key]
+        else:
+            fg_planned_qty = 0
+
         fw_data = fw_map.get(row.billet_cutting_name, {})
         actual_qty = fw_data.get("actual_qty", 0)
         melting_weight = fw_data.get("melting_weight", 0)
@@ -254,7 +293,12 @@ def get_rolled_production_data(
 
         rows.append(
             {
-                "production_plan": pp,
+                # Show legacy Production Plan if present, otherwise fall back
+                # to Production Planning — same response key so the UI is unchanged.
+                "production_plan": pp or pp_planning,
+                "production_plan_doctype": (
+                    "Production Plan" if pp else ("Production Planning" if pp_planning else "")
+                ),
                 "production_date": (
                     str(row.production_date) if row.production_date else ""
                 ),
@@ -351,12 +395,23 @@ def get_bright_production_data(
         conditions += " AND bbp.production_date <= %(to_date)s"
         params["to_date"] = to_date
     if item_code:
+        # Match against both legacy (`finished_good` / `raw_material`) and new
+        # (`finished` / `material`) fields so Production Planning-based rows work.
         conditions += (
-            " AND (bbp.finished_good = %(item_code)s OR bbp.raw_material = %(item_code)s)"
+            " AND ("
+            "bbp.finished_good = %(item_code)s"
+            " OR bbp.raw_material = %(item_code)s"
+            " OR bbp.finished = %(item_code)s"
+            " OR bbp.material = %(item_code)s"
+            ")"
         )
         params["item_code"] = item_code
     if production_plan:
-        conditions += " AND bbp.production_plan = %(production_plan)s"
+        # Match legacy `Production Plan` link OR new `Production Planning` link
+        conditions += (
+            " AND (bbp.production_plan = %(production_plan)s"
+            " OR bbp.production_planning = %(production_plan)s)"
+        )
         params["production_plan"] = production_plan
     if machine_name:
         conditions += " AND bbp.machine_name = %(machine_name)s"
@@ -369,22 +424,38 @@ def get_bright_production_data(
         )
         cat_item_codes = [r.name for r in cat_items]
         if cat_item_codes:
-            conditions += " AND (bbp.raw_material IN %(cat_items)s OR bbp.finished_good IN %(cat_items)s)"
+            # Match against both legacy and new RM/FG fields so Production
+            # Planning-based rows are picked up too.
+            conditions += (
+                " AND ("
+                "bbp.raw_material IN %(cat_items)s"
+                " OR bbp.finished_good IN %(cat_items)s"
+                " OR bbp.material IN %(cat_items)s"
+                " OR bbp.finished IN %(cat_items)s"
+                ")"
+            )
             params["cat_items"] = cat_item_codes
         else:
             return {"rows": [], "totals": {"total_production": 0, "rm_consumption": 0}}
 
+    # Bright Bar Production has two sets of RM / FG fields:
+    #   - Legacy `raw_material` / `finished_good` populated when the old
+    #     `Production Plan` link is used.
+    #   - New `material` / `finished` populated when the new `Production Planning`
+    #     link is used (see bright_bar_production.js -> load_options_from_production_planning).
+    # Use COALESCE so the dashboard shows whichever one actually holds a value.
     bright_data = frappe.db.sql(
         f"""
 		SELECT
 			bbp.name                  AS bright_bar_name,
 			bbp.production_plan,
+			bbp.production_planning,
 			bbp.production_date,
-			bbp.finished_good         AS finished_item,
+			COALESCE(NULLIF(bbp.finished_good, ''), bbp.finished) AS finished_item,
 			bbp.fg_weight             AS fg_weight,
 			bbp.fg_weight             AS actual_qty,
 			bbp.finish_length         AS fg_length,
-			bbp.raw_material          AS rm,
+			COALESCE(NULLIF(bbp.raw_material, ''), bbp.material)  AS rm,
 			bbp.actual_rm_consumption AS rm_consumption,
 			bbp.wastage_per           AS wastage,
 			bbp.machine_name          AS machine_name,
@@ -403,14 +474,17 @@ def get_bright_production_data(
 
     # Collect unique production plan names for batch lookup
     pp_names = set()
+    planning_names = set()
     pp_item_pairs = set()
     for row in bright_data:
         if row.production_plan:
             pp_names.add(row.production_plan)
             if row.finished_item:
                 pp_item_pairs.add((row.production_plan, row.finished_item))
+        if row.production_planning:
+            planning_names.add(row.production_planning)
 
-    # ── 2.  Batch-fetch FG Planned Qty from Production Plan Item ───
+    # ── 2.  Batch-fetch FG Planned Qty from Production Plan Item (legacy) ───
     planned_qty_map = {}
     if pp_names:
         pp_list = list(pp_names)
@@ -428,6 +502,26 @@ def get_bright_production_data(
         )
         for pr in planned_rows:
             planned_qty_map[(pr.production_plan, pr.item_code)] = flt(pr.planned_qty)
+
+    # ── 2.a  Fallback: Batch-fetch FG Planned Qty from Production Planning FG Table ──
+    # Used only when the legacy Production Plan mapping has no entry for a row.
+    planning_qty_map = {}
+    if planning_names:
+        planning_list = list(planning_names)
+        planning_rows = frappe.db.sql(
+            """
+			SELECT
+				ppfg.parent       AS production_planning,
+				ppfg.fg_item      AS item_code,
+				ppfg.fg_production_qty AS planned_qty
+			FROM `tabProduction Planning FG Table` ppfg
+			WHERE ppfg.parent IN %(planning_list)s
+			""",
+            {"planning_list": planning_list},
+            as_dict=True,
+        )
+        for pr in planning_rows:
+            planning_qty_map[(pr.production_planning, pr.item_code)] = flt(pr.planned_qty)
 
     # ── 2.b  Batch-fetch custom_category_name from Item ──────────────
     all_item_codes_bright = set()
@@ -456,9 +550,19 @@ def get_bright_production_data(
 
     for row in bright_data:
         pp = row.production_plan or ""
+        pp_planning = row.production_planning or ""
         fi = row.finished_item or ""
 
-        fg_planned_qty = planned_qty_map.get((pp, fi), 0)
+        # Source priority: legacy `Production Plan` first, then fall back to
+        # `Production Planning` if the legacy mapping has no entry for this row.
+        old_key = (pp, fi)
+        new_key = (pp_planning, fi)
+        if pp and fi and old_key in planned_qty_map:
+            fg_planned_qty = planned_qty_map[old_key]
+        elif pp_planning and fi and new_key in planning_qty_map:
+            fg_planned_qty = planning_qty_map[new_key]
+        else:
+            fg_planned_qty = 0
 
         rm_consumption = flt(row.rm_consumption)
         actual_qty = flt(row.actual_qty)
@@ -471,7 +575,12 @@ def get_bright_production_data(
 
         rows.append(
             {
-                "production_plan": pp,
+                # Show legacy Production Plan if present, otherwise fall back
+                # to Production Planning — same response key so the UI is unchanged.
+                "production_plan": pp or pp_planning,
+                "production_plan_doctype": (
+                    "Production Plan" if pp else ("Production Planning" if pp_planning else "")
+                ),
                 "production_date": (
                     str(row.production_date) if row.production_date else ""
                 ),
@@ -539,7 +648,12 @@ def get_bend_weight_details(
         conditions += " AND fw.item_code = %(item_code)s"
         params["item_code"] = item_code
     if production_plan:
-        conditions += " AND fw.production_plan = %(production_plan)s"
+        # Match legacy `Production Plan` link OR new `Production Planning` link.
+        # Legacy values take priority implicitly (same SQL row is returned either way).
+        conditions += (
+            " AND (fw.production_plan = %(production_plan)s"
+            " OR fw.production_planning = %(production_plan)s)"
+        )
         params["production_plan"] = production_plan
     if category_name:
         cat_items = frappe.db.sql(
