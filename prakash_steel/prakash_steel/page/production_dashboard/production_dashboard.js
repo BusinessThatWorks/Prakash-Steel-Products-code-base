@@ -705,8 +705,12 @@ function buildTableRow(tabId, row) {
     const tdCol1 = tdStyle + 'position:sticky;left:180px;z-index:1;background:#fff;min-width:140px;border-right:2px solid #dee2e6;';
 
     // Production Plan (link)
+    const ppRoute =
+        row.production_plan_doctype === 'Production Planning'
+            ? 'production-planning'
+            : 'production-plan';
     const ppLink = row.production_plan
-        ? `<a href="/app/production-plan/${encodeURIComponent(row.production_plan)}"
+        ? `<a href="/app/${ppRoute}/${encodeURIComponent(row.production_plan)}"
               style="color:#007bff;text-decoration:none;">${frappe.utils.escape_html(row.production_plan)}</a>`
         : '';
 

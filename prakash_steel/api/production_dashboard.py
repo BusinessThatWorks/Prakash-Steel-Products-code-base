@@ -296,6 +296,9 @@ def get_rolled_production_data(
                 # Show legacy Production Plan if present, otherwise fall back
                 # to Production Planning — same response key so the UI is unchanged.
                 "production_plan": pp or pp_planning,
+                "production_plan_doctype": (
+                    "Production Plan" if pp else ("Production Planning" if pp_planning else "")
+                ),
                 "production_date": (
                     str(row.production_date) if row.production_date else ""
                 ),
@@ -575,6 +578,9 @@ def get_bright_production_data(
                 # Show legacy Production Plan if present, otherwise fall back
                 # to Production Planning — same response key so the UI is unchanged.
                 "production_plan": pp or pp_planning,
+                "production_plan_doctype": (
+                    "Production Plan" if pp else ("Production Planning" if pp_planning else "")
+                ),
                 "production_date": (
                     str(row.production_date) if row.production_date else ""
                 ),
