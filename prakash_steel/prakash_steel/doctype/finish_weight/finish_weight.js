@@ -300,10 +300,7 @@ function set_finish_weight_from_billet_cutting(frm) {
         const miss_billet_weight = parseFloat(bc.miss_billet_weight) || 0;
         const total = billet_weight + miss_billet_weight;
 
-        // "finish_weight" should come from Billet Cutting: billet_weight + miss_billet_weight
-        frm.set_value("finish_weight", total);
-
-        // Also show effective billet weight (for burning loss / display)
+        // billet_weight on this form = billet_weight + miss_billet_weight from Billet Cutting
         frm.set_value("billet_weight", total);
 
         return Promise.resolve();

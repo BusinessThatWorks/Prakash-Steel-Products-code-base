@@ -18,10 +18,8 @@ class FinishWeight(Document):
 			"Billet Cutting", bc, ["billet_weight", "miss_billet_weight"]
 		) or (0, 0)
 
-		total = flt(billet_weight) + flt(miss_billet_weight)
-		self.finish_weight = total
-		# Also reflect the "effective" billet weight on this document (read-only field)
-		self.billet_weight = total
+		# billet_weight = billet_weight + miss_billet_weight from linked Billet Cutting
+		self.billet_weight = flt(billet_weight) + flt(miss_billet_weight)
 
 	def before_submit(self):
 		"""Linked Billet Cutting must be submitted before Finish Weight can be submitted."""
