@@ -255,7 +255,6 @@
    "fieldtype": "Section Break"
   },
   {
-   "fetch_from": "billet_cutting_id.billet_weight",
    "fieldname": "billet_weight",
    "fieldtype": "Int",
    "label": "Billet Weight",
