@@ -1,12 +1,26 @@
 // Copyright (c) 2025, beetashoke chakraborty and contributors
 // For license information, please see license.txt
 
+function update_total_party_billing_qty(frm) {
+    const total = (frm.doc.items || []).reduce((sum, row) => {
+        return sum + (flt(row.custom_party_billing_qty) || 0);
+    }, 0);
+
+    frm.set_value("custom_total_party_billing_qty", total);
+}
+
 frappe.ui.form.on('Purchase Receipt', {
+    onload(frm) {
+        update_total_party_billing_qty(frm);
+    },
+
     refresh: function (frm) {
         // Clear cancel reason on amended drafts
         if (frm.doc.amended_from && frm.doc.docstatus === 0 && frm.doc.custom_cancel_reason) {
             frm.set_value("custom_cancel_reason", "");
         }
+
+        update_total_party_billing_qty(frm);
     },
 
     on_submit: function (frm) {
@@ -113,6 +127,20 @@ frappe.ui.form.on('Purchase Receipt', {
 
         // Prevent the standard cancel; our server method will perform the cancel
         frappe.validated = false;
+    },
+
+    items_add(frm) {
+        update_total_party_billing_qty(frm);
+    },
+
+    items_remove(frm) {
+        update_total_party_billing_qty(frm);
+    },
+});
+
+frappe.ui.form.on('Purchase Receipt Item', {
+    custom_party_billing_qty(frm) {
+        update_total_party_billing_qty(frm);
     },
 });
 
