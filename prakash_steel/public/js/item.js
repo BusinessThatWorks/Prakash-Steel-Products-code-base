@@ -569,6 +569,7 @@ function calculate_sku_type(frm) {
     }
 }
 
+
 function handle_min_order_qty_batch_size_exclusivity(frm) {
     if (!frm.fields_dict['min_order_qty'] || !frm.fields_dict['custom_batch_size']) {
         return;
@@ -597,6 +598,28 @@ function handle_min_order_qty_batch_size_exclusivity(frm) {
     }
 }
 
+
+// Override erpnext.item.make_dashboard to use custom method that excludes custom_closed SO items
+frappe.provide("erpnext.item");
+$.extend(erpnext.item, {
+    make_dashboard: function (frm) {
+        if (frm.doc.__islocal) return;
+
+        if (frm.doc.is_stock_item) {
+            frappe.require("item-dashboard.bundle.js", function () {
+                const section = frm.dashboard.add_section("", __("Stock Levels"));
+                erpnext.item.item_dashboard = new erpnext.stock.ItemDashboard({
+                    parent: section,
+                    item_code: frm.doc.name,
+                    page_length: 20,
+                    method: "prakash_steel.utils.item_dashboard.get_data",
+                    template: "item_dashboard_list",
+                });
+                erpnext.item.item_dashboard.refresh();
+            });
+        }
+    },
+});
 
 // function refresh_item_adu(frm) {
 //     if (!frm.doc.item_code || frm.is_new() || frm.doc.__islocal) {

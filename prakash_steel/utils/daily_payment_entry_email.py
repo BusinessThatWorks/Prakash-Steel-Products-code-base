@@ -3,7 +3,7 @@ from frappe.utils import date_diff, fmt_money, formatdate, now_datetime
 from frappe.utils.data import escape_html
 
 
-RECIPIENTS = ["pratikshya.gochhayat@clapgrow.com", "ritika@clapgrow.com","beetashoke.chakraborty@clapgrow.com","accounts@prakashsteel.com"]
+RECIPIENTS = ["pratikshya.gochhayat@clapgrow.com", "ritika@clapgrow.com","beetashoke.chakraborty@clapgrow.com","accounts@prakashsteel.com","adarsh@prakashsteel.com", "avinash@prakashsteel.com", "srimanta@prakashsteel.com", "ea.adarshbagla@prakashsteel.com"]
 
 
 
@@ -98,7 +98,7 @@ def _build_email_body(rows, report_date_display):
 				<tr style="background-color:#f4f6f8;">
 					<th style="padding:9px 10px;border:1px solid #cfcfcf;text-align:left;">Particulars</th>
 					<th style="padding:9px 10px;border:1px solid #cfcfcf;text-align:left;">Sales Invoice No.</th>
-					<th style="padding:9px 10px;border:1px solid #cfcfcf;text-align:left;">Posting Date</th>
+					<th style="padding:9px 10px;border:1px solid #cfcfcf;text-align:left;">Invoice Date</th>
 					<th style="padding:9px 10px;border:1px solid #cfcfcf;text-align:left;">Received Date</th>
 					<th style="padding:9px 10px;border:1px solid #cfcfcf;text-align:center;">Due Days</th>
 					<th style="padding:9px 10px;border:1px solid #cfcfcf;text-align:right;">Amount</th>
