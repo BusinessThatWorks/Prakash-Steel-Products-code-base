@@ -202,8 +202,6 @@ def get_notification_recipients():
 	"""
 	# Hardcoded email recipients for Purchase Receipt quantity exceeded notifications
 	recipients = [
-		"beetashoke.chakraborty@clapgrow.com",
-		"ritika@clapgrow.com",
 		"avinash@prakashsteel.com",
 		"purchase@prakashsteel.com",
 	]
