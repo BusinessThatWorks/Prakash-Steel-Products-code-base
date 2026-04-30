@@ -3,8 +3,11 @@ from frappe.utils import date_diff, fmt_money, formatdate, now_datetime
 from frappe.utils.data import escape_html
 
 
-RECIPIENTS = ["pratikshya.gochhayat@clapgrow.com", "ritika@clapgrow.com","beetashoke.chakraborty@clapgrow.com","accounts@prakashsteel.com","adarsh@prakashsteel.com", "avinash@prakashsteel.com", "srimanta@prakashsteel.com", "ea.adarshbagla@prakashsteel.com"]
-
+RECIPIENTS = [
+	"pratikshya.gochhayat@clapgrow.com",
+	"ritika@clapgrow.com",
+	"beetashoke.chakraborty@clapgrow.com",
+]
 
 
 def send_daily_payment_entry_email():
@@ -61,9 +64,7 @@ def _build_email_body(rows, report_date_display):
 
 	for row in rows:
 		invoice_posting_date = (
-			formatdate(row.sales_invoice_posting_date, "dd-MM-yyyy")
-			if row.sales_invoice_posting_date
-			else ""
+			formatdate(row.sales_invoice_posting_date, "dd-MM-yyyy") if row.sales_invoice_posting_date else ""
 		)
 		received_date = formatdate(row.received_date, "dd-MM-yyyy") if row.received_date else ""
 		due_days = (
@@ -82,7 +83,7 @@ def _build_email_body(rows, report_date_display):
 				<td style="padding:8px 10px;border:1px solid #cfcfcf;">{invoice_posting_date}</td>
 				<td style="padding:8px 10px;border:1px solid #cfcfcf;">{received_date}</td>
 				<td style="padding:8px 10px;border:1px solid #cfcfcf;text-align:center;">{due_days}</td>
-				<td style="padding:8px 10px;border:1px solid #cfcfcf;text-align:right;">{fmt_money(amount, currency='INR')}</td>
+				<td style="padding:8px 10px;border:1px solid #cfcfcf;text-align:right;">{fmt_money(amount, currency="INR")}</td>
 			</tr>
 			"""
 		)
@@ -105,12 +106,12 @@ def _build_email_body(rows, report_date_display):
 				</tr>
 			</thead>
 			<tbody>
-				{''.join(table_rows_html)}
+				{"".join(table_rows_html)}
 			</tbody>
 			<tfoot>
 				<tr style="font-weight:700;background-color:#fafafa;">
 					<td colspan="5" style="padding:9px 10px;border:1px solid #cfcfcf;text-align:right;">Total</td>
-					<td style="padding:9px 10px;border:1px solid #cfcfcf;text-align:right;">{fmt_money(total_amount, currency='INR')}</td>
+					<td style="padding:9px 10px;border:1px solid #cfcfcf;text-align:right;">{fmt_money(total_amount, currency="INR")}</td>
 				</tr>
 			</tfoot>
 		</table>
