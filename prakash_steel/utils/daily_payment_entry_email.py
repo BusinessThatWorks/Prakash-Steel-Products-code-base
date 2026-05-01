@@ -47,7 +47,7 @@ def _get_payment_entry_rows_for_today_till_11_am():
 		WHERE pe.docstatus = 1
 		  AND pe.custom_submitted_time IS NOT NULL
 		  AND pe.custom_submitted_time >= CONCAT(CURDATE(), ' 00:00:00')
-		  AND pe.custom_submitted_time <  CONCAT(CURDATE(), ' 11:00:00')
+		  AND pe.custom_submitted_time <  CONCAT(CURDATE(), ' 12:00:00')
 		  AND IFNULL(per.reference_name, '') != ''
 		  AND per.reference_doctype = 'Sales Invoice'
 		ORDER BY pe.name, per.idx
