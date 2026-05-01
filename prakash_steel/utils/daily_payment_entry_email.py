@@ -29,7 +29,7 @@ def send_daily_payment_entry_email():
 
 
 def _get_payment_entry_rows_for_today_till_11_am():
-	"""Fetch Payment Entries submitted today from 12:00 AM to 11:59:59 AM."""
+	"""Fetch Payment Entries submitted since yesterday 12:00 PM up to today 12:00 PM (scheduler window)."""
 	return frappe.db.sql(
 		"""
 		SELECT
@@ -46,9 +46,8 @@ def _get_payment_entry_rows_for_today_till_11_am():
 			ON si.name = per.reference_name
 		WHERE pe.docstatus = 1
 		  AND pe.custom_submitted_time IS NOT NULL
-		  AND DATE(pe.custom_submitted_time) = CURDATE()
-		  AND TIME(pe.custom_submitted_time) >= '00:00:00'
-		  AND TIME(pe.custom_submitted_time) <= '11:59:59'
+		  AND pe.custom_submitted_time >= CONCAT(CURDATE(), ' 00:00:00')
+		  AND pe.custom_submitted_time <  CONCAT(CURDATE(), ' 11:00:00')
 		  AND IFNULL(per.reference_name, '') != ''
 		  AND per.reference_doctype = 'Sales Invoice'
 		ORDER BY pe.name, per.idx
