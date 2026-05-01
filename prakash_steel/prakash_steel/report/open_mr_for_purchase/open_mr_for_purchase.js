@@ -6,7 +6,7 @@ const COLOUR_STYLES = {
 	Red: { bg: "#e74c3c", fg: "#fff" },
 	Yellow: { bg: "#f1c40f", fg: "#333" },
 	Green: { bg: "#27ae60", fg: "#fff" },
-	White: { bg: "#f0f0f0", fg: "#333" },
+	White: { bg: "#ffffff", fg: "#333", border: "1px solid #aaa" },
 };
 
 frappe.query_reports["Open MR for Purchase"] = {
@@ -14,7 +14,7 @@ frappe.query_reports["Open MR for Purchase"] = {
 
 	formatter(value, row, column, data, default_formatter) {
 		if (column.fieldname === "colour" && value && COLOUR_STYLES[value]) {
-			const { bg, fg } = COLOUR_STYLES[value];
+			const { bg, fg, border } = COLOUR_STYLES[value];
 			return `<span style="
 				background:${bg};
 				color:${fg};
@@ -22,56 +22,57 @@ frappe.query_reports["Open MR for Purchase"] = {
 				border-radius:4px;
 				font-weight:bold;
 				display:inline-block;
+				${border ? `border:${border};` : ""}
 			">${value}</span>`;
 		}
 		return default_formatter(value, row, column, data);
 	},
 
 	onload(report) {
-		report.page.add_inner_button(__("Debug Item Breakdown"), () => {
-			const d = new frappe.ui.Dialog({
-				title: __("Item Breakdown Debug"),
-				fields: [
-					{
-						label: __("Material Request"),
-						fieldname: "mr_name",
-						fieldtype: "Link",
-						options: "Material Request",
-						reqd: 1,
-						get_query() {
-							return {
-								filters: {
-									material_request_type: "Purchase",
-									docstatus: 1,
-								},
-							};
-						},
-					},
-				],
-				primary_action_label: __("Show Breakdown"),
-				primary_action({ mr_name }) {
-					if (!mr_name) return;
-					d.disable_primary_action();
+		// report.page.add_inner_button(__("Debug Item Breakdown"), () => {
+		// 	const d = new frappe.ui.Dialog({
+		// 		title: __("Item Breakdown Debug"),
+		// 		fields: [
+		// 			{
+		// 				label: __("Material Request"),
+		// 				fieldname: "mr_name",
+		// 				fieldtype: "Link",
+		// 				options: "Material Request",
+		// 				reqd: 1,
+		// 				get_query() {
+		// 					return {
+		// 						filters: {
+		// 							material_request_type: "Purchase",
+		// 							docstatus: 1,
+		// 						},
+		// 					};
+		// 				},
+		// 			},
+		// 		],
+		// 		primary_action_label: __("Show Breakdown"),
+		// 		primary_action({ mr_name }) {
+		// 			if (!mr_name) return;
+		// 			d.disable_primary_action();
 
-					frappe.call({
-						method: "prakash_steel.prakash_steel.report.open_mr_for_purchase.open_mr_for_purchase.get_item_breakdown",
-						args: { mr_name },
-						callback(r) {
-							d.enable_primary_action();
-							if (!r.message || !r.message.length) {
-								frappe.msgprint(__("No items found for this MR."));
-								return;
-							}
-							show_breakdown_dialog(mr_name, r.message);
-						},
-						error() {
-							d.enable_primary_action();
-						},
-					});
-				},
-			});
-			d.show();
-		});
+		// 			frappe.call({
+		// 				method: "prakash_steel.prakash_steel.report.open_mr_for_purchase.open_mr_for_purchase.get_item_breakdown",
+		// 				args: { mr_name },
+		// 				callback(r) {
+		// 					d.enable_primary_action();
+		// 					if (!r.message || !r.message.length) {
+		// 						frappe.msgprint(__("No items found for this MR."));
+		// 						return;
+		// 					}
+		// 					show_breakdown_dialog(mr_name, r.message);
+		// 				},
+		// 				error() {
+		// 					d.enable_primary_action();
+		// 				},
+		// 			});
+		// 		},
+		// 	});
+		// 	d.show();
+		// });
 	},
 };
 
@@ -84,14 +85,15 @@ const SO_STATUS_STYLE = {
 	RED: { bg: "#e74c3c", fg: "#fff" },
 	YELLOW: { bg: "#f1c40f", fg: "#333" },
 	GREEN: { bg: "#27ae60", fg: "#fff" },
-	WHITE: { bg: "#f0f0f0", fg: "#333" },
+	WHITE: { bg: "#ffffff", fg: "#333", border: "1px solid #aaa" },
 };
 
 function colour_badge(label) {
 	const key = (label || "").toUpperCase();
 	const s = SO_STATUS_STYLE[key] || COLOUR_STYLES[label];
 	if (!s) return frappe.utils.escape_html(label || "");
-	return `<span style="background:${s.bg};color:${s.fg};padding:1px 8px;border-radius:3px;font-weight:bold;font-size:11px;">${frappe.utils.escape_html(label)}</span>`;
+	const borderStyle = s.border ? `border:${s.border};` : "";
+	return `<span style="background:${s.bg};color:${s.fg};${borderStyle}padding:1px 8px;border-radius:3px;font-weight:bold;font-size:11px;">${frappe.utils.escape_html(label)}</span>`;
 }
 
 function so_fifo_table(fifo_rows) {
