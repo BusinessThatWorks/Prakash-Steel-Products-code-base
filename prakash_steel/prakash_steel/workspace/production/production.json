@@ -1,0 +1,99 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"pNMkiLmQo5\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"Hc__LlfNKA\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Shortcuts</b></span>\",\"col\":12}},{\"id\":\"7e3mtM9pkv\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Production Planning\",\"col\":4}},{\"id\":\"0Zu2yF28XO\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Machine Master\",\"col\":3}},{\"id\":\"i_L2mozyyV\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"yUXt1udldz\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\">Rolled Production</span>\",\"col\":12}},{\"id\":\"5cwmgMbdfM\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Billet Cutting\",\"col\":4}},{\"id\":\"-Scm_n5vpp\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Hourly Production\",\"col\":4}},{\"id\":\"En0PrrQ0Rz\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Finish Weight\",\"col\":4}},{\"id\":\"8Qf3Dh6gmP\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"uQCWa79zwz\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Bright Production</b></span>\",\"col\":12}},{\"id\":\"HLmyfKIJyu\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Bright Bar Production\",\"col\":4}},{\"id\":\"2eM_qeJ4Zo\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"JvkVEGLB5R\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Cooling PIT\",\"col\":4}},{\"id\":\"pgqbtrQzlI\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"Ymk_d9q5sc\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Dashboard</b></span>\",\"col\":12}},{\"id\":\"lJXYeJ_2y4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Production Dashboard\",\"col\":4}},{\"id\":\"AAjk8DXPNe\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Machine-wise Monthly Dashboard\",\"col\":4}}]",
+ "creation": "2025-08-27 09:42:48.563133",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "Production",
+ "links": [],
+ "modified": "2026-04-30 17:33:43.044753",
+ "modified_by": "Administrator",
+ "module": "Prakash Steel",
+ "name": "Production",
+ "number_cards": [],
+ "owner": "ritika@clapgrow.com",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 21.0,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Cooling PIT",
+   "link_to": "Cooling PIT",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Production Planning",
+   "link_to": "Production Planning",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Bright Bar Production",
+   "link_to": "Bright Bar Production",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Production Dashboard",
+   "link_to": "production-dashboard",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Billet Cutting",
+   "link_to": "Billet Cutting",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Machine Master",
+   "link_to": "Machine Master",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Finish Weight",
+   "link_to": "Finish Weight",
+   "stats_filter": "[]",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Machine-wise Monthly Dashboard",
+   "link_to": "machine-wise-monthly-dashboard",
+   "type": "Page"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Hourly Production",
+   "link_to": "Hourly Production",
+   "stats_filter": "[]",
+   "type": "DocType"
+  }
+ ],
+ "title": "Production"
+}
