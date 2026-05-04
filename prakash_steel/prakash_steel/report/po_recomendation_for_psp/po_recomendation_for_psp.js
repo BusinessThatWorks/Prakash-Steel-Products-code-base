@@ -181,6 +181,41 @@ frappe.query_reports["PO Recomendation for PSP"] = {
 				return result;
 			};
 		}
+
+		// ── Priority Breakdown button ──────────────────────────────────────
+		// report.page.add_inner_button(__("Priority Breakdown"), function () {
+		// 	const d = new frappe.ui.Dialog({
+		// 		title: __("Priority Breakdown"),
+		// 		fields: [
+		// 			{
+		// 				label: __("Item Code"),
+		// 				fieldname: "item_code",
+		// 				fieldtype: "Link",
+		// 				options: "Item",
+		// 				reqd: 1,
+		// 			},
+		// 		],
+		// 		primary_action_label: __("Show"),
+		// 		primary_action({ item_code }) {
+		// 			if (!item_code) return;
+		// 			d.disable_primary_action();
+		// 			frappe.call({
+		// 				method: "prakash_steel.prakash_steel.report.po_recomendation_for_psp.po_recomendation_for_psp.get_priority_breakdown",
+		// 				args: { item_code },
+		// 				callback(r) {
+		// 					d.enable_primary_action();
+		// 					if (!r.message) {
+		// 						frappe.msgprint(__("No data returned."));
+		// 						return;
+		// 					}
+		// 					show_priority_breakdown_dialog(r.message);
+		// 				},
+		// 				error() { d.enable_primary_action(); },
+		// 			});
+		// 		},
+		// 	});
+		// 	d.show();
+		// });
 	},
 
 	formatter: function (value, row, column, data, default_formatter) {
@@ -219,6 +254,43 @@ frappe.query_reports["PO Recomendation for PSP"] = {
 					color:${textColor};
 				">
 					${colour}
+				</div>`;
+			}
+		}
+
+		// Background colors for Priority (non-buffer FIFO colour)
+		if (column.fieldname === "priority" && data && data.priority) {
+			let colour = data.priority.toLowerCase();
+			let bg = "";
+			let textColor = "#000000";
+
+			if (colour === "black") {
+				bg = "#000000";
+				textColor = "#FFFFFF";
+			} else if (colour === "red") {
+				bg = "#FF0000";
+				textColor = "#FFFFFF";
+			} else if (colour === "yellow") {
+				bg = "#FFFF00";
+				textColor = "#000000";
+			} else if (colour === "green") {
+				bg = "#00FF00";
+				textColor = "#000000";
+			} else if (colour === "white") {
+				bg = "#FFFFFF";
+				textColor = "#000000";
+			}
+
+			if (bg) {
+				return `<div style="
+					background-color:${bg};
+					border-radius:0px;
+					padding:4px;
+					text-align:center;
+					font-weight:bold;
+					color:${textColor};
+				">
+					${data.priority}
 				</div>`;
 			}
 		}
@@ -302,3 +374,126 @@ frappe.query_reports["PO Recomendation for PSP"] = {
 		return value;
 	},
 };
+// ---------------------------------------------------------------------------
+// Priority Breakdown dialog helpers
+// ---------------------------------------------------------------------------
+
+const _PRIORITY_STYLES = {
+	black: { bg: "#000000", fg: "#ffffff" },
+	red: { bg: "#FF0000", fg: "#ffffff" },
+	yellow: { bg: "#FFFF00", fg: "#000000" },
+	green: { bg: "#00FF00", fg: "#000000" },
+	white: { bg: "#FFFFFF", fg: "#000000" },
+};
+
+function _priority_badge(val) {
+	if (!val) return '<span style="color:#aaa;">—</span>';
+	const s = _PRIORITY_STYLES[(val || "").toLowerCase()];
+	if (!s) return frappe.utils.escape_html(val);
+	return `<span style="background:${s.bg};color:${s.fg};padding:2px 10px;border-radius:4px;font-weight:bold;font-size:12px;display:inline-block;">${frappe.utils.escape_html(val)}</span>`;
+}
+
+function _so_status_badge(val) {
+	if (!val) return '<span style="color:#aaa;">—</span>';
+	const s = _PRIORITY_STYLES[(val || "").toLowerCase()];
+	if (!s) return frappe.utils.escape_html(val);
+	return `<span style="background:${s.bg};color:${s.fg};padding:1px 8px;border-radius:3px;font-weight:bold;font-size:11px;">${frappe.utils.escape_html(val)}</span>`;
+}
+
+function _fifo_table(rows) {
+	if (!rows || !rows.length)
+		return `<em style="color:#aaa;">No open Sales Orders</em>`;
+	const hdrs = ["Delivery Date", "Qty to Deliver", "Allocated", "Shortage", "Order Status"]
+		.map(h => `<th style="padding:4px 8px;border-bottom:1px solid #ccc;font-size:11px;text-align:left;">${h}</th>`)
+		.join("");
+	const trows = rows.map(r => {
+		const ss = r.shortage > 0 ? "color:#c0392b;font-weight:bold;" : "color:#27ae60;";
+		return `<tr>
+			<td style="padding:3px 8px;font-size:11px;">${r.delivery_date || ""}</td>
+			<td style="padding:3px 8px;font-size:11px;">${r.pending_qty}</td>
+			<td style="padding:3px 8px;font-size:11px;">${r.allocated}</td>
+			<td style="padding:3px 8px;font-size:11px;${ss}">${r.shortage}</td>
+			<td style="padding:3px 8px;font-size:11px;">${_so_status_badge(r.order_status)}</td>
+		</tr>`;
+	}).join("");
+	return `<table style="border-collapse:collapse;width:100%;margin-top:4px;background:#fafafa;">
+		<thead><tr style="background:#eee;">${hdrs}</tr></thead>
+		<tbody>${trows}</tbody>
+	</table>`;
+}
+
+function show_priority_breakdown_dialog(d) {
+	const e = s => frappe.utils.escape_html(String(s ?? ""));
+
+	// ── Section 1: Item info ─────────────────────────────────────────────
+	const info_rows = [
+		["Item Code", `<b>${e(d.item_code)}</b>`],
+		["SKU Type", e(d.sku_type)],
+		["Level Formula", e(d.level_formula)],
+		["Level", `<b>${d.level}</b>`],
+	].map(([k, v]) =>
+		`<tr><td style="padding:4px 10px;font-size:12px;color:#888;white-space:nowrap;">${k}</td>
+		     <td style="padding:4px 10px;font-size:12px;">${v}</td></tr>`
+	).join("");
+
+	// ── Section 2: FIFO SO table ─────────────────────────────────────────
+	const fifo_html = _fifo_table(d.fifo_detail);
+
+	// ── Section 3: Own priority ──────────────────────────────────────────
+	const own_html = d.own_priority
+		? _priority_badge(d.own_priority)
+		: `<span style="color:#aaa;">— (no open SOs)</span>`;
+
+	// ── Section 4: Parent items ──────────────────────────────────────────
+	let parents_html = "";
+	if (d.parent_details && d.parent_details.length) {
+		const p_hdrs = ["Parent Item", "SKU Type", "Stock", "WIP", "Open PO", "Level", "Own Priority"]
+			.map(h => `<th style="padding:4px 8px;border-bottom:1px solid #ccc;font-size:11px;text-align:left;">${h}</th>`)
+			.join("");
+		const p_rows = d.parent_details.map(p => `<tr>
+			<td style="padding:3px 8px;font-size:11px;"><b>${e(p.item_code)}</b></td>
+			<td style="padding:3px 8px;font-size:11px;">${e(p.sku_type)}</td>
+			<td style="padding:3px 8px;font-size:11px;">${p.stock}</td>
+			<td style="padding:3px 8px;font-size:11px;">${p.wip}</td>
+			<td style="padding:3px 8px;font-size:11px;">${p.open_po}</td>
+			<td style="padding:3px 8px;font-size:11px;"><b>${p.level}</b></td>
+			<td style="padding:3px 8px;font-size:11px;">${_priority_badge(p.priority)}</td>
+		</tr>`).join("");
+		parents_html = `
+			<h4 style="margin:16px 0 6px;font-size:13px;color:#555;">BOM Parents (in this report)</h4>
+			<table style="border-collapse:collapse;width:100%;background:#fafafa;">
+				<thead><tr style="background:#eee;">${p_hdrs}</tr></thead>
+				<tbody>${p_rows}</tbody>
+			</table>
+			<p style="font-size:11px;color:#888;margin-top:4px;">
+				Final priority = worst colour among all parents' own priorities.
+			</p>`;
+	} else {
+		parents_html = `<p style="color:#888;font-size:12px;margin-top:12px;">No BOM parents found — item is a root item.</p>`;
+	}
+
+	// ── Final priority ───────────────────────────────────────────────────
+	const final_html = `
+		<div style="margin-top:16px;padding:10px 14px;background:#f0f8ff;border-radius:6px;display:flex;align-items:center;gap:12px;">
+			<span style="font-size:13px;font-weight:bold;color:#333;">Final Priority:</span>
+			${_priority_badge(d.final_priority) || '<span style="color:#aaa;">— (no demand)</span>'}
+			${d.parent_details && d.parent_details.length
+			? `<span style="font-size:11px;color:#888;">(worst of parent priorities)</span>`
+			: `<span style="font-size:11px;color:#888;">(own FIFO priority — no parents)</span>`}
+		</div>`;
+
+	const html = `
+		<table style="margin-bottom:12px;">${info_rows}</table>
+		<h4 style="margin:0 0 4px;font-size:13px;color:#555;">FIFO Sales Order Allocation</h4>
+		${fifo_html}
+		<h4 style="margin:14px 0 4px;font-size:13px;color:#555;">Own Priority (before propagation)</h4>
+		<div style="padding:4px 0;">${own_html}</div>
+		${parents_html}
+		${final_html}`;
+
+	frappe.msgprint({
+		title: __("Priority Breakdown — {0}", [d.item_code]),
+		message: html,
+		wide: true,
+	});
+}
