@@ -1,7 +1,9 @@
 import math
+from collections import defaultdict
+
 import frappe
 from frappe import _
-from frappe.utils import flt
+from frappe.utils import date_diff, flt, nowdate
 from prakash_steel.utils.lead_time import get_default_bom
 
 
@@ -23,6 +25,62 @@ def calculate_sku_type(buffer_flag, item_type):
 		return "TRMTA" if is_buffer else "TRMTO"
 
 	return None
+
+
+# ---------------------------------------------------------------------------
+# Non-buffer priority helpers (same logic as open_mr_for_manufacture/purchase)
+# ---------------------------------------------------------------------------
+
+_STATUS_PRIORITY = {"BLACK": 5, "RED": 4, "YELLOW": 3, "GREEN": 2, "WHITE": 1}
+_PRIORITY_TO_COLOUR = {5: "Black", 4: "Red", 3: "Yellow", 2: "Green", 1: "White"}
+
+
+def _compute_order_status(delivery_date, transaction_date):
+	if not delivery_date:
+		return None
+	today = nowdate()
+	remaining_days = date_diff(delivery_date, today)
+	lead_time = date_diff(delivery_date, transaction_date) if transaction_date else None
+	if lead_time:
+		buffer_pct = (flt(remaining_days) / flt(lead_time)) * 100
+	else:
+		buffer_pct = flt(remaining_days) * 100
+	numeric = math.ceil(buffer_pct)
+	if numeric < 0:
+		return "BLACK"
+	elif numeric <= 34:
+		return "RED"
+	elif numeric <= 67:
+		return "YELLOW"
+	elif numeric <= 100:
+		return "GREEN"
+	else:
+		return "WHITE"
+
+
+def _non_buffer_priority(item_code, level, so_map):
+	"""
+	FIFO-allocate `level` across open SOs sorted by delivery_date ASC.
+	Return the worst order_status colour among SOs that have a shortage.
+	If no shortage anywhere → 'Green'.
+	"""
+	sos = so_map.get(item_code, [])
+	if not sos:
+		return ""
+	available = flt(level)
+	worst_priority = 0
+	for so in sos:
+		required = flt(so["pending_qty"])
+		allocated = min(required, available)
+		shortage = required - allocated
+		available -= allocated
+		if shortage > 0:
+			priority = _STATUS_PRIORITY.get(so["order_status"], 0)
+			if priority > worst_priority:
+				worst_priority = priority
+	if worst_priority == 0:
+		return "Green"
+	return _PRIORITY_TO_COLOUR.get(worst_priority, "")
 
 
 def build_calculation_breakdown_po_report(
@@ -518,6 +576,16 @@ def get_columns(filters=None):
 	if not buffer_flag:
 		columns.append(
 			{
+				"label": _("Priority"),
+				"fieldname": "priority",
+				"fieldtype": "Data",
+				"width": 120,
+			}
+		)
+
+	if not buffer_flag:
+		columns.append(
+			{
 				"label": _("Requirement"),
 				"fieldname": "requirement",
 				"fieldtype": "Int",
@@ -883,6 +951,7 @@ def get_data(filters=None):
 		return []
 
 	initial_stock_map = get_stock_map(all_items_to_process)
+	so_map_for_priority = get_open_so_map_for_priority(all_items_to_process)
 
 	remaining_stock = dict(initial_stock_map)
 
@@ -1403,6 +1472,11 @@ def get_data(filters=None):
 				"additional_demand": math.ceil(flt(additional_demand)),
 				"qualify_demand": math.ceil(flt(qualify_demand)),  # Qualified Demand
 				"open_so_qualified": math.ceil(flt(qualify_demand)),
+				"priority": _non_buffer_priority(
+					item_code,
+					on_hand_stock + (open_po if sku_type in ["BOTO", "PTO", "TRMTO"] else wip),
+					so_map_for_priority,
+				),
 			}
 		common_fields = {
 			"on_hand_status": on_hand_status,
@@ -1522,6 +1596,78 @@ def get_data(filters=None):
 				data.append(row)
 		else:
 			data.append(base_row)
+
+	# ── Priority propagation through BOM tree ──────────────────────────────────
+	# Items that are BOM children of other report items inherit the worst
+	# colour among their parents' propagated priorities (N levels deep).
+	# Root items (no parents in this report) keep their own FIFO priority.
+	_item_priority_map = {}
+	for _row in data:
+		_ic = _row.get("item_code")
+		if _ic and _ic not in _item_priority_map:
+			_item_priority_map[_ic] = _row.get("priority") or ""
+
+	_report_item_set = set(_item_priority_map.keys())
+	if _report_item_set:
+		if len(_report_item_set) == 1:
+			_rpt_tuple = (next(iter(_report_item_set)),)
+		else:
+			_rpt_tuple = tuple(_report_item_set)
+
+		_bom_rows = frappe.db.sql(
+			"""
+			SELECT b.item AS parent_item, bi.item_code AS child_item
+			FROM `tabBOM` b
+			INNER JOIN `tabBOM Item` bi ON bi.parent = b.name
+			WHERE b.item IN %s
+			  AND b.is_default = 1
+			  AND b.is_active = 1
+			  AND b.docstatus = 1
+			""",
+			(_rpt_tuple,),
+			as_dict=True,
+		)
+
+		# child → set of parents that are also in this report
+		_child_to_parents = defaultdict(set)
+		for _br in _bom_rows:
+			if _br.child_item in _report_item_set:
+				_child_to_parents[_br.child_item].add(_br.parent_item)
+
+		# Root items have no parents inside the report — stay with own FIFO priority
+		_resolved = set(_report_item_set - set(_child_to_parents.keys()))
+
+		# BFS: resolve children once all their parents are resolved
+		_changed = True
+		while _changed:
+			_changed = False
+			for _child, _parents in _child_to_parents.items():
+				if _child in _resolved:
+					continue
+				if not _parents.issubset(_resolved):
+					continue
+				# Worst colour among all parents
+				_worst = 0
+				for _parent in _parents:
+					_pc = _item_priority_map.get(_parent, "")
+					if _pc:
+						_pv = _STATUS_PRIORITY.get(_pc.upper(), 0)
+						if _pv > _worst:
+							_worst = _pv
+				# If all parents have empty priority, keep child's own FIFO priority
+				_item_priority_map[_child] = (
+					_PRIORITY_TO_COLOUR.get(_worst, "")
+					if _worst > 0
+					else _item_priority_map.get(_child, "")
+				)
+				_resolved.add(_child)
+				_changed = True
+
+		# Write propagated priorities back to all data rows
+		for _row in data:
+			_ic = _row.get("item_code")
+			if _ic and _row.get("buffer_flag") != "Buffer":
+				_row["priority"] = _item_priority_map.get(_ic, "")
 
 	# Apply filters
 	filtered_data = []
@@ -2300,6 +2446,200 @@ def get_open_po_map():
 			open_po_map[item_code] = open_qty
 
 	return open_po_map
+
+
+def get_open_so_map_for_priority(item_codes):
+	"""
+	Returns {item_code: [{pending_qty, order_status}, ...]}
+	All open SOs (Total SO), sorted by delivery_date ASC — used for FIFO priority calculation.
+	"""
+	if not item_codes:
+		return {}
+	if len(item_codes) == 1:
+		items_tuple = (next(iter(item_codes)),)
+	else:
+		items_tuple = tuple(item_codes)
+	result = frappe.db.sql(
+		"""
+		SELECT
+			soi.item_code,
+			so.transaction_date,
+			soi.delivery_date,
+			GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0)) AS pending_qty
+		FROM `tabSales Order Item` soi
+		INNER JOIN `tabSales Order` so ON so.name = soi.parent
+		WHERE so.docstatus = 1
+		  AND so.status NOT IN ('Stopped', 'On Hold', 'Closed', 'Cancelled', 'Completed')
+		  AND IFNULL(soi.custom_closed, 0) = 0
+		  AND soi.item_code IN %s
+		  AND GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0)) > 0
+		ORDER BY soi.delivery_date ASC
+		""",
+		(items_tuple,),
+		as_dict=True,
+	)
+	so_map = defaultdict(list)
+	for r in result:
+		so_map[r.item_code].append(
+			{
+				"pending_qty": flt(r.pending_qty),
+				"order_status": _compute_order_status(r.delivery_date, r.transaction_date),
+			}
+		)
+	return so_map
+
+
+@frappe.whitelist()
+def get_priority_breakdown(item_code):
+	"""
+	Returns full priority calculation breakdown for a non-buffer item:
+	- Own FIFO priority (level vs open SOs)
+	- BOM parents and their priorities
+	- Final propagated priority
+	"""
+	item = frappe.db.get_value(
+		"Item", item_code, ["custom_buffer_flag", "custom_item_type"], as_dict=True
+	)
+	if not item:
+		frappe.throw(f"Item {item_code} not found")
+
+	buffer_flag = item.custom_buffer_flag or "Non-Buffer"
+	item_type = item.custom_item_type
+	sku_type = calculate_sku_type(buffer_flag, item_type) or ""
+
+	# Stock
+	stock_data = frappe.db.sql(
+		"SELECT SUM(actual_qty) as stock FROM `tabBin` WHERE item_code = %s",
+		(item_code,), as_dict=True,
+	)
+	stock = flt(stock_data[0].stock if stock_data else 0)
+
+	wip_map = get_wip_map()
+	wip = 0 if sku_type in ["RBMTA", "RBMTO"] else flt(wip_map.get(item_code, 0))
+
+	open_po_map = get_open_po_map()
+	open_po = flt(open_po_map.get(item_code, 0))
+
+	if sku_type in ["BOTO", "PTO", "TRMTO"]:
+		level = stock + open_po
+		level_formula = f"Stock ({stock}) + Open PO ({open_po})"
+	else:
+		level = stock + wip
+		level_formula = f"Stock ({stock}) + WIP ({wip})"
+
+	# Open SOs with full FIFO detail (including delivery_date)
+	so_rows = frappe.db.sql(
+		"""
+		SELECT so.transaction_date, soi.delivery_date,
+		       GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0)) AS pending_qty
+		FROM `tabSales Order Item` soi
+		INNER JOIN `tabSales Order` so ON so.name = soi.parent
+		WHERE so.docstatus = 1
+		  AND so.status NOT IN ('Stopped','On Hold','Closed','Cancelled','Completed')
+		  AND IFNULL(soi.custom_closed, 0) = 0
+		  AND soi.item_code = %s
+		  AND GREATEST(0, soi.qty - IFNULL(soi.delivered_qty, 0)) > 0
+		ORDER BY soi.delivery_date ASC
+		""",
+		(item_code,), as_dict=True,
+	)
+
+	available = flt(level)
+	worst_priority = 0
+	fifo_detail = []
+	for so in so_rows:
+		required = flt(so.pending_qty)
+		allocated = min(required, available)
+		shortage = required - allocated
+		available -= allocated
+		order_status = _compute_order_status(so.delivery_date, so.transaction_date) or ""
+		if shortage > 0:
+			p = _STATUS_PRIORITY.get(order_status, 0)
+			if p > worst_priority:
+				worst_priority = p
+		fifo_detail.append({
+			"delivery_date": str(so.delivery_date) if so.delivery_date else "",
+			"pending_qty": math.ceil(required),
+			"allocated": math.ceil(allocated),
+			"shortage": math.ceil(shortage),
+			"order_status": order_status,
+		})
+
+	if not so_rows:
+		own_priority = ""
+	elif worst_priority == 0:
+		own_priority = "Green"
+	else:
+		own_priority = _PRIORITY_TO_COLOUR.get(worst_priority, "")
+
+	# BOM parents — items whose default BOM has item_code as a child
+	parent_rows = frappe.db.sql(
+		"""
+		SELECT DISTINCT b.item AS parent_item
+		FROM `tabBOM` b
+		INNER JOIN `tabBOM Item` bi ON bi.parent = b.name
+		WHERE bi.item_code = %s
+		  AND b.is_default = 1 AND b.is_active = 1 AND b.docstatus = 1
+		""",
+		(item_code,), as_dict=True,
+	)
+	parent_item_codes = [r.parent_item for r in parent_rows]
+
+	parent_details = []
+	for pic in parent_item_codes:
+		pitem = frappe.db.get_value(
+			"Item", pic, ["custom_buffer_flag", "custom_item_type"], as_dict=True
+		)
+		if not pitem:
+			continue
+		p_bf = pitem.custom_buffer_flag or "Non-Buffer"
+		p_sku = calculate_sku_type(p_bf, pitem.custom_item_type) or ""
+		p_stock_data = frappe.db.sql(
+			"SELECT SUM(actual_qty) as stock FROM `tabBin` WHERE item_code = %s",
+			(pic,), as_dict=True,
+		)
+		p_stock = flt(p_stock_data[0].stock if p_stock_data else 0)
+		p_wip = 0 if p_sku in ["RBMTA", "RBMTO"] else flt(wip_map.get(pic, 0))
+		p_open_po = flt(open_po_map.get(pic, 0))
+		p_level = (p_stock + p_open_po) if p_sku in ["BOTO", "PTO", "TRMTO"] else (p_stock + p_wip)
+		p_so_map = get_open_so_map_for_priority([pic])
+		p_priority = _non_buffer_priority(pic, p_level, p_so_map)
+		parent_details.append({
+			"item_code": pic,
+			"sku_type": p_sku,
+			"stock": math.ceil(p_stock),
+			"wip": math.ceil(p_wip),
+			"open_po": math.ceil(p_open_po),
+			"level": math.ceil(p_level),
+			"priority": p_priority,
+		})
+
+	# Final priority = worst of parent priorities; own if no parents
+	if parent_details:
+		worst = 0
+		for pd in parent_details:
+			pc = pd["priority"]
+			if pc:
+				pv = _STATUS_PRIORITY.get(pc.upper(), 0)
+				if pv > worst:
+					worst = pv
+		final_priority = _PRIORITY_TO_COLOUR.get(worst, "") if worst > 0 else own_priority
+	else:
+		final_priority = own_priority
+
+	return {
+		"item_code": item_code,
+		"sku_type": sku_type,
+		"stock": math.ceil(stock),
+		"wip": math.ceil(wip),
+		"open_po": math.ceil(open_po),
+		"level": math.ceil(level),
+		"level_formula": level_formula,
+		"own_priority": own_priority,
+		"fifo_detail": fifo_detail,
+		"parent_details": parent_details,
+		"final_priority": final_priority,
+	}
 
 
 def traverse_bom_for_parent_demand_simple(
